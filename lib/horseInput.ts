@@ -1,7 +1,9 @@
 const STRING_FIELDS = [
   "microchip", "name", "breed", "gender", "sireName", "damName", "coat",
   "ownership", "notes", "height", "discipline", "regNumber", "achievements",
-  "videoUrl", "price", "saleDescription", "saleContact",
+  "videoUrl", "personality", "genotype", "eyeColor", "baseStats", "description",
+  "ownerName", "ownerCharacter", "stablePrefix", "breedingFee", "breedingPolicies",
+  "price", "saleDescription", "saleContact",
 ] as const;
 
 // Pull only editable Horse fields out of an arbitrary request body.

@@ -68,6 +68,24 @@ export function buildPedigreeTree(
   return node;
 }
 
+// How many generations of known ancestors exist above this horse.
+export function pedigreeDepth(
+  name: string,
+  allHorses: HorseMap,
+  seen = new Set<string>()
+): number {
+  const horse = allHorses.get(name.toLowerCase());
+  if (!horse) return 0;
+  const key = horse.name.toLowerCase();
+  if (seen.has(key)) return 0;
+  const next = new Set(seen);
+  next.add(key);
+  let depth = 0;
+  if (horse.sireName) depth = Math.max(depth, 1 + pedigreeDepth(horse.sireName, allHorses, next));
+  if (horse.damName) depth = Math.max(depth, 1 + pedigreeDepth(horse.damName, allHorses, next));
+  return depth;
+}
+
 export function getAllNames(node: HorseNode | null | undefined): string[] {
   if (!node) return [];
   return [node.name, ...getAllNames(node.sire), ...getAllNames(node.dam)];

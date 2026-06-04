@@ -20,6 +20,16 @@ interface HorseData {
   regNumber?: string;
   achievements?: string;
   videoUrl?: string;
+  personality?: string;
+  genotype?: string;
+  eyeColor?: string;
+  baseStats?: string;
+  description?: string;
+  ownerName?: string;
+  ownerCharacter?: string;
+  stablePrefix?: string;
+  breedingFee?: string;
+  breedingPolicies?: string;
   price?: string;
   saleDescription?: string;
   saleContact?: string;
@@ -28,15 +38,39 @@ interface HorseData {
 const BREEDS = ["American Paint Horse", "American Quarter Horse", "Andalusian", "Anglo-Arabian", "Arabian", "Belgian", "Clydesdale", "Colorado Ranger", "Connemara", "Criollo", "Friesian", "Hanoverian", "Holsteiner", "Irish Cob", "KWPN", "Kladruber", "Klabruber", "Lipizzaner", "Lusitano", "Menorquin", "Mustang", "Norfolk Roadster", "Nokota", "Oldenburg", "Paso Fino", "Percheron", "Selle Francais", "Shire", "Sugarbush Harlequin", "Suffolk Punch", "Thoroughbred", "Trotteur Francais", "Turkoman", "Warlander"];
 const OWNERSHIPS = ["Home", "For Sale", "Sold", "Outside", "Void"];
 
+const fieldStyle: React.CSSProperties = {
+  border: "1px solid var(--border)", borderRadius: 6, padding: "9px 12px",
+  fontSize: 13, background: "var(--white)", color: "var(--text)",
+  fontFamily: "var(--font-lato)", outline: "none", width: "100%",
+};
+const labelStyle: React.CSSProperties = {
+  fontSize: 11, letterSpacing: "0.1em", color: "var(--text-muted)",
+  textTransform: "uppercase", fontFamily: "var(--font-lato)", fontWeight: 600,
+  display: "block", marginBottom: 4,
+};
+
 export default function HorseForm({ initial, mode }: { initial?: HorseData; mode: "create" | "edit" }) {
   const router = useRouter();
   const [data, setData] = useState<HorseData>(initial ?? { name: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  function set(key: keyof HorseData, value: string | boolean) {
+  const set = (key: keyof HorseData, value: string | boolean) =>
     setData((d) => ({ ...d, [key]: value }));
-  }
+
+  // Field helpers ----------------------------------------------------------
+  const Text = ({ k, label, ph, full }: { k: keyof HorseData; label: string; ph?: string; full?: boolean }) => (
+    <div style={full ? { gridColumn: "1 / -1" } : undefined}>
+      <label style={labelStyle}>{label}</label>
+      <input value={(data[k] as string) ?? ""} onChange={(e) => set(k, e.target.value)} style={fieldStyle} placeholder={ph} />
+    </div>
+  );
+  const Area = ({ k, label, ph, rows = 3 }: { k: keyof HorseData; label: string; ph?: string; rows?: number }) => (
+    <div style={{ gridColumn: "1 / -1" }}>
+      <label style={labelStyle}>{label}</label>
+      <textarea value={(data[k] as string) ?? ""} onChange={(e) => set(k, e.target.value)} rows={rows} style={{ ...fieldStyle, resize: "vertical" }} placeholder={ph} />
+    </div>
+  );
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -66,30 +100,12 @@ export default function HorseForm({ initial, mode }: { initial?: HorseData; mode
     router.refresh();
   }
 
-  const fieldStyle = {
-    border: "1px solid var(--border)", borderRadius: 6, padding: "9px 12px",
-    fontSize: 13, background: "var(--white)", color: "var(--text)",
-    fontFamily: "var(--font-lato)", outline: "none", width: "100%",
-  };
-  const labelStyle = {
-    fontSize: 11, letterSpacing: "0.1em", color: "var(--text-muted)",
-    textTransform: "uppercase" as const, fontFamily: "var(--font-lato)", fontWeight: 600,
-    display: "block", marginBottom: 4,
-  };
-
   return (
     <form onSubmit={submit}>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-        <div style={{ gridColumn: "1 / -1" }}>
-          <label style={labelStyle}>Horse Name *</label>
-          <input value={data.name} onChange={(e) => set("name", e.target.value)} required style={fieldStyle} placeholder="[REC] HORSE NAME" />
-        </div>
-
-        <div>
-          <label style={labelStyle}>Microchip</label>
-          <input value={data.microchip ?? ""} onChange={(e) => set("microchip", e.target.value)} style={fieldStyle} placeholder="REC-0000000000" />
-        </div>
-
+      {/* Identity */}
+      <Section title="Identity" first>
+        <Text k="name" label="Horse Name *" ph="[REC] HORSE NAME" full />
+        <Text k="microchip" label="Microchip / Reg #" ph="REC-0000000000" />
         <div>
           <label style={labelStyle}>Breed</label>
           <select value={data.breed ?? ""} onChange={(e) => set("breed", e.target.value)} style={fieldStyle}>
@@ -98,7 +114,6 @@ export default function HorseForm({ initial, mode }: { initial?: HorseData; mode
             <option value="Unknown">Unknown</option>
           </select>
         </div>
-
         <div>
           <label style={labelStyle}>Gender</label>
           <select value={data.gender ?? ""} onChange={(e) => set("gender", e.target.value)} style={fieldStyle}>
@@ -107,7 +122,6 @@ export default function HorseForm({ initial, mode }: { initial?: HorseData; mode
             <option value="Mare">Mare</option>
           </select>
         </div>
-
         <div>
           <label style={labelStyle}>Ownership</label>
           <select value={data.ownership ?? ""} onChange={(e) => set("ownership", e.target.value)} style={fieldStyle}>
@@ -115,88 +129,60 @@ export default function HorseForm({ initial, mode }: { initial?: HorseData; mode
             {OWNERSHIPS.map((o) => <option key={o} value={o}>{o}</option>)}
           </select>
         </div>
-
-        <div>
-          <label style={labelStyle}>Sire Name</label>
-          <input value={data.sireName ?? ""} onChange={(e) => set("sireName", e.target.value)} style={fieldStyle} placeholder="[TAG] SIRE NAME" />
-        </div>
-
-        <div>
-          <label style={labelStyle}>Dam Name</label>
-          <input value={data.damName ?? ""} onChange={(e) => set("damName", e.target.value)} style={fieldStyle} placeholder="[TAG] DAM NAME" />
-        </div>
-
-        <div style={{ gridColumn: "1 / -1" }}>
-          <label style={labelStyle}>Coat</label>
-          <input value={data.coat ?? ""} onChange={(e) => set("coat", e.target.value)} style={fieldStyle} placeholder="e.g. Rose Grey Tovero (R_G_TOV)" />
-        </div>
-
+        <Text k="sireName" label="Sire Name" ph="[TAG] SIRE NAME" />
+        <Text k="damName" label="Dam Name" ph="[TAG] DAM NAME" />
         <div>
           <label style={labelStyle}>Date of Birth</label>
           <input type="date" value={data.dob ? data.dob.slice(0, 10) : ""} onChange={(e) => set("dob", e.target.value)} style={fieldStyle} />
         </div>
-
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <input type="checkbox" id="withFoal" checked={data.withFoal ?? false} onChange={(e) => set("withFoal", e.target.checked)} style={{ width: 16, height: 16 }} />
-          <label htmlFor="withFoal" style={{ ...labelStyle, marginBottom: 0, textTransform: "none", letterSpacing: 0, fontSize: 13 }}>With Foal</label>
+          <label htmlFor="withFoal" style={{ ...labelStyle, marginBottom: 0, textTransform: "none", letterSpacing: 0, fontSize: 13 }}>In Foal</label>
         </div>
+      </Section>
 
-        <div>
-          <label style={labelStyle}>Height</label>
-          <input value={data.height ?? ""} onChange={(e) => set("height", e.target.value)} style={fieldStyle} placeholder="e.g. 16.2hh" />
-        </div>
+      {/* Appearance & traits */}
+      <Section title="Appearance & Traits">
+        <Text k="coat" label="Coat Name" ph="e.g. Sooty Dapple Bay" />
+        <Text k="genotype" label="Genotype" ph="e.g. B" />
+        <Text k="eyeColor" label="Eye Color" ph="e.g. Brown Eyes" />
+        <Text k="personality" label="Personality" ph="e.g. Extrovert" />
+        <Text k="height" label="Height" ph="e.g. 17.3" />
+        <Text k="baseStats" label="Base Stats" ph="e.g. 77-7767" />
+        <Text k="discipline" label="Discipline" ph="e.g. Show Jumping" />
+        <Text k="videoUrl" label="Video Link" ph="YouTube / clip URL" />
+        <Area k="achievements" label="Competition Placements / Achievements" rows={2} ph="Top-4 in-game placements, titles…" />
+      </Section>
 
-        <div>
-          <label style={labelStyle}>Discipline</label>
-          <input value={data.discipline ?? ""} onChange={(e) => set("discipline", e.target.value)} style={fieldStyle} placeholder="e.g. Dressage, Western" />
-        </div>
+      {/* Owner / RP */}
+      <Section title="Owner & Stable">
+        <Text k="ownerName" label="Owner (Discord)" ph="e.g. Vlasic3849" />
+        <Text k="ownerCharacter" label="Character Name" ph="e.g. Dill Pickles" />
+        <Text k="stablePrefix" label="Stable / Prefix" ph="e.g. Redfield Equestrian / REC" full />
+      </Section>
 
-        <div>
-          <label style={labelStyle}>Registration #</label>
-          <input value={data.regNumber ?? ""} onChange={(e) => set("regNumber", e.target.value)} style={fieldStyle} />
-        </div>
+      {/* Breeding */}
+      <Section title="Breeding">
+        <Text k="breedingFee" label="Breeding Fee" ph="e.g. $2000" />
+        <Area k="breedingPolicies" label="Breeding Policies" rows={2} ph="e.g. One free rebreed if first foal returned…" />
+      </Section>
 
-        <div>
-          <label style={labelStyle}>Video Link</label>
-          <input value={data.videoUrl ?? ""} onChange={(e) => set("videoUrl", e.target.value)} style={fieldStyle} placeholder="YouTube / clip URL" />
-        </div>
+      {/* Description */}
+      <Section title="Description">
+        <Area k="description" label="Description / Backstory" rows={4} ph="Tell this horse's story…" />
+        <Area k="notes" label="Internal Notes" rows={2} ph="Private notes (not emphasised publicly)" />
+      </Section>
 
-        <div style={{ gridColumn: "1 / -1" }}>
-          <label style={labelStyle}>Achievements</label>
-          <textarea value={data.achievements ?? ""} onChange={(e) => set("achievements", e.target.value)} rows={2} style={{ ...fieldStyle, resize: "vertical" }} placeholder="Show results, titles, awards…" />
-        </div>
-
-        <div style={{ gridColumn: "1 / -1" }}>
-          <label style={labelStyle}>Notes</label>
-          <textarea value={data.notes ?? ""} onChange={(e) => set("notes", e.target.value)} rows={3} style={{ ...fieldStyle, resize: "vertical" }} />
-        </div>
-      </div>
-
-      {/* For Sale section */}
-      <div style={{ marginTop: 28, paddingTop: 20, borderTop: "1px solid var(--border)" }}>
-        <h3 style={{ fontFamily: "var(--font-playfair)", fontSize: 18, color: "var(--teal-dark)", marginBottom: 4 }}>For Sale Details</h3>
-        <p style={{ fontSize: 12, color: "var(--text-muted)", fontFamily: "var(--font-lato)", marginBottom: 16 }}>
-          Shown on the For Sale page when ownership is set to “For Sale”.
-        </p>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-          <div>
-            <label style={labelStyle}>Price</label>
-            <input value={data.price ?? ""} onChange={(e) => set("price", e.target.value)} style={fieldStyle} placeholder="e.g. $500 or Negotiable" />
-          </div>
-          <div>
-            <label style={labelStyle}>Sale Contact</label>
-            <input value={data.saleContact ?? ""} onChange={(e) => set("saleContact", e.target.value)} style={fieldStyle} placeholder="Discord / in-game name" />
-          </div>
-          <div style={{ gridColumn: "1 / -1" }}>
-            <label style={labelStyle}>Sale Description</label>
-            <textarea value={data.saleDescription ?? ""} onChange={(e) => set("saleDescription", e.target.value)} rows={3} style={{ ...fieldStyle, resize: "vertical" }} placeholder="Sales pitch / details for buyers…" />
-          </div>
-        </div>
-      </div>
+      {/* For Sale */}
+      <Section title="For Sale Details" subtitle="Shown on the For Sale page when ownership is “For Sale”.">
+        <Text k="price" label="Price" ph="e.g. $500 or Negotiable" />
+        <Text k="saleContact" label="Sale Contact" ph="Discord / in-game name" />
+        <Area k="saleDescription" label="Sale Description" ph="Sales pitch for buyers…" />
+      </Section>
 
       {error && <div style={{ color: "#C05050", fontSize: 13, fontFamily: "var(--font-lato)", marginTop: 12 }}>{error}</div>}
 
-      <div style={{ marginTop: 24, display: "flex", gap: 12, justifyContent: "space-between" }}>
+      <div style={{ marginTop: 24, display: "flex", gap: 12, justifyContent: "space-between", position: "sticky", bottom: 0, background: "var(--white)", paddingTop: 12 }}>
         <button type="submit" disabled={loading} style={{ background: "var(--teal)", color: "var(--white)", border: "none", borderRadius: 6, padding: "11px 28px", fontSize: 14, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", fontFamily: "var(--font-lato)", opacity: loading ? 0.7 : 1 }}>
           {loading ? "Saving…" : mode === "create" ? "Add Horse" : "Save Changes"}
         </button>
@@ -207,5 +193,17 @@ export default function HorseForm({ initial, mode }: { initial?: HorseData; mode
         )}
       </div>
     </form>
+  );
+}
+
+function Section({ title, subtitle, first, children }: { title: string; subtitle?: string; first?: boolean; children: React.ReactNode }) {
+  return (
+    <div style={{ marginTop: first ? 0 : 26, paddingTop: first ? 0 : 20, borderTop: first ? "none" : "1px solid var(--border)" }}>
+      <h3 style={{ fontFamily: "var(--font-playfair)", fontSize: 17, color: "var(--teal-dark)", marginBottom: subtitle ? 2 : 14 }}>{title}</h3>
+      {subtitle && <p style={{ fontSize: 12, color: "var(--text-muted)", fontFamily: "var(--font-lato)", marginBottom: 14 }}>{subtitle}</p>}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+        {children}
+      </div>
+    </div>
   );
 }

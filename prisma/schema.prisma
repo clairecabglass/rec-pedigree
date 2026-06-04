@@ -27,6 +27,20 @@ model Horse {
   regNumber    String?
   achievements String?
   videoUrl     String?
+  personality  String?
+  genotype     String?
+  eyeColor     String?
+  baseStats    String?
+  description  String? // backstory
+
+  // Owner / roleplay info
+  ownerName      String? // Discord name
+  ownerCharacter String? // in-game character
+  stablePrefix   String?
+
+  // Breeding
+  breedingFee      String?
+  breedingPolicies String?
 
   // For Sale details
   price           String?
