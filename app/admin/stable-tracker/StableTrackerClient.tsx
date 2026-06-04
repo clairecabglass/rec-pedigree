@@ -211,8 +211,13 @@ export default function StableTrackerClient({ horses, pregnancies }: { horses: H
                     {genes.coats.map((grp) => (
                       <div key={grp.base} style={{ background: "var(--cream)", border: "1px solid var(--border)", borderRadius: 8, padding: "10px 12px" }}>
                         <div style={{ fontFamily: "var(--font-playfair)", fontSize: 14, color: "var(--teal-dark)", marginBottom: 6 }}>{grp.base}</div>
-                        <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12, color: "var(--text)", fontFamily: "var(--font-lato)", lineHeight: 1.7 }}>
-                          {grp.names.map((n) => <li key={n}>{n}</li>)}
+                        <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12, color: "var(--text)", fontFamily: "var(--font-lato)", lineHeight: 1.8 }}>
+                          {grp.items.map((it) => (
+                            <li key={it.code}>
+                              {it.name}{" "}
+                              <code style={{ fontSize: 10.5, color: "var(--text-muted)", background: "var(--white)", border: "1px solid var(--border)", borderRadius: 4, padding: "0 5px" }}>{it.code}</code>
+                            </li>
+                          ))}
                         </ul>
                       </div>
                     ))}

@@ -17,21 +17,24 @@ export const PATTERNS: Record<string, string> = {
 const PATTERN_SET = new Set(Object.keys(PATTERNS));
 const DILUTION_SET = new Set(DILUTIONS as readonly string[]);
 
-// base + sorted dilution tokens  ->  coat name (from the catalogue legend)
-const BASE_COATS: Record<string, string> = {
-  "R": "Chestnut", "B": "Bay", "BL": "Black",
+// normalized "base|sorted-dilutions" -> { coat name, canonical gene code }
+const BASE_COATS: Record<string, { name: string; code: string }> = {
+  "R": { name: "Chestnut", code: "R" }, "B": { name: "Bay", code: "B" }, "BL": { name: "Black", code: "BL" },
   // Bay dilutions
-  "B|CH": "Amber Champagne", "B|CR": "Buckskin", "B|CH,CR": "Amber Cream Champagne",
-  "B|CR,Z": "Silver Buckskin", "B|CR2": "Perlino", "B|M": "Bay Mushroom",
-  "B|P": "Bay Pangare", "B|Z": "Silver Bay",
+  "B|CH": { name: "Amber Champagne", code: "B_CH" }, "B|CR": { name: "Buckskin", code: "B_CR" },
+  "B|CH,CR": { name: "Amber Cream Champagne", code: "B_CR_CH" }, "B|CR,Z": { name: "Silver Buckskin", code: "B_CR_Z" },
+  "B|CR2": { name: "Perlino", code: "B_CR2" }, "B|M": { name: "Bay Mushroom", code: "B_M" },
+  "B|P": { name: "Bay Pangare", code: "B_P" }, "B|Z": { name: "Silver Bay", code: "B_Z" },
   // Black dilutions
-  "BL|CH": "Classic Champagne", "BL|CR": "Smoky Black", "BL|CH,CR": "Classic Cream Champagne",
-  "BL|CR,Z": "Silver Smoky Black", "BL|CR2": "Smoky Cream", "BL|DW": "Dominant White",
-  "BL|G": "Grey", "BL|Z": "Silver Black",
+  "BL|CH": { name: "Classic Champagne", code: "BL_CH" }, "BL|CR": { name: "Smoky Black", code: "BL_CR" },
+  "BL|CH,CR": { name: "Classic Cream Champagne", code: "BL_CR_CH" }, "BL|CR,Z": { name: "Silver Smoky Black", code: "BL_CR_Z" },
+  "BL|CR2": { name: "Smoky Cream", code: "BL_CR2" }, "BL|DW": { name: "Dominant White", code: "BL_DW" },
+  "BL|G": { name: "Grey", code: "BL_G" }, "BL|Z": { name: "Silver Black", code: "BL_Z" },
   // Red dilutions
-  "R|CH": "Gold Champagne", "R|CH,CR": "Gold Cream Champagne", "R|CR": "Palomino",
-  "R|CR2": "Cremello", "R|FLX": "Flaxen Chestnut", "R|G": "Rose Grey",
-  "R|M": "Red Mushroom", "R|P": "Chestnut Pangare",
+  "R|CH": { name: "Gold Champagne", code: "R_CH" }, "R|CH,CR": { name: "Gold Cream Champagne", code: "R_CR_CH" },
+  "R|CR": { name: "Palomino", code: "R_CR" }, "R|CR2": { name: "Cremello", code: "R_CR2" },
+  "R|FLX": { name: "Flaxen Chestnut", code: "R_FLX" }, "R|G": { name: "Rose Grey", code: "R_G" },
+  "R|M": { name: "Red Mushroom", code: "R_M" }, "R|P": { name: "Chestnut Pangare", code: "R_P" },
 };
 
 export interface Genotype {
@@ -63,14 +66,6 @@ export function parseGenotype(code: string | null): Genotype | null {
   return { base, dilutions, pattern, raw: code };
 }
 
-function baseCoatName(base: string, dils: string[]): string {
-  const key = dils.length ? `${base}|${[...dils].sort().join(",")}` : base;
-  if (BASE_COATS[key]) return BASE_COATS[key];
-  // Compose a fallback name if the exact combo isn't catalogued
-  const baseName = BASE_COATS[base] ?? base;
-  return [...dils].join("+") ? `${baseName} (${dils.join("+")})` : baseName;
-}
-
 // Base-colour inheritance (set of possible foal bases), symmetric.
 function possibleBases(a: "R" | "B" | "BL", b: "R" | "B" | "BL"): Array<"R" | "B" | "BL"> {
   const pair = [a, b].sort().join("");
@@ -87,7 +82,7 @@ export interface FoalPrediction {
   creamCopies: number[];        // possible cream copies 0/1/2
   modifiers: { code: string; label: string }[];   // dilutions/modifiers the foal MAY inherit
   patterns: string[];           // possible patterns (codes); always includes "" (none) implicitly
-  coats: { base: string; names: string[] }[];      // possible coats grouped by base colour
+  coats: { base: string; items: { name: string; code: string }[] }[]; // possible coats grouped by base colour
 }
 
 const BASE_LABEL: Record<string, string> = { R: "Red / Chestnut", B: "Bay", BL: "Black" };
@@ -146,8 +141,8 @@ export function predictFoal(sireCode: string | null, damCode: string | null): Fo
   const patternOptions: (string | null)[] = [null, ...patternSet];
 
   // --- Enumerate every catalogued base coat that is reachable ---
-  const coatsByBase: Record<string, Set<string>> = {};
-  for (const [key, name] of Object.entries(BASE_COATS)) {
+  const coatsByBase: Record<string, Map<string, string>> = {}; // code -> name
+  for (const [key, { name, code }] of Object.entries(BASE_COATS)) {
     const [b, dilStr] = key.split("|");
     if (!bases.includes(b as "R" | "B" | "BL")) continue;
     const dils = dilStr ? dilStr.split(",") : [];
@@ -162,16 +157,22 @@ export function predictFoal(sireCode: string | null, damCode: string | null): Fo
     if (!feasible) continue;
     if (!creamCopies.has(needCream)) continue;   // 0 means undiluted must be possible
 
-    (coatsByBase[b] ??= new Set());
+    (coatsByBase[b] ??= new Map());
     for (const p of patternOptions) {
-      const full = p ? `${name} ${PATTERNS[p]}` : name;
-      coatsByBase[b].add(full);
+      const fullName = p ? `${name} ${PATTERNS[p]}` : name;
+      const fullCode = p ? `${code}_${p}` : code;
+      coatsByBase[b].set(fullCode, fullName);
     }
   }
 
   const coats = bases
     .filter((b) => coatsByBase[b]?.size)
-    .map((b) => ({ base: BASE_LABEL[b], names: [...coatsByBase[b]].sort() }));
+    .map((b) => ({
+      base: BASE_LABEL[b],
+      items: [...coatsByBase[b].entries()]
+        .map(([code, name]) => ({ name, code }))
+        .sort((a, z) => a.name.localeCompare(z.name)),
+    }));
 
   return {
     ok: true,
