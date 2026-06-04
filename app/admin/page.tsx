@@ -10,7 +10,7 @@ export default async function AdminPage() {
   if (!loggedIn) redirect("/admin/login");
 
   const [total, forSale, withFoal] = await Promise.all([
-    prisma.horse.count(),
+    prisma.horse.count({ where: { ownership: "Home" } }),
     prisma.horse.count({ where: { ownership: "For Sale" } }),
     prisma.horse.count({ where: { withFoal: true } }),
   ]);
