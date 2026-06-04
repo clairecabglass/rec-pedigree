@@ -5,6 +5,7 @@ import Link from "next/link";
 import HorseForm from "@/components/HorseForm";
 import PhotoManager from "@/components/PhotoManager";
 import DocumentManager from "@/components/DocumentManager";
+import ResultManager from "@/components/ResultManager";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,7 @@ export default async function EditHorsePage({ params }: { params: Promise<{ id: 
     include: { photos: { orderBy: { order: "asc" } }, documents: { orderBy: { createdAt: "asc" } } },
   });
   if (!horse) notFound();
+  const results = await prisma.result.findMany({ where: { horseId: id }, orderBy: { date: "desc" } });
 
   const initial = {
     id: horse.id,
@@ -81,6 +83,11 @@ export default async function EditHorsePage({ params }: { params: Promise<{ id: 
       <div style={card}>
         <h2 style={sectionHead}>Documents</h2>
         <DocumentManager horseId={horse.id} initial={horse.documents.map((d) => ({ id: d.id, url: d.url, label: d.label, type: d.type }))} />
+      </div>
+
+      <div style={card}>
+        <h2 style={sectionHead}>Show Results / Achievements</h2>
+        <ResultManager horseId={horse.id} initial={results.map((r) => ({ id: r.id, event: r.event, placement: r.placement, date: r.date ? r.date.toISOString() : null, notes: r.notes }))} />
       </div>
     </div>
   );

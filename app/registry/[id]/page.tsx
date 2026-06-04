@@ -26,6 +26,8 @@ export default async function HorsePage({ params }: { params: Promise<{ id: stri
   });
   if (!horse) notFound();
 
+  const results = await prisma.result.findMany({ where: { horseId: id }, orderBy: { date: "desc" } });
+
   const allHorses = await prisma.horse.findMany({
     select: { id: true, name: true, breed: true, gender: true, coat: true, sireName: true, damName: true, ownership: true },
   });
@@ -248,6 +250,25 @@ export default async function HorsePage({ params }: { params: Promise<{ id: stri
         </div>
         <PedigreeTree node={tree} dupes={dupes} allHorses={allHorsesJson} isAdmin={admin} title={horse.name} />
       </div>
+
+      {/* ===== Show results ===== */}
+      {results.length > 0 && (
+        <div style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 10, padding: 24, marginBottom: 28 }}>
+          {sectionTitle("Show Results")}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {results.map((r) => (
+              <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 12, border: "1px solid var(--border)", borderRadius: 8, padding: "10px 14px", background: "var(--cream)", fontFamily: "var(--font-lato)", fontSize: 13 }}>
+                {r.placement && <span style={{ background: "var(--gold-light)", color: "#6B5A2A", borderRadius: 12, padding: "3px 11px", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>{r.placement}</span>}
+                <div style={{ flex: 1 }}>
+                  <span style={{ fontWeight: 700, color: "var(--teal-dark)" }}>{r.event}</span>
+                  {r.notes && <span style={{ color: "var(--text-muted)" }}>  —  {r.notes}</span>}
+                </div>
+                {r.date && <span style={{ fontSize: 12, color: "var(--text-muted)", whiteSpace: "nowrap" }}>{new Date(r.date).toLocaleDateString()}</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ===== Offspring ===== */}
       <div style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 10, padding: 24, marginBottom: horse.documents.length ? 28 : 0 }}>

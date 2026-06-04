@@ -31,5 +31,11 @@ export default async function StableTrackerPage() {
     foalName: p.foalId ? byId.get(p.foalId)?.name ?? null : null,
   }));
 
-  return <StableTrackerClient horses={horses as never} pregnancies={pregList} />;
+  const plans = await prisma.breedingPlan.findMany({ orderBy: { createdAt: "desc" } });
+  const planList = plans.map((p) => ({
+    id: p.id, damId: p.damId, damName: p.damName,
+    sireId: p.sireId, sireName: p.sireName, notes: p.notes,
+  }));
+
+  return <StableTrackerClient horses={horses as never} pregnancies={pregList} plans={planList} />;
 }

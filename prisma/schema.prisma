@@ -89,6 +89,30 @@ model SiteContent {
   updatedAt DateTime @updatedAt
 }
 
+// A show result / achievement entry for a horse.
+model Result {
+  id        String    @id @default(cuid())
+  horseId   String
+  date      DateTime?
+  event     String
+  placement String?
+  notes     String?
+  createdAt DateTime  @default(now())
+
+  @@index([horseId])
+}
+
+// A saved planned pairing (breeding wishlist).
+model BreedingPlan {
+  id        String   @id @default(cuid())
+  damId     String
+  damName   String
+  sireId    String?
+  sireName  String?
+  notes     String?
+  createdAt DateTime @default(now())
+}
+
 // Breeding / pregnancy tracker. The foal is a real (placeholder) Horse row
 // created up-front so it has its own page, pedigree and can be filled in later.
 model Pregnancy {

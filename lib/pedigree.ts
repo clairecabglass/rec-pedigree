@@ -103,3 +103,52 @@ export function findDuplicates(node: HorseNode | null | undefined): Set<string> 
   }
   return dupes;
 }
+
+/**
+ * Ancestors that appear in BOTH the sire's and the dam's lineages — i.e. the
+ * ancestors that actually make the foal inbred (vs. a parent's own inbreeding).
+ */
+export function commonAncestors(foal: HorseNode | null | undefined): Set<string> {
+  if (!foal?.sire || !foal?.dam) return new Set();
+  const names = (n: HorseNode | null | undefined) =>
+    new Set(getAllNames(n).map((x) => x.toLowerCase()).filter((x) => !isPlaceholderAncestor(x)));
+  const s = names(foal.sire);
+  const d = names(foal.dam);
+  const common = new Set<string>();
+  for (const x of s) if (d.has(x)) common.add(x);
+  return common;
+}
+
+/**
+ * Wright's coefficient of inbreeding for a (potential) foal, from its sire & dam
+ * subtrees. F = Σ over common ancestors, over all sire-path × dam-path pairs,
+ * of (1/2)^(n1+n2+1). Ignores ancestors' own inbreeding (good estimate).
+ * Returns 0–1 (multiply by 100 for a %).
+ */
+export function inbreedingCoefficient(foal: HorseNode | null | undefined): number {
+  if (!foal?.sire || !foal?.dam) return 0;
+  const collect = (node: HorseNode | null | undefined, depth: number, map: Map<string, number[]>) => {
+    if (!node) return;
+    if (!isPlaceholderAncestor(node.name)) {
+      const key = node.name.toLowerCase();
+      const arr = map.get(key);
+      if (arr) arr.push(depth); else map.set(key, [depth]);
+    }
+    if (!node.inbreeding) {
+      collect(node.sire, depth + 1, map);
+      collect(node.dam, depth + 1, map);
+    }
+  };
+  const sireA = new Map<string, number[]>();
+  const damA = new Map<string, number[]>();
+  collect(foal.sire, 0, sireA);
+  collect(foal.dam, 0, damA);
+
+  let F = 0;
+  for (const [name, n1s] of sireA) {
+    const n2s = damA.get(name);
+    if (!n2s) continue;
+    for (const n1 of n1s) for (const n2 of n2s) F += Math.pow(0.5, n1 + n2 + 1);
+  }
+  return Math.min(F, 1);
+}
