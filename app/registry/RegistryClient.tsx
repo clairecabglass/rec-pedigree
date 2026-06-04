@@ -15,6 +15,7 @@ interface Horse {
   dob: string | null;
   withFoal: boolean;
   photo: string | null;
+  generations: number;
 }
 
 const OWNERSHIP_COLORS: Record<string, string> = {
@@ -30,6 +31,7 @@ export default function RegistryClient({ horses, breeds }: {
   const [search, setSearch] = useState("");
   const [breedFilter, setBreedFilter] = useState("");
   const [genderFilter, setGenderFilter] = useState("");
+  const [minGen, setMinGen] = useState(0);
   const [sort, setSort] = useState<SortKey>("name-asc");
   const [view, setView] = useState<"grid" | "table">("grid");
   const [page, setPage] = useState(1);
@@ -45,6 +47,7 @@ export default function RegistryClient({ horses, breeds }: {
         !(h.damName?.toLowerCase().includes(q))) return false;
       if (breedFilter && h.breed !== breedFilter) return false;
       if (genderFilter && h.gender !== genderFilter) return false;
+      if (minGen && h.generations < minGen) return false;
       return true;
     });
     out.sort((a, b) => {
@@ -55,14 +58,14 @@ export default function RegistryClient({ horses, breeds }: {
       return 0;
     });
     return out;
-  }, [horses, search, breedFilter, genderFilter, sort]);
+  }, [horses, search, breedFilter, genderFilter, minGen, sort]);
 
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
   const safePage = Math.min(page, Math.max(1, totalPages));
   const paged = filtered.slice((safePage - 1) * PER_PAGE, safePage * PER_PAGE);
 
-  const reset = () => { setSearch(""); setBreedFilter(""); setGenderFilter(""); setPage(1); };
-  const active = search || breedFilter || genderFilter;
+  const reset = () => { setSearch(""); setBreedFilter(""); setGenderFilter(""); setMinGen(0); setPage(1); };
+  const active = search || breedFilter || genderFilter || minGen;
 
   const selectStyle = {
     border: "1px solid var(--border)", borderRadius: 6, padding: "8px 12px",
@@ -113,6 +116,13 @@ export default function RegistryClient({ horses, breeds }: {
             <option value="">All</option>
             <option value="Stallion">Stallion</option>
             <option value="Mare">Mare</option>
+          </select>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label style={labelStyle}>Generations</label>
+          <select value={minGen} onChange={(e) => { setMinGen(Number(e.target.value)); setPage(1); }} style={selectStyle}>
+            <option value={0}>Any</option>
+            {[1, 2, 3, 4, 5, 6, 7].map((g) => <option key={g} value={g}>{g}+ generations</option>)}
           </select>
         </div>
         <div className="flex flex-col gap-1">
