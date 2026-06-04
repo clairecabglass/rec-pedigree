@@ -88,3 +88,20 @@ model SiteContent {
   value     String
   updatedAt DateTime @updatedAt
 }
+
+// Breeding / pregnancy tracker. The foal is a real (placeholder) Horse row
+// created up-front so it has its own page, pedigree and can be filled in later.
+model Pregnancy {
+  id        String    @id @default(cuid())
+  damId     String
+  sireName  String?
+  coverDate DateTime?
+  dueDate   DateTime?
+  status    String    @default("expecting") // expecting | born
+  foalId    String?
+  notes     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([damId])
+}

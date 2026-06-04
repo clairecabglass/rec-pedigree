@@ -1,6 +1,7 @@
 "use client";
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import PedigreeTree from "@/components/PedigreeTree";
 import Icon from "@/components/Icon";
 import { buildPedigreeTree, findDuplicates } from "@/lib/pedigree";
@@ -12,6 +13,11 @@ interface Horse {
   coat: string | null; genotype: string | null; sireName: string | null; damName: string | null;
 }
 
+interface Pregnancy {
+  id: string; sireName: string | null; dueDate: string | null;
+  damId: string; damName: string; foalId: string | null; foalName: string | null;
+}
+
 function nodeDepth(n: HorseNode | null | undefined): number {
   if (!n) return 0;
   const s = n.sire ? 1 + nodeDepth(n.sire) : 0;
@@ -19,9 +25,41 @@ function nodeDepth(n: HorseNode | null | undefined): number {
   return Math.max(s, d);
 }
 
-export default function StableTrackerClient({ horses }: { horses: Horse[] }) {
+export default function StableTrackerClient({ horses, pregnancies }: { horses: Horse[]; pregnancies: Pregnancy[] }) {
+  const router = useRouter();
   const [dam, setDam] = useState<Horse | null>(null);
   const [sire, setSire] = useState<Horse | null>(null);
+  const [dueDate, setDueDate] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function registerPregnancy() {
+    if (!dam) return;
+    setBusy(true);
+    const res = await fetch("/api/pregnancies", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ damId: dam.id, sireName: sire?.name ?? null, dueDate: dueDate || null }),
+    });
+    setBusy(false);
+    if (res.ok) { setDueDate(""); router.refresh(); }
+    else alert("Could not register pregnancy.");
+  }
+
+  async function markBorn(id: string) {
+    if (!confirm("Mark this foal as born? It will be added to the registry — you can then fill in its details.")) return;
+    await fetch(`/api/pregnancies/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ markBorn: true }) });
+    router.refresh();
+  }
+
+  async function deletePregnancy(id: string) {
+    if (!confirm("Remove this pregnancy? The unborn foal placeholder will also be deleted.")) return;
+    await fetch(`/api/pregnancies/${id}`, { method: "DELETE" });
+    router.refresh();
+  }
+
+  function daysTo(date: string | null) {
+    if (!date) return null;
+    return Math.ceil((new Date(date).getTime() - Date.now()) / 86400000);
+  }
 
   const map: HorseMap = useMemo(
     () => new Map(horses.map((h) => [h.name.toLowerCase(), {
@@ -68,8 +106,44 @@ export default function StableTrackerClient({ horses }: { horses: Horse[] }) {
       </div>
       <h1 style={{ fontFamily: "var(--font-playfair)", fontSize: 32, color: "var(--teal-dark)", marginBottom: 4 }}>Stable Tracker</h1>
       <p style={{ color: "var(--text-muted)", fontFamily: "var(--font-lato)", fontSize: 14, marginBottom: 28 }}>
-        Pair a mare and stallion to preview the foal&apos;s pedigree, check for inbreeding, and see how deep the bloodline runs.
+        Track current pregnancies and plan pairings — preview a foal&apos;s pedigree, inbreeding, depth, and coat genetics.
       </p>
+
+      {/* ===== Current pregnancies ===== */}
+      <div style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 10, padding: 24, marginBottom: 28 }}>
+        <h2 style={{ fontFamily: "var(--font-playfair)", fontSize: 22, color: "var(--teal-dark)", marginBottom: 16 }}>
+          Current Pregnancies{pregnancies.length ? ` (${pregnancies.length})` : ""}
+        </h2>
+        {pregnancies.length === 0 ? (
+          <p style={{ color: "var(--text-muted)", fontFamily: "var(--font-lato)", fontSize: 14 }}>
+            No active pregnancies. Pair a mare &amp; stallion below and click “Register pregnancy”.
+          </p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {pregnancies.map((p) => {
+              const d = daysTo(p.dueDate);
+              return (
+                <div key={p.id} style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12, border: "1px solid var(--border)", borderRadius: 8, padding: "12px 16px", background: "var(--cream)", fontFamily: "var(--font-lato)" }}>
+                  <div style={{ flex: 1, minWidth: 200 }}>
+                    <Link href={`/registry/${p.damId}`} style={{ fontWeight: 700, color: "var(--dam-text)", textDecoration: "none", fontSize: 14 }}>{p.damName}</Link>
+                    {p.sireName ? <span style={{ color: "var(--text-muted)", fontSize: 13 }}>  ×  <span style={{ color: "var(--sire-text)", fontWeight: 600 }}>{p.sireName}</span></span> : null}
+                    <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
+                      {p.dueDate ? <>Due {new Date(p.dueDate).toLocaleDateString()}{d !== null ? (d >= 0 ? `  ·  ${d} day${d !== 1 ? "s" : ""} to go` : "  ·  overdue") : ""}</> : "No due date set"}
+                    </div>
+                  </div>
+                  {p.foalId && (
+                    <Link href={`/registry/${p.foalId}`} style={{ fontSize: 12, color: "var(--teal)", textDecoration: "none", fontWeight: 600 }}>Foal page →</Link>
+                  )}
+                  <button onClick={() => markBorn(p.id)} style={{ background: "var(--teal)", color: "white", border: "none", borderRadius: 6, padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-lato)" }}>Mark born</button>
+                  <button onClick={() => deletePregnancy(p.id)} style={{ background: "none", border: "1px solid var(--border)", color: "#C05050", borderRadius: 6, padding: "7px 12px", fontSize: 12, cursor: "pointer", fontFamily: "var(--font-lato)" }}>✕</button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <h2 style={{ fontFamily: "var(--font-playfair)", fontSize: 22, color: "var(--teal-dark)", marginBottom: 16 }}>Plan a Pairing</h2>
 
       {/* Pairing pickers */}
       <div className="grid md:grid-cols-2 gap-5" style={{ marginBottom: 28 }}>
@@ -90,6 +164,19 @@ export default function StableTrackerClient({ horses }: { horses: Horse[] }) {
             <Stat label="Pedigree Depth" value={`${generations} gen`} note={generations >= 5 ? "Deep bloodline" : "Shallow"} good={generations >= 5} />
             <Stat label="Inbreeding" value={clean ? "None" : `${dupes.size} shared`} note={clean ? "No duplicate ancestors" : "Shared ancestor(s)"} good={clean} />
             <Stat label="Pairing" value={clean && generations >= 5 ? "Excellent" : clean ? "Good" : "Caution"} note={clean ? "Outcross" : "Linebreeding"} good={clean} />
+          </div>
+
+          {/* Register pregnancy from this pairing */}
+          <div style={{ background: "var(--dam-bg)", border: "1px solid var(--dam-border)", borderRadius: 10, padding: "14px 20px", marginBottom: 24, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12 }}>
+            <span style={{ fontFamily: "var(--font-lato)", fontSize: 13, color: "var(--dam-text)", fontWeight: 700 }}>Register this pairing as a pregnancy:</span>
+            <label style={{ fontSize: 12, color: "var(--text-muted)", fontFamily: "var(--font-lato)", display: "flex", alignItems: "center", gap: 6 }}>
+              Due date
+              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} style={{ border: "1px solid var(--border)", borderRadius: 6, padding: "7px 10px", fontSize: 13, fontFamily: "var(--font-lato)" }} />
+            </label>
+            <button onClick={registerPregnancy} disabled={busy} style={{ background: "var(--dam-text)", color: "white", border: "none", borderRadius: 6, padding: "8px 18px", fontSize: 13, fontWeight: 700, cursor: busy ? "not-allowed" : "pointer", fontFamily: "var(--font-lato)", opacity: busy ? 0.7 : 1 }}>
+              {busy ? "Registering…" : "Register pregnancy"}
+            </button>
+            <span style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-lato)" }}>Creates a foal page you can fill in later.</span>
           </div>
 
           {/* Predicted genetics */}

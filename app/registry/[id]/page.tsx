@@ -46,6 +46,18 @@ export default async function HorsePage({ params }: { params: Promise<{ id: stri
   const hero = horse.photos[0];
   const admin = await isAdminLoggedIn();
 
+  // Is this mare currently expecting a foal?
+  const pregnancy = await prisma.pregnancy.findFirst({
+    where: { damId: horse.id, status: "expecting" },
+    orderBy: { createdAt: "desc" },
+  });
+  const expectedFoal = pregnancy?.foalId
+    ? await prisma.horse.findUnique({ where: { id: pregnancy.foalId }, select: { id: true, name: true } })
+    : null;
+  const daysToDue = pregnancy?.dueDate
+    ? Math.ceil((new Date(pregnancy.dueDate).getTime() - Date.now()) / 86400000)
+    : null;
+
   const sectionTitle = (text: string) => (
     <h2 style={{ fontFamily: "var(--font-playfair)", fontSize: 22, color: "var(--teal-dark)", marginBottom: 16 }}>{text}</h2>
   );
@@ -69,10 +81,15 @@ export default async function HorsePage({ params }: { params: Promise<{ id: stri
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-10">
-      <div className="mb-6">
+      <div className="mb-6 flex items-center justify-between gap-3">
         <Link href="/registry" style={{ display: "inline-block", fontSize: 13, color: "var(--white)", background: "var(--teal)", padding: "7px 16px", borderRadius: 6, textDecoration: "none", fontFamily: "var(--font-lato)", letterSpacing: "0.04em" }}>
           ‹ Back
         </Link>
+        {admin && (
+          <Link href={`/admin/horses/${horse.id}`} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--teal-dark)", background: "var(--white)", border: "1px solid var(--teal)", padding: "7px 16px", borderRadius: 6, textDecoration: "none", fontFamily: "var(--font-lato)", fontWeight: 700 }}>
+            <Icon name="edit" size={14} color="var(--teal-dark)" /> Edit this horse
+          </Link>
+        )}
       </div>
 
       {/* ===== Hero image ===== */}
@@ -108,6 +125,26 @@ export default async function HorsePage({ params }: { params: Promise<{ id: stri
           )}
         </div>
       </div>
+
+      {/* ===== Pregnancy banner ===== */}
+      {pregnancy && (
+        <div style={{ background: "linear-gradient(135deg, #F8ECF1, #FCE8F0)", border: "1px solid var(--dam-border)", borderRadius: 10, padding: "16px 22px", marginBottom: 28, display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <div style={{ fontFamily: "var(--font-lato)" }}>
+            <span style={{ fontFamily: "var(--font-playfair)", fontSize: 18, color: "var(--dam-text)" }}>🤰 Currently in foal</span>
+            <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 2 }}>
+              {pregnancy.sireName ? <>by <strong style={{ color: "var(--sire-text)" }}>{pregnancy.sireName}</strong>  ·  </> : null}
+              {pregnancy.dueDate
+                ? <>due {new Date(pregnancy.dueDate).toLocaleDateString()}{daysToDue !== null && daysToDue >= 0 ? `  (${daysToDue} day${daysToDue !== 1 ? "s" : ""} to go)` : daysToDue !== null ? "  (overdue)" : ""}</>
+                : "due date not set"}
+            </div>
+          </div>
+          {expectedFoal && (
+            <Link href={`/registry/${expectedFoal.id}`} style={{ background: "var(--dam-text)", color: "white", borderRadius: 6, padding: "9px 18px", fontSize: 13, fontWeight: 700, textDecoration: "none", fontFamily: "var(--font-lato)", whiteSpace: "nowrap" }}>
+              View foal page →
+            </Link>
+          )}
+        </div>
+      )}
 
       {/* ===== Two info blocks ===== */}
       <div className="grid md:grid-cols-2 gap-6" style={{ marginBottom: 28 }}>

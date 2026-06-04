@@ -5,7 +5,7 @@ import Icon from "@/components/Icon";
 // Horses we don't currently own are kept only for record-keeping.
 // Explicitly include blank-ownership rows (SQL NOT IN drops NULLs otherwise).
 const OWNED = {
-  OR: [{ ownership: { notIn: ["Outside", "Void"] } }, { ownership: null }],
+  OR: [{ ownership: { notIn: ["Outside", "Void", "Expected"] } }, { ownership: null }],
 };
 
 export default async function Home() {
