@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
-import Icon from "./Icon";
 
 const links = [
   { href: "/", label: "Home" },
@@ -17,12 +17,8 @@ export default function Nav() {
     <header style={{ background: "var(--white)", borderBottom: "1px solid var(--border)" }}>
       <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-3 no-underline">
-          <div style={{
-            width: 44, height: 44, borderRadius: "50%",
-            background: "var(--teal)", display: "flex", alignItems: "center", justifyContent: "center",
-          }}>
-            <Icon name="horse" size={24} color="white" strokeWidth={1.5} />
-          </div>
+          <Image src="/brand/logo-icon.png" alt="Redfield Equestrian Centre" width={52} height={52}
+            style={{ width: 52, height: 52, objectFit: "contain" }} priority />
           <div>
             <div style={{ fontFamily: "var(--font-playfair), Georgia, serif", fontSize: 18, fontWeight: 700, color: "var(--teal-dark)", letterSpacing: "0.08em" }}>
               REDFIELD

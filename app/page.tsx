@@ -18,24 +18,24 @@ export default async function Home() {
 
   return (
     <div>
-      {/* Hero */}
-      <section style={{ background: "var(--teal)", color: "var(--white)" }} className="py-20 px-6">
+      {/* Hero — brand logo forward */}
+      <section style={{ background: "var(--cream)" }} className="pt-12 pb-16 px-6">
         <div className="max-w-4xl mx-auto text-center">
-          <div style={{ fontSize: 12, letterSpacing: "0.25em", color: "var(--teal-muted)", marginBottom: 16, fontFamily: "var(--font-lato)" }}>
-            REDFIELD EQUESTRIAN CENTRE
-          </div>
-          <h1 style={{ fontFamily: "var(--font-playfair), Georgia, serif", fontSize: 48, fontWeight: 400, lineHeight: 1.2, marginBottom: 20 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/logo-full.png" alt="Redfield Equestrian Centre"
+            style={{ width: "100%", maxWidth: 380, margin: "0 auto 24px", display: "block" }} />
+          <h1 style={{ fontFamily: "var(--font-playfair), Georgia, serif", fontSize: 38, fontWeight: 400, lineHeight: 1.2, marginBottom: 16, color: "var(--teal-dark)" }}>
             Horse Registry &amp; Pedigree Records
           </h1>
-          <p style={{ color: "var(--teal-muted)", fontSize: 18, maxWidth: 560, margin: "0 auto 36px", fontFamily: "var(--font-lato)", fontWeight: 300 }}>
+          <p style={{ color: "var(--text-muted)", fontSize: 17, maxWidth: 560, margin: "0 auto 32px", fontFamily: "var(--font-lato)", fontWeight: 400 }}>
             Browse our full registry, explore bloodlines through interactive pedigree trees,
             and find horses available for purchase.
           </p>
           <div className="flex gap-4 justify-center flex-wrap">
-            <Link href="/registry" style={{ background: "var(--white)", color: "var(--teal-dark)", padding: "12px 28px", borderRadius: 4, fontFamily: "var(--font-lato)", fontWeight: 700, fontSize: 14, letterSpacing: "0.08em", textDecoration: "none" }}>
+            <Link href="/registry" style={{ background: "var(--teal)", color: "var(--white)", padding: "12px 28px", borderRadius: 4, fontFamily: "var(--font-lato)", fontWeight: 700, fontSize: 14, letterSpacing: "0.08em", textDecoration: "none" }}>
               VIEW REGISTRY
             </Link>
-            <Link href="/for-sale" style={{ border: "2px solid var(--teal-muted)", color: "var(--white)", padding: "12px 28px", borderRadius: 4, fontFamily: "var(--font-lato)", fontWeight: 700, fontSize: 14, letterSpacing: "0.08em", textDecoration: "none" }}>
+            <Link href="/for-sale" style={{ border: "2px solid var(--teal)", color: "var(--teal-dark)", padding: "12px 28px", borderRadius: 4, fontFamily: "var(--font-lato)", fontWeight: 700, fontSize: 14, letterSpacing: "0.08em", textDecoration: "none" }}>
               HORSES FOR SALE
             </Link>
           </div>

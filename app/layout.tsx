@@ -31,7 +31,13 @@ export default function RootLayout({
         <main className="flex-1">
           {children}
         </main>
-        <footer style={{ borderTop: "1px solid var(--border)", background: "var(--cream-dark)" }} className="py-6 text-center text-sm" >
+        <footer style={{ borderTop: "1px solid var(--border)", background: "var(--cream-dark)" }} className="py-8 text-center text-sm">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/logo-icon.png" alt="Redfield Equestrian Centre" width={56} height={56}
+            style={{ width: 56, height: 56, objectFit: "contain", margin: "0 auto 8px", opacity: 0.9 }} />
+          <p style={{ fontFamily: "var(--font-playfair), Georgia, serif", color: "var(--teal-dark)", fontSize: 15, letterSpacing: "0.06em", marginBottom: 4 }}>
+            REDFIELD EQUESTRIAN CENTRE
+          </p>
           <p style={{ color: "var(--text-muted)" }}>
             © Redfield Equestrian Centre &mdash; The Rift, ReDM
           </p>
