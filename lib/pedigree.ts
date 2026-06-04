@@ -58,10 +58,11 @@ export function buildPedigreeTree(
   const nextSeen = new Set(seen);
   nextSeen.add(key);
 
-  if (horse.sireName) {
+  // Unknown / Foundation ancestors are placeholders — leave that branch empty.
+  if (horse.sireName && !isPlaceholderAncestor(horse.sireName)) {
     node.sire = buildPedigreeTree(horse.sireName, allHorses, maxDepth, depth + 1, nextSeen);
   }
-  if (horse.damName) {
+  if (horse.damName && !isPlaceholderAncestor(horse.damName)) {
     node.dam = buildPedigreeTree(horse.damName, allHorses, maxDepth, depth + 1, nextSeen);
   }
 
@@ -81,8 +82,8 @@ export function pedigreeDepth(
   const next = new Set(seen);
   next.add(key);
   let depth = 0;
-  if (horse.sireName) depth = Math.max(depth, 1 + pedigreeDepth(horse.sireName, allHorses, next));
-  if (horse.damName) depth = Math.max(depth, 1 + pedigreeDepth(horse.damName, allHorses, next));
+  if (horse.sireName && !isPlaceholderAncestor(horse.sireName)) depth = Math.max(depth, 1 + pedigreeDepth(horse.sireName, allHorses, next));
+  if (horse.damName && !isPlaceholderAncestor(horse.damName)) depth = Math.max(depth, 1 + pedigreeDepth(horse.damName, allHorses, next));
   return depth;
 }
 

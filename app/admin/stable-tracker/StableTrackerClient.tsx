@@ -47,6 +47,7 @@ export default function StableTrackerClient({ horses, pregnancies, plans }: { ho
   const [dam, setDam] = useState<Horse | null>(null);
   const [sire, setSire] = useState<Horse | null>(null);
   const [busy, setBusy] = useState(false);
+  const [pregOpen, setPregOpen] = useState(true);
   const [matches, setMatches] = useState<{ stallion: Horse; depth: number; coi: number; shared: number }[] | null>(null);
 
   // Pregnancy auto-dates: bred now, due in exactly 72 hours.
@@ -167,10 +168,11 @@ export default function StableTrackerClient({ horses, pregnancies, plans }: { ho
 
       {/* ===== Current pregnancies ===== */}
       <div style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 10, padding: 24, marginBottom: 28 }}>
-        <h2 style={{ fontFamily: "var(--font-playfair)", fontSize: 22, color: "var(--teal-dark)", marginBottom: 16 }}>
+        <h2 onClick={() => setPregOpen((o) => !o)} style={{ fontFamily: "var(--font-playfair)", fontSize: 22, color: "var(--teal-dark)", marginBottom: pregOpen ? 16 : 0, cursor: "pointer", display: "flex", alignItems: "center", gap: 10, userSelect: "none" }}>
+          <span style={{ fontSize: 15, color: "var(--text-muted)", transform: pregOpen ? "rotate(90deg)" : "none", transition: "transform 0.15s", display: "inline-block" }}>▸</span>
           Current Pregnancies{pregnancies.length ? ` (${pregnancies.length})` : ""}
         </h2>
-        {pregnancies.length === 0 ? (
+        {!pregOpen ? null : pregnancies.length === 0 ? (
           <p style={{ color: "var(--text-muted)", fontFamily: "var(--font-lato)", fontSize: 14 }}>
             No active pregnancies. Pair a mare &amp; stallion below and click “Register pregnancy”.
           </p>

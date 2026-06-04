@@ -25,9 +25,10 @@ const OWNERSHIP_COLORS: Record<string, string> = {
 
 type SortKey = "name-asc" | "name-desc" | "breed" | "newest";
 
-export default function RegistryClient({ horses, breeds }: {
-  horses: Horse[]; breeds: string[];
+export default function RegistryClient({ horses, breeds, isAdmin }: {
+  horses: Horse[]; breeds: string[]; isAdmin?: boolean;
 }) {
+  const [showAllOwned, setShowAllOwned] = useState(false);
   const [search, setSearch] = useState("");
   const [breedFilter, setBreedFilter] = useState("");
   const [genderFilter, setGenderFilter] = useState("");
@@ -49,6 +50,8 @@ export default function RegistryClient({ horses, breeds }: {
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     const out = horses.filter((h) => {
+      // Admins get all owned horses but default to only [REC]-tagged ones.
+      if (isAdmin && !showAllOwned && !h.name.startsWith("[REC]")) return false;
       if (q && !h.name.toLowerCase().includes(q) &&
         !(h.breed?.toLowerCase().includes(q)) &&
         !(h.coat?.toLowerCase().includes(q)) &&
@@ -71,7 +74,7 @@ export default function RegistryClient({ horses, breeds }: {
       return 0;
     });
     return out;
-  }, [horses, search, breedFilter, genderFilter, coatFilter, minGen, foalOnly, saleOnly, photosOnly, sort]);
+  }, [horses, search, breedFilter, genderFilter, coatFilter, minGen, foalOnly, saleOnly, photosOnly, sort, isAdmin, showAllOwned]);
 
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
   const safePage = Math.min(page, Math.max(1, totalPages));
@@ -176,6 +179,12 @@ export default function RegistryClient({ horses, breeds }: {
               {lbl}
             </label>
           ))}
+          {isAdmin && (
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontFamily: "var(--font-lato)", color: "var(--teal-dark)", cursor: "pointer", fontWeight: 700 }}>
+              <input type="checkbox" checked={showAllOwned} onChange={(e) => { setShowAllOwned(e.target.checked); setPage(1); }} style={{ width: 15, height: 15, accentColor: "var(--teal)" }} />
+              Show all owned (incl. non-[REC]) <span style={{ fontSize: 10, color: "var(--text-muted)", fontWeight: 400 }}>admin</span>
+            </label>
+          )}
           {active && (
             <button onClick={reset} style={{ marginLeft: "auto", background: "none", border: "1px solid var(--border)", borderRadius: 6, padding: "6px 14px", fontSize: 12, color: "var(--text-muted)", cursor: "pointer", fontFamily: "var(--font-lato)" }}>Clear all</button>
           )}

@@ -2,16 +2,18 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import Icon from "@/components/Icon";
 
-// Horses we don't currently own are kept only for record-keeping.
-// Explicitly include blank-ownership rows (SQL NOT IN drops NULLs otherwise).
+// Public counts: owned, [REC]-tagged horses (matches the public registry).
 const OWNED = {
-  OR: [{ ownership: { notIn: ["Outside", "Void", "Expected"] } }, { ownership: null }],
+  AND: [
+    { OR: [{ ownership: { notIn: ["Outside", "Void", "Expected"] } }, { ownership: null }] },
+    { name: { startsWith: "[REC]" } },
+  ],
 };
 
 export default async function Home() {
   const [total, forSale, stallions, mares] = await Promise.all([
     prisma.horse.count({ where: OWNED }),
-    prisma.horse.count({ where: { ownership: "For Sale" } }),
+    prisma.horse.count({ where: { ownership: "For Sale", name: { startsWith: "[REC]" } } }),
     prisma.horse.count({ where: { ...OWNED, gender: "Stallion" } }),
     prisma.horse.count({ where: { ...OWNED, gender: "Mare" } }),
   ]);

@@ -2,20 +2,24 @@ import { prisma } from "@/lib/db";
 import RegistryClient from "./RegistryClient";
 import { pedigreeDepth } from "@/lib/pedigree";
 import type { HorseMap } from "@/lib/pedigree";
+import { isAdminLoggedIn } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function RegistryPage() {
+  const admin = await isAdminLoggedIn();
+
   // All horses (incl. Outside/Void) for the pedigree map — ancestors may be any of them.
   const allForMap = await prisma.horse.findMany({
     select: { id: true, name: true, breed: true, gender: true, coat: true, sireName: true, damName: true },
   });
   const map: HorseMap = new Map(allForMap.map((h) => [h.name.toLowerCase(), h]));
 
-  // Outside (not owned) and Void (deleted) are kept only for pedigree
-  // record-keeping — they're reachable from a pedigree link but not listed here.
+  // Public registry shows owned, [REC]-tagged horses. Outside/Void/Expected are
+  // record-keeping only. Admins receive ALL owned horses + a toggle to show non-[REC].
+  const owned = { OR: [{ ownership: { notIn: ["Outside", "Void", "Expected"] } }, { ownership: null }] };
   const horses = await prisma.horse.findMany({
-    where: { OR: [{ ownership: { notIn: ["Outside", "Void", "Expected"] } }, { ownership: null }] },
+    where: admin ? owned : { AND: [owned, { name: { startsWith: "[REC]" } }] },
     orderBy: { name: "asc" },
     select: {
       id: true, name: true, breed: true, gender: true, coat: true,
@@ -34,5 +38,5 @@ export default async function RegistryPage() {
 
   const breeds = [...new Set(horses.map((h) => h.breed).filter(Boolean))].sort() as string[];
 
-  return <RegistryClient horses={flat} breeds={breeds} />;
+  return <RegistryClient horses={flat} breeds={breeds} isAdmin={admin} />;
 }

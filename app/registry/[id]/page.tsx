@@ -246,7 +246,6 @@ export default async function HorsePage({ params }: { params: Promise<{ id: stri
           <LegendDot bg="var(--sire-bg)" border="var(--sire-border)" label="Sire line" />
           <LegendDot bg="var(--dam-bg)" border="var(--dam-border)" label="Dam line" />
           <LegendDot bg="var(--inbreed-bg)" border="var(--inbreed-border)" label="Inbreeding" />
-          <LegendDot bg="var(--unknown-bg)" border="var(--unknown-border)" label="Unknown" />
         </div>
         <PedigreeTree node={tree} dupes={dupes} allHorses={allHorsesJson} isAdmin={admin} title={horse.name} />
       </div>
