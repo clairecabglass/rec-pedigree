@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { isAdminLoggedIn } from "@/lib/auth";
+import { sanitizeHorseInput } from "@/lib/horseInput";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -13,7 +14,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!(await isAdminLoggedIn())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
   const body = await req.json();
-  const horse = await prisma.horse.update({ where: { id }, data: body });
+  const horse = await prisma.horse.update({ where: { id }, data: sanitizeHorseInput(body) });
   return NextResponse.json(horse);
 }
 

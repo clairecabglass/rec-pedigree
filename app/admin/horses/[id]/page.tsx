@@ -3,30 +3,50 @@ import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
 import HorseForm from "@/components/HorseForm";
+import PhotoManager from "@/components/PhotoManager";
+import DocumentManager from "@/components/DocumentManager";
 
 export const dynamic = "force-dynamic";
+
+const undef = <T,>(v: T | null): T | undefined => v ?? undefined;
 
 export default async function EditHorsePage({ params }: { params: Promise<{ id: string }> }) {
   if (!(await isAdminLoggedIn())) redirect("/admin/login");
   const { id } = await params;
-  const horse = await prisma.horse.findUnique({ where: { id } });
+  const horse = await prisma.horse.findUnique({
+    where: { id },
+    include: { photos: { orderBy: { order: "asc" } }, documents: { orderBy: { createdAt: "asc" } } },
+  });
   if (!horse) notFound();
 
   const initial = {
-    ...horse,
+    id: horse.id,
+    name: horse.name,
     dob: horse.dob?.toISOString() ?? undefined,
-    microchip: horse.microchip ?? undefined,
-    breed: horse.breed ?? undefined,
-    gender: horse.gender ?? undefined,
-    sireName: horse.sireName ?? undefined,
-    damName: horse.damName ?? undefined,
-    coat: horse.coat ?? undefined,
-    ownership: horse.ownership ?? undefined,
-    notes: horse.notes ?? undefined,
+    microchip: undef(horse.microchip),
+    breed: undef(horse.breed),
+    gender: undef(horse.gender),
+    sireName: undef(horse.sireName),
+    damName: undef(horse.damName),
+    coat: undef(horse.coat),
+    ownership: undef(horse.ownership),
+    notes: undef(horse.notes),
+    withFoal: horse.withFoal,
+    height: undef(horse.height),
+    discipline: undef(horse.discipline),
+    regNumber: undef(horse.regNumber),
+    achievements: undef(horse.achievements),
+    videoUrl: undef(horse.videoUrl),
+    price: undef(horse.price),
+    saleDescription: undef(horse.saleDescription),
+    saleContact: undef(horse.saleContact),
   };
 
+  const card = { background: "var(--white)", border: "1px solid var(--border)", borderRadius: 8, padding: 28, marginBottom: 24 };
+  const sectionHead = { fontFamily: "var(--font-playfair)", fontSize: 20, color: "var(--teal-dark)", marginBottom: 16 };
+
   return (
-    <div className="max-w-2xl mx-auto px-6 py-10">
+    <div className="max-w-3xl mx-auto px-6 py-10">
       <div style={{ display: "flex", gap: 16, marginBottom: 20 }}>
         <Link href="/admin" style={{ fontSize: 13, color: "var(--teal)", textDecoration: "none", fontFamily: "var(--font-lato)" }}>
           ← Admin
@@ -38,8 +58,19 @@ export default async function EditHorsePage({ params }: { params: Promise<{ id: 
       <h1 style={{ fontFamily: "var(--font-playfair)", fontSize: 28, color: "var(--teal-dark)", marginBottom: 24 }}>
         Edit: {horse.name}
       </h1>
-      <div style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 8, padding: 28 }}>
+
+      <div style={card}>
         <HorseForm mode="edit" initial={initial} />
+      </div>
+
+      <div style={card}>
+        <h2 style={sectionHead}>Photos</h2>
+        <PhotoManager horseId={horse.id} initial={horse.photos.map((p) => ({ id: p.id, url: p.url, caption: p.caption, order: p.order, isPrimary: p.isPrimary }))} />
+      </div>
+
+      <div style={card}>
+        <h2 style={sectionHead}>Documents</h2>
+        <DocumentManager horseId={horse.id} initial={horse.documents.map((d) => ({ id: d.id, url: d.url, label: d.label, type: d.type }))} />
       </div>
     </div>
   );

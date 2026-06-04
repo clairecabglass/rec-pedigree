@@ -59,3 +59,37 @@ Or use the Import Excel feature at `/admin/import` to upload your .xlsx directly
 - URL: `yourdomain.com/admin`
 - Password: whatever you set in `ADMIN_PASSWORD` env var
 - Default (local only): `redfield2025`
+
+## Photo & file storage (Cloudflare R2)
+
+Photos and documents work **locally with zero setup** — they save to `public/uploads/`.
+On Vercel the filesystem is read-only, so production uses **Cloudflare R2** (10 GB free,
+no bandwidth fees). When the R2 env vars are present the app automatically uses R2; when
+they're absent it falls back to local disk.
+
+### One-time R2 setup
+1. Create a free Cloudflare account → **R2** → **Create bucket** (e.g. `redfield-photos`).
+2. In the bucket → **Settings** → enable **Public access** (R2.dev subdomain) or attach a
+   custom domain. Copy that public URL (e.g. `https://pub-xxxx.r2.dev`).
+3. R2 → **Manage R2 API Tokens** → **Create API token** (Object Read & Write). Copy the
+   Access Key ID and Secret Access Key.
+4. Find your Cloudflare **Account ID** (R2 overview page, right sidebar).
+5. Add these env vars (Vercel dashboard → Settings → Environment Variables, and/or `.env` locally):
+
+```
+R2_ACCOUNT_ID=your-account-id
+R2_ACCESS_KEY_ID=your-access-key
+R2_SECRET_ACCESS_KEY=your-secret-key
+R2_BUCKET=redfield-photos
+R2_PUBLIC_URL=https://pub-xxxx.r2.dev
+```
+
+That's it — uploads now go to R2. Nothing else changes. Photos already uploaded to local
+disk in dev stay on disk; re-upload them once R2 is live if you want them in production.
+
+## What admins can manage per horse
+- **Photos**: upload (drag & drop, multiple), reorder, set the primary (used on cards &
+  slideshow), delete. → `/admin/horses/<id>` → Photos
+- **Documents**: vet records, registration papers, health certs (PDF/image). → Documents section
+- **Profile fields**: height, discipline, registration #, achievements, video link
+- **For Sale details**: price, sale description, contact (shown on the For Sale page & profile)

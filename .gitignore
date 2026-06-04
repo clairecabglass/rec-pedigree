@@ -45,3 +45,6 @@ next-env.d.ts
 # SQLite dev database
 prisma/dev.db
 prisma/dev.db-journal
+
+# uploaded files (local dev fallback)
+/public/uploads

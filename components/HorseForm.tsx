@@ -15,6 +15,14 @@ interface HorseData {
   ownership?: string;
   notes?: string;
   dob?: string;
+  height?: string;
+  discipline?: string;
+  regNumber?: string;
+  achievements?: string;
+  videoUrl?: string;
+  price?: string;
+  saleDescription?: string;
+  saleContact?: string;
 }
 
 const BREEDS = ["American Paint Horse", "American Quarter Horse", "Andalusian", "Anglo-Arabian", "Arabian", "Belgian", "Clydesdale", "Colorado Ranger", "Connemara", "Criollo", "Friesian", "Hanoverian", "Holsteiner", "Irish Cob", "KWPN", "Kladruber", "Klabruber", "Lipizzaner", "Lusitano", "Menorquin", "Mustang", "Norfolk Roadster", "Nokota", "Oldenburg", "Paso Fino", "Percheron", "Selle Francais", "Shire", "Sugarbush Harlequin", "Suffolk Punch", "Thoroughbred", "Trotteur Francais", "Turkoman", "Warlander"];
@@ -133,9 +141,56 @@ export default function HorseForm({ initial, mode }: { initial?: HorseData; mode
           <label htmlFor="withFoal" style={{ ...labelStyle, marginBottom: 0, textTransform: "none", letterSpacing: 0, fontSize: 13 }}>With Foal</label>
         </div>
 
+        <div>
+          <label style={labelStyle}>Height</label>
+          <input value={data.height ?? ""} onChange={(e) => set("height", e.target.value)} style={fieldStyle} placeholder="e.g. 16.2hh" />
+        </div>
+
+        <div>
+          <label style={labelStyle}>Discipline</label>
+          <input value={data.discipline ?? ""} onChange={(e) => set("discipline", e.target.value)} style={fieldStyle} placeholder="e.g. Dressage, Western" />
+        </div>
+
+        <div>
+          <label style={labelStyle}>Registration #</label>
+          <input value={data.regNumber ?? ""} onChange={(e) => set("regNumber", e.target.value)} style={fieldStyle} />
+        </div>
+
+        <div>
+          <label style={labelStyle}>Video Link</label>
+          <input value={data.videoUrl ?? ""} onChange={(e) => set("videoUrl", e.target.value)} style={fieldStyle} placeholder="YouTube / clip URL" />
+        </div>
+
+        <div style={{ gridColumn: "1 / -1" }}>
+          <label style={labelStyle}>Achievements</label>
+          <textarea value={data.achievements ?? ""} onChange={(e) => set("achievements", e.target.value)} rows={2} style={{ ...fieldStyle, resize: "vertical" }} placeholder="Show results, titles, awards…" />
+        </div>
+
         <div style={{ gridColumn: "1 / -1" }}>
           <label style={labelStyle}>Notes</label>
           <textarea value={data.notes ?? ""} onChange={(e) => set("notes", e.target.value)} rows={3} style={{ ...fieldStyle, resize: "vertical" }} />
+        </div>
+      </div>
+
+      {/* For Sale section */}
+      <div style={{ marginTop: 28, paddingTop: 20, borderTop: "1px solid var(--border)" }}>
+        <h3 style={{ fontFamily: "var(--font-playfair)", fontSize: 18, color: "var(--teal-dark)", marginBottom: 4 }}>For Sale Details</h3>
+        <p style={{ fontSize: 12, color: "var(--text-muted)", fontFamily: "var(--font-lato)", marginBottom: 16 }}>
+          Shown on the For Sale page when ownership is set to “For Sale”.
+        </p>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+          <div>
+            <label style={labelStyle}>Price</label>
+            <input value={data.price ?? ""} onChange={(e) => set("price", e.target.value)} style={fieldStyle} placeholder="e.g. $500 or Negotiable" />
+          </div>
+          <div>
+            <label style={labelStyle}>Sale Contact</label>
+            <input value={data.saleContact ?? ""} onChange={(e) => set("saleContact", e.target.value)} style={fieldStyle} placeholder="Discord / in-game name" />
+          </div>
+          <div style={{ gridColumn: "1 / -1" }}>
+            <label style={labelStyle}>Sale Description</label>
+            <textarea value={data.saleDescription ?? ""} onChange={(e) => set("saleDescription", e.target.value)} rows={3} style={{ ...fieldStyle, resize: "vertical" }} placeholder="Sales pitch / details for buyers…" />
+          </div>
         </div>
       </div>
 

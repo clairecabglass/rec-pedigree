@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import PedigreeTree from "@/components/PedigreeTree";
 import Icon from "@/components/Icon";
+import Slideshow from "@/components/Slideshow";
 import { buildPedigreeTree, findDuplicates } from "@/lib/pedigree";
 import type { HorseMap } from "@/lib/pedigree";
 
@@ -15,7 +16,13 @@ const OWNERSHIP_COLORS: Record<string, string> = {
 
 export default async function HorsePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const horse = await prisma.horse.findUnique({ where: { id } });
+  const horse = await prisma.horse.findUnique({
+    where: { id },
+    include: {
+      photos: { orderBy: [{ isPrimary: "desc" }, { order: "asc" }] },
+      documents: { orderBy: { createdAt: "asc" } },
+    },
+  });
   if (!horse) notFound();
 
   const allHorses = await prisma.horse.findMany({
@@ -52,15 +59,21 @@ export default async function HorsePage({ params }: { params: Promise<{ id: stri
 
       {/* ===== Hero ===== */}
       <div style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden", marginBottom: 24 }} className="flex flex-col md:flex-row">
-        {/* Photo area (ready for future uploads) */}
-        <div style={{
-          width: "100%", maxWidth: 320, minHeight: 240, background: "linear-gradient(135deg, var(--teal-muted), var(--cream-dark))",
-          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flexShrink: 0,
-        }} className="md:w-80">
-          <Icon name="photo" size={44} color="var(--teal-light)" strokeWidth={1.3} />
-          <span style={{ fontSize: 11, color: "var(--teal)", fontFamily: "var(--font-lato)", marginTop: 10, letterSpacing: "0.08em", textTransform: "uppercase" }}>
-            Photo coming soon
-          </span>
+        {/* Photo area — slideshow when photos exist, placeholder otherwise */}
+        <div style={{ width: "100%", maxWidth: 360, flexShrink: 0, padding: horse.photos.length ? 16 : 0 }} className="md:w-96">
+          {horse.photos.length ? (
+            <Slideshow photos={horse.photos.map((p) => ({ id: p.id, url: p.url, caption: p.caption }))} />
+          ) : (
+            <div style={{
+              width: "100%", height: "100%", minHeight: 240, background: "linear-gradient(135deg, var(--teal-muted), var(--cream-dark))",
+              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+            }}>
+              <Icon name="photo" size={44} color="var(--teal-light)" strokeWidth={1.3} />
+              <span style={{ fontSize: 11, color: "var(--teal)", fontFamily: "var(--font-lato)", marginTop: 10, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                No photos yet
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Details */}
@@ -118,15 +131,51 @@ export default async function HorsePage({ params }: { params: Promise<{ id: stri
               ["Date of Birth", horse.dob ? new Date(horse.dob).toLocaleDateString() : null],
               ["Coat", horse.coat],
               ["Breed", horse.breed],
-            ] as const).map(([label, value]) => (
-              <div key={label} style={{ display: "contents" }}>
-                <span style={{ color: "var(--text-muted)", fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase" }}>{label}</span>
-                <span style={{ color: "var(--text)" }}>{value || "—"}</span>
-              </div>
-            ))}
+              ["Height", horse.height],
+              ["Discipline", horse.discipline],
+              ["Registration #", horse.regNumber],
+            ] as const)
+              .filter(([, v]) => v)
+              .map(([label, value]) => (
+                <div key={label} style={{ display: "contents" }}>
+                  <span style={{ color: "var(--text-muted)", fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase" }}>{label}</span>
+                  <span style={{ color: "var(--text)" }}>{value}</span>
+                </div>
+              ))}
           </div>
+
+          {horse.videoUrl && (
+            <a href={horse.videoUrl} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginTop: 16, fontSize: 13, color: "var(--teal)", fontFamily: "var(--font-lato)", fontWeight: 600, textDecoration: "none" }}>
+              ▶ Watch video
+            </a>
+          )}
         </div>
       </div>
+
+      {/* ===== For Sale banner ===== */}
+      {horse.ownership === "For Sale" && (horse.price || horse.saleDescription || horse.saleContact) && (
+        <div style={{ background: "linear-gradient(135deg, #FFF8E8, #FFF3D0)", border: "1px solid var(--gold-light)", borderRadius: 10, padding: "20px 24px", marginBottom: 24 }}>
+          <div className="flex flex-wrap items-center justify-between gap-3" style={{ marginBottom: horse.saleDescription ? 12 : 0 }}>
+            <h2 style={{ fontFamily: "var(--font-playfair)", fontSize: 20, color: "#7A5C00" }}>Available for Sale</h2>
+            {horse.price && <span style={{ fontFamily: "var(--font-playfair)", fontSize: 24, color: "var(--teal-dark)", fontWeight: 700 }}>{horse.price}</span>}
+          </div>
+          {horse.saleDescription && (
+            <p style={{ fontSize: 14, color: "var(--text)", fontFamily: "var(--font-lato)", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{horse.saleDescription}</p>
+          )}
+          {horse.saleContact && (
+            <div style={{ marginTop: 12, fontSize: 13, fontFamily: "var(--font-lato)", color: "var(--text-muted)" }}>
+              <strong style={{ color: "var(--text)" }}>Contact:</strong> {horse.saleContact}
+            </div>
+          )}
+        </div>
+      )}
+
+      {horse.achievements && (
+        <div style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 8, padding: "14px 20px", marginBottom: 24, fontSize: 13, fontFamily: "var(--font-lato)", color: "var(--text)" }}>
+          <strong style={{ color: "var(--teal-dark)", fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase" }}>Achievements</strong>
+          <div style={{ marginTop: 4, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{horse.achievements}</div>
+        </div>
+      )}
 
       {horse.notes && (
         <div style={{ background: "var(--cream)", border: "1px solid var(--border)", borderRadius: 8, padding: "14px 20px", marginBottom: 24, fontSize: 13, fontFamily: "var(--font-lato)", color: "var(--text-muted)" }}>
@@ -183,6 +232,24 @@ export default async function HorsePage({ params }: { params: Promise<{ id: stri
           </div>
         )}
       </div>
+
+      {/* ===== Documents ===== */}
+      {horse.documents.length > 0 && (
+        <div style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 10, padding: 24, marginTop: 24 }}>
+          {sectionTitle("Documents")}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {horse.documents.map((d) => (
+              <a key={d.id} href={d.url} target="_blank" rel="noopener noreferrer"
+                className="hover-row"
+                style={{ display: "flex", alignItems: "center", gap: 12, border: "1px solid var(--border)", borderRadius: 8, padding: "10px 14px", background: "var(--cream)", textDecoration: "none", fontFamily: "var(--font-lato)" }}>
+                <Icon name="registry" size={18} color="var(--teal)" />
+                <span style={{ flex: 1, color: "var(--teal-dark)", fontWeight: 600, fontSize: 13 }}>{d.label}</span>
+                {d.type && <span style={{ fontSize: 11, color: "var(--text-muted)", background: "var(--white)", borderRadius: 10, padding: "2px 8px" }}>{d.type}</span>}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
