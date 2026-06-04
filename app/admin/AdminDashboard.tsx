@@ -50,6 +50,7 @@ export default function AdminDashboard({ stats, recent }: {
       {/* Actions */}
       <div className="grid md:grid-cols-3 gap-4 mb-8">
         {[
+          { href: "/admin/stable-tracker", icon: "tree" as const, label: "Stable Tracker", desc: "Plan pairings — preview a foal's pedigree & inbreeding" },
           { href: "/admin/horses/new", icon: "plus" as const, label: "Add Horse", desc: "Register a new horse manually" },
           { href: "/admin/import", icon: "upload" as const, label: "Import Excel", desc: "Upload your .xlsx to sync the registry" },
           { href: "/admin/horses", icon: "edit" as const, label: "Edit Registry", desc: "Find and edit existing horse records" },

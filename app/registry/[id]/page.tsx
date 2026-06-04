@@ -6,6 +6,7 @@ import Icon from "@/components/Icon";
 import PhotoGallery from "@/components/PhotoGallery";
 import { buildPedigreeTree, findDuplicates, pedigreeDepth } from "@/lib/pedigree";
 import type { HorseMap } from "@/lib/pedigree";
+import { isAdminLoggedIn } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +44,7 @@ export default async function HorsePage({ params }: { params: Promise<{ id: stri
 
   const allHorsesJson = JSON.stringify(allHorses.map((h) => ({ id: h.id, name: h.name })));
   const hero = horse.photos[0];
+  const admin = await isAdminLoggedIn();
 
   const sectionTitle = (text: string) => (
     <h2 style={{ fontFamily: "var(--font-playfair)", fontSize: 22, color: "var(--teal-dark)", marginBottom: 16 }}>{text}</h2>
@@ -207,7 +209,7 @@ export default async function HorsePage({ params }: { params: Promise<{ id: stri
           <LegendDot bg="var(--inbreed-bg)" border="var(--inbreed-border)" label="Inbreeding" />
           <LegendDot bg="var(--unknown-bg)" border="var(--unknown-border)" label="Unknown" />
         </div>
-        <PedigreeTree node={tree} dupes={dupes} allHorses={allHorsesJson} />
+        <PedigreeTree node={tree} dupes={dupes} allHorses={allHorsesJson} isAdmin={admin} title={horse.name} />
       </div>
 
       {/* ===== Offspring ===== */}

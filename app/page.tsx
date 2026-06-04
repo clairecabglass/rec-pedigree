@@ -77,9 +77,9 @@ export default async function Home() {
             {
               icon: "tree" as const,
               title: "Pedigree Trees",
-              desc: "Interactive fan-tree pedigrees going as deep as your data allows. Inbreeding is highlighted automatically.",
-              href: "/pedigree",
-              cta: "Look Up Pedigree",
+              desc: "Open any horse to explore its interactive pedigree, going as deep as the data allows. Inbreeding is highlighted automatically.",
+              href: "/registry",
+              cta: "Browse Pedigrees",
             },
             {
               icon: "tag" as const,

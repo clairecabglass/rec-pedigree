@@ -1,12 +1,15 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
+import { toPng } from "html-to-image";
 import type { HorseNode } from "@/lib/pedigree";
 
 interface Props {
   node: HorseNode | null;
   dupes: Set<string>;
   allHorses: string; // JSON: {id, name}[]
+  isAdmin?: boolean;  // download is admin-only
+  title?: string;     // used for the downloaded filename
 }
 
 interface HorseRef { id: string; name: string; }
@@ -85,16 +88,54 @@ function Node({
   );
 }
 
-export default function PedigreeTree({ node, dupes, allHorses }: Props) {
+export default function PedigreeTree({ node, dupes, allHorses, isAdmin, title }: Props) {
   const [maxDepth, setMaxDepth] = useState(5);
+  const [downloading, setDownloading] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const treeRef = useRef<HTMLDivElement>(null);
 
   if (!node) return <p style={{ color: "var(--text-muted)" }}>No pedigree data available.</p>;
 
   const refs: HorseRef[] = JSON.parse(allHorses);
   const idMap = new Map(refs.map((h) => [h.name.toLowerCase(), h.id]));
 
+  async function goFullscreen() {
+    const el = wrapRef.current;
+    if (!el) return;
+    if (document.fullscreenElement) await document.exitFullscreen();
+    else await el.requestFullscreen?.();
+  }
+
+  async function download() {
+    if (!treeRef.current) return;
+    setDownloading(true);
+    try {
+      const dataUrl = await toPng(treeRef.current, {
+        backgroundColor: "#FBF8F4",
+        pixelRatio: 2,
+        style: { overflow: "visible" },
+        width: treeRef.current.scrollWidth + 32,
+        height: treeRef.current.scrollHeight + 32,
+      });
+      const a = document.createElement("a");
+      a.download = `${(title ?? "pedigree").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-pedigree.png`;
+      a.href = dataUrl;
+      a.click();
+    } catch {
+      alert("Could not generate the image. Try a smaller generation count.");
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  const toolBtn: React.CSSProperties = {
+    padding: "5px 12px", border: "1px solid var(--border)", borderRadius: 4,
+    background: "var(--white)", color: "var(--teal-dark)", cursor: "pointer",
+    fontSize: 12, fontFamily: "var(--font-lato)", display: "inline-flex", alignItems: "center", gap: 5,
+  };
+
   return (
-    <div>
+    <div ref={wrapRef} style={{ background: "var(--cream)" }}>
       <div style={{ marginBottom: 16, display: "flex", gap: 8, alignItems: "center", fontFamily: "var(--font-lato)", fontSize: 13, flexWrap: "wrap" }}>
         <span style={{ color: "var(--text-muted)" }}>Generations:</span>
         {[3, 4, 5, 6, 7].map((d) => (
@@ -116,10 +157,21 @@ export default function PedigreeTree({ node, dupes, allHorses }: Props) {
             {d}
           </button>
         ))}
+
+        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+          <button onClick={goFullscreen} style={toolBtn} title="Fullscreen">
+            ⛶ Fullscreen
+          </button>
+          {isAdmin && (
+            <button onClick={download} disabled={downloading} style={{ ...toolBtn, opacity: downloading ? 0.6 : 1 }} title="Download as image">
+              ↓ {downloading ? "Saving…" : "Download"}
+            </button>
+          )}
+        </div>
       </div>
 
       <div style={{ overflowX: "auto", paddingBottom: 12 }}>
-        <div className="ped-root">
+        <div className="ped-root" ref={treeRef}>
           <Node node={node} role="root" depth={0} maxDepth={maxDepth} dupes={dupes} idMap={idMap} />
         </div>
       </div>
