@@ -5,6 +5,7 @@ import PedigreeTree from "@/components/PedigreeTree";
 import Icon from "@/components/Icon";
 import { buildPedigreeTree, findDuplicates } from "@/lib/pedigree";
 import type { HorseMap, HorseNode } from "@/lib/pedigree";
+import { predictFoal, extractGeneCode, PATTERNS as PATTERN_LABEL } from "@/lib/genetics";
 
 interface Horse {
   id: string; name: string; breed: string | null; gender: string | null;
@@ -52,6 +53,14 @@ export default function StableTrackerClient({ horses }: { horses: Horse[] }) {
   const generations = foal ? nodeDepth(foal) : 0;
   const clean = dupes.size === 0;
 
+  const genes = useMemo(() => {
+    if (!dam || !sire) return null;
+    return predictFoal(
+      extractGeneCode(sire.coat, sire.genotype),
+      extractGeneCode(dam.coat, dam.genotype),
+    );
+  }, [dam, sire]);
+
   return (
     <div className="max-w-6xl mx-auto px-6 py-10">
       <div style={{ display: "flex", gap: 16, marginBottom: 12 }}>
@@ -83,22 +92,50 @@ export default function StableTrackerClient({ horses }: { horses: Horse[] }) {
             <Stat label="Pairing" value={clean && generations >= 5 ? "Excellent" : clean ? "Good" : "Caution"} note={clean ? "Outcross" : "Linebreeding"} good={clean} />
           </div>
 
-          {/* Predicted genetics — placeholder until gene logic provided */}
+          {/* Predicted genetics */}
           <div style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 10, padding: 20, marginBottom: 24 }}>
             <h2 style={{ fontFamily: "var(--font-playfair)", fontSize: 18, color: "var(--teal-dark)", marginBottom: 12 }}>Predicted Foal Genetics</h2>
-            <div className="grid grid-cols-2 gap-4" style={{ fontFamily: "var(--font-lato)", fontSize: 13 }}>
+            <div className="grid grid-cols-2 gap-4" style={{ fontFamily: "var(--font-lato)", fontSize: 13, marginBottom: 16 }}>
               <div>
                 <div style={{ fontSize: 11, letterSpacing: "0.08em", color: "var(--dam-text)", textTransform: "uppercase" }}>Dam coat</div>
-                <div>{dam!.coat ?? "—"}{dam!.genotype ? `  (${dam!.genotype})` : ""}</div>
+                <div>{dam!.coat ?? "—"}</div>
               </div>
               <div>
                 <div style={{ fontSize: 11, letterSpacing: "0.08em", color: "var(--sire-text)", textTransform: "uppercase" }}>Sire coat</div>
-                <div>{sire!.coat ?? "—"}{sire!.genotype ? `  (${sire!.genotype})` : ""}</div>
+                <div>{sire!.coat ?? "—"}</div>
               </div>
             </div>
-            <div style={{ marginTop: 14, padding: "10px 14px", background: "var(--cream)", borderRadius: 8, fontSize: 12.5, color: "var(--text-muted)", fontFamily: "var(--font-lato)" }}>
-              🧬 Coat/colour prediction will appear here once the gene logic is added.
-            </div>
+
+            {!genes?.ok ? (
+              <div style={{ padding: "10px 14px", background: "var(--cream)", borderRadius: 8, fontSize: 12.5, color: "var(--text-muted)", fontFamily: "var(--font-lato)" }}>
+                {genes?.reason ?? "Add gene codes to both parents' coats (e.g. “Bay Overo (B_O)”) to predict the foal."}
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                <ChipRow label="Possible base colours" items={genes.bases.map((b) => ({ R: "Red / Chestnut", B: "Bay", BL: "Black" }[b]))} color="var(--teal-dark)" bg="var(--teal-muted)" />
+                {genes.modifiers.length > 0 && (
+                  <ChipRow label="May inherit" items={genes.modifiers.map((m) => m.label)} color="#6B5A2A" bg="var(--gold-light)" />
+                )}
+                <ChipRow label="Possible patterns" items={genes.patterns.length ? ["None", ...genes.patterns.map((p) => PATTERN_LABEL[p] ?? p)] : ["None"]} color="var(--dam-text)" bg="var(--dam-bg)" />
+
+                <div>
+                  <div style={{ fontSize: 11, letterSpacing: "0.08em", color: "var(--text-muted)", textTransform: "uppercase", fontFamily: "var(--font-lato)", marginBottom: 8 }}>Possible foal coats</div>
+                  <div className="grid sm:grid-cols-3 gap-3">
+                    {genes.coats.map((grp) => (
+                      <div key={grp.base} style={{ background: "var(--cream)", border: "1px solid var(--border)", borderRadius: 8, padding: "10px 12px" }}>
+                        <div style={{ fontFamily: "var(--font-playfair)", fontSize: 14, color: "var(--teal-dark)", marginBottom: 6 }}>{grp.base}</div>
+                        <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12, color: "var(--text)", fontFamily: "var(--font-lato)", lineHeight: 1.7 }}>
+                          {grp.names.map((n) => <li key={n}>{n}</li>)}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ marginTop: 8, fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-lato)" }}>
+                    These are the colours/patterns this pairing <em>could</em> produce — actual foals get one combination at random.
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Foal pedigree */}
@@ -116,6 +153,21 @@ export default function StableTrackerClient({ horses }: { horses: Horse[] }) {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+function ChipRow({ label, items, color, bg }: { label: string; items: (string | undefined)[]; color: string; bg: string }) {
+  const list = items.filter(Boolean) as string[];
+  if (!list.length) return null;
+  return (
+    <div>
+      <div style={{ fontSize: 11, letterSpacing: "0.08em", color: "var(--text-muted)", textTransform: "uppercase", fontFamily: "var(--font-lato)", marginBottom: 6 }}>{label}</div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        {list.map((it) => (
+          <span key={it} style={{ background: bg, color, border: "1px solid rgba(0,0,0,0.06)", borderRadius: 14, padding: "3px 12px", fontSize: 12.5, fontWeight: 600, fontFamily: "var(--font-lato)" }}>{it}</span>
+        ))}
+      </div>
     </div>
   );
 }
