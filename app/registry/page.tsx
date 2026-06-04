@@ -24,7 +24,6 @@ export default async function RegistryPage() {
   }));
 
   const breeds = [...new Set(horses.map((h) => h.breed).filter(Boolean))].sort() as string[];
-  const ownerships = [...new Set(horses.map((h) => h.ownership).filter(Boolean))].sort() as string[];
 
-  return <RegistryClient horses={flat} breeds={breeds} ownerships={ownerships} />;
+  return <RegistryClient horses={flat} breeds={breeds} />;
 }

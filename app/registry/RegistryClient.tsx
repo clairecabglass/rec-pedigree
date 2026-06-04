@@ -24,13 +24,12 @@ const OWNERSHIP_COLORS: Record<string, string> = {
 
 type SortKey = "name-asc" | "name-desc" | "breed" | "newest";
 
-export default function RegistryClient({ horses, breeds, ownerships }: {
-  horses: Horse[]; breeds: string[]; ownerships: string[];
+export default function RegistryClient({ horses, breeds }: {
+  horses: Horse[]; breeds: string[];
 }) {
   const [search, setSearch] = useState("");
   const [breedFilter, setBreedFilter] = useState("");
   const [genderFilter, setGenderFilter] = useState("");
-  const [ownerFilter, setOwnerFilter] = useState("");
   const [sort, setSort] = useState<SortKey>("name-asc");
   const [view, setView] = useState<"grid" | "table">("grid");
   const [page, setPage] = useState(1);
@@ -46,7 +45,6 @@ export default function RegistryClient({ horses, breeds, ownerships }: {
         !(h.damName?.toLowerCase().includes(q))) return false;
       if (breedFilter && h.breed !== breedFilter) return false;
       if (genderFilter && h.gender !== genderFilter) return false;
-      if (ownerFilter && h.ownership !== ownerFilter) return false;
       return true;
     });
     out.sort((a, b) => {
@@ -57,14 +55,14 @@ export default function RegistryClient({ horses, breeds, ownerships }: {
       return 0;
     });
     return out;
-  }, [horses, search, breedFilter, genderFilter, ownerFilter, sort]);
+  }, [horses, search, breedFilter, genderFilter, sort]);
 
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
   const safePage = Math.min(page, Math.max(1, totalPages));
   const paged = filtered.slice((safePage - 1) * PER_PAGE, safePage * PER_PAGE);
 
-  const reset = () => { setSearch(""); setBreedFilter(""); setGenderFilter(""); setOwnerFilter(""); setPage(1); };
-  const active = search || breedFilter || genderFilter || ownerFilter;
+  const reset = () => { setSearch(""); setBreedFilter(""); setGenderFilter(""); setPage(1); };
+  const active = search || breedFilter || genderFilter;
 
   const selectStyle = {
     border: "1px solid var(--border)", borderRadius: 6, padding: "8px 12px",
@@ -115,13 +113,6 @@ export default function RegistryClient({ horses, breeds, ownerships }: {
             <option value="">All</option>
             <option value="Stallion">Stallion</option>
             <option value="Mare">Mare</option>
-          </select>
-        </div>
-        <div className="flex flex-col gap-1">
-          <label style={labelStyle}>Ownership</label>
-          <select value={ownerFilter} onChange={(e) => { setOwnerFilter(e.target.value); setPage(1); }} style={selectStyle}>
-            <option value="">All</option>
-            {ownerships.map((o) => <option key={o} value={o}>{o}</option>)}
           </select>
         </div>
         <div className="flex flex-col gap-1">
