@@ -31,11 +31,20 @@ export default function RegistryClient({ horses, breeds }: {
   const [search, setSearch] = useState("");
   const [breedFilter, setBreedFilter] = useState("");
   const [genderFilter, setGenderFilter] = useState("");
+  const [coatFilter, setCoatFilter] = useState("");
   const [minGen, setMinGen] = useState(0);
+  const [foalOnly, setFoalOnly] = useState(false);
+  const [saleOnly, setSaleOnly] = useState(false);
+  const [photosOnly, setPhotosOnly] = useState(false);
   const [sort, setSort] = useState<SortKey>("name-asc");
   const [view, setView] = useState<"grid" | "table">("grid");
   const [page, setPage] = useState(1);
   const PER_PAGE = view === "grid" ? 24 : 40;
+
+  const coats = useMemo(
+    () => [...new Set(horses.map((h) => h.coat).filter(Boolean))].sort() as string[],
+    [horses]
+  );
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -47,7 +56,11 @@ export default function RegistryClient({ horses, breeds }: {
         !(h.damName?.toLowerCase().includes(q))) return false;
       if (breedFilter && h.breed !== breedFilter) return false;
       if (genderFilter && h.gender !== genderFilter) return false;
+      if (coatFilter && h.coat !== coatFilter) return false;
       if (minGen && h.generations < minGen) return false;
+      if (foalOnly && !h.withFoal) return false;
+      if (saleOnly && h.ownership !== "For Sale") return false;
+      if (photosOnly && !h.photo) return false;
       return true;
     });
     out.sort((a, b) => {
@@ -58,14 +71,17 @@ export default function RegistryClient({ horses, breeds }: {
       return 0;
     });
     return out;
-  }, [horses, search, breedFilter, genderFilter, minGen, sort]);
+  }, [horses, search, breedFilter, genderFilter, coatFilter, minGen, foalOnly, saleOnly, photosOnly, sort]);
 
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
   const safePage = Math.min(page, Math.max(1, totalPages));
   const paged = filtered.slice((safePage - 1) * PER_PAGE, safePage * PER_PAGE);
 
-  const reset = () => { setSearch(""); setBreedFilter(""); setGenderFilter(""); setMinGen(0); setPage(1); };
-  const active = search || breedFilter || genderFilter || minGen;
+  const reset = () => {
+    setSearch(""); setBreedFilter(""); setGenderFilter(""); setCoatFilter("");
+    setMinGen(0); setFoalOnly(false); setSaleOnly(false); setPhotosOnly(false); setPage(1);
+  };
+  const active = Boolean(search || breedFilter || genderFilter || coatFilter || minGen || foalOnly || saleOnly || photosOnly);
 
   const selectStyle = {
     border: "1px solid var(--border)", borderRadius: 6, padding: "8px 12px",
@@ -93,52 +109,76 @@ export default function RegistryClient({ horses, breeds }: {
       </div>
 
       {/* Filters */}
-      <div style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 8, padding: "16px 20px", marginBottom: 24 }} className="flex flex-wrap gap-3 items-end">
-        <div className="flex flex-col gap-1">
-          <label style={labelStyle}>Search</label>
-          <div style={{ position: "relative" }}>
-            <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
-              <Icon name="search" size={15} color="var(--text-muted)" />
-            </span>
-            <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Name, breed, sire, dam…" style={{ ...selectStyle, width: 230, paddingLeft: 32 }} />
+      <div style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 8, padding: "16px 20px", marginBottom: 24 }}>
+        <div className="flex flex-wrap gap-3 items-end">
+          <div className="flex flex-col gap-1">
+            <label style={labelStyle}>Search</label>
+            <div style={{ position: "relative" }}>
+              <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
+                <Icon name="search" size={15} color="var(--text-muted)" />
+              </span>
+              <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Name, breed, sire, dam…" style={{ ...selectStyle, width: 230, paddingLeft: 32 }} />
+            </div>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label style={labelStyle}>Breed</label>
+            <select value={breedFilter} onChange={(e) => { setBreedFilter(e.target.value); setPage(1); }} style={selectStyle}>
+              <option value="">All Breeds</option>
+              {breeds.map((b) => <option key={b} value={b}>{b}</option>)}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label style={labelStyle}>Gender</label>
+            <select value={genderFilter} onChange={(e) => { setGenderFilter(e.target.value); setPage(1); }} style={selectStyle}>
+              <option value="">All</option>
+              <option value="Stallion">Stallion</option>
+              <option value="Mare">Mare</option>
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label style={labelStyle}>Coat</label>
+            <select value={coatFilter} onChange={(e) => { setCoatFilter(e.target.value); setPage(1); }} style={{ ...selectStyle, maxWidth: 200 }}>
+              <option value="">All Coats</option>
+              {coats.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label style={labelStyle}>Generations</label>
+            <select value={minGen} onChange={(e) => { setMinGen(Number(e.target.value)); setPage(1); }} style={selectStyle}>
+              <option value={0}>Any</option>
+              {[1, 2, 3, 4, 5, 6, 7].map((g) => <option key={g} value={g}>{g}+ generations</option>)}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label style={labelStyle}>Sort</label>
+            <select value={sort} onChange={(e) => setSort(e.target.value as SortKey)} style={selectStyle}>
+              <option value="name-asc">Name A–Z</option>
+              <option value="name-desc">Name Z–A</option>
+              <option value="breed">Breed</option>
+              <option value="newest">Newest (DOB)</option>
+            </select>
+          </div>
+          <div style={{ marginLeft: "auto", fontSize: 13, color: "var(--text-muted)", fontFamily: "var(--font-lato)", paddingBottom: 8 }}>
+            {filtered.length} result{filtered.length !== 1 ? "s" : ""}
           </div>
         </div>
-        <div className="flex flex-col gap-1">
-          <label style={labelStyle}>Breed</label>
-          <select value={breedFilter} onChange={(e) => { setBreedFilter(e.target.value); setPage(1); }} style={selectStyle}>
-            <option value="">All Breeds</option>
-            {breeds.map((b) => <option key={b} value={b}>{b}</option>)}
-          </select>
-        </div>
-        <div className="flex flex-col gap-1">
-          <label style={labelStyle}>Gender</label>
-          <select value={genderFilter} onChange={(e) => { setGenderFilter(e.target.value); setPage(1); }} style={selectStyle}>
-            <option value="">All</option>
-            <option value="Stallion">Stallion</option>
-            <option value="Mare">Mare</option>
-          </select>
-        </div>
-        <div className="flex flex-col gap-1">
-          <label style={labelStyle}>Generations</label>
-          <select value={minGen} onChange={(e) => { setMinGen(Number(e.target.value)); setPage(1); }} style={selectStyle}>
-            <option value={0}>Any</option>
-            {[1, 2, 3, 4, 5, 6, 7].map((g) => <option key={g} value={g}>{g}+ generations</option>)}
-          </select>
-        </div>
-        <div className="flex flex-col gap-1">
-          <label style={labelStyle}>Sort</label>
-          <select value={sort} onChange={(e) => setSort(e.target.value as SortKey)} style={selectStyle}>
-            <option value="name-asc">Name A–Z</option>
-            <option value="name-desc">Name Z–A</option>
-            <option value="breed">Breed</option>
-            <option value="newest">Newest (DOB)</option>
-          </select>
-        </div>
-        {active && (
-          <button onClick={reset} style={{ background: "none", border: "1px solid var(--border)", borderRadius: 6, padding: "8px 14px", fontSize: 12, color: "var(--text-muted)", cursor: "pointer", fontFamily: "var(--font-lato)" }}>Clear</button>
-        )}
-        <div style={{ marginLeft: "auto", fontSize: 13, color: "var(--text-muted)", fontFamily: "var(--font-lato)" }}>
-          {filtered.length} result{filtered.length !== 1 ? "s" : ""}
+
+        {/* Toggle filters */}
+        <div className="flex flex-wrap items-center gap-5" style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--border)" }}>
+          <span style={{ ...labelStyle }}>Show only</span>
+          {([
+            ["With foal", foalOnly, setFoalOnly] as const,
+            ["For sale", saleOnly, setSaleOnly] as const,
+            ["With photos", photosOnly, setPhotosOnly] as const,
+          ]).map(([lbl, val, setter]) => (
+            <label key={lbl} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontFamily: "var(--font-lato)", color: "var(--text)", cursor: "pointer" }}>
+              <input type="checkbox" checked={val} onChange={(e) => { setter(e.target.checked); setPage(1); }} style={{ width: 15, height: 15, accentColor: "var(--teal)" }} />
+              {lbl}
+            </label>
+          ))}
+          {active && (
+            <button onClick={reset} style={{ marginLeft: "auto", background: "none", border: "1px solid var(--border)", borderRadius: 6, padding: "6px 14px", fontSize: 12, color: "var(--text-muted)", cursor: "pointer", fontFamily: "var(--font-lato)" }}>Clear all</button>
+          )}
         </div>
       </div>
 

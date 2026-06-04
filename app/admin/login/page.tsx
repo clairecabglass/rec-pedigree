@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -15,15 +16,17 @@ export default function LoginPage() {
     const res = await fetch("/api/auth", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password }),
+      body: JSON.stringify({ username, password }),
     });
     setLoading(false);
     if (res.ok) {
       router.push("/admin");
     } else {
-      setError("Incorrect password.");
+      setError("Incorrect username or password.");
     }
   }
+
+  const inputStyle = { border: "1px solid var(--border)", borderRadius: 6, padding: "10px 14px", fontSize: 14, fontFamily: "var(--font-lato)", color: "var(--text)", outline: "none" };
 
   return (
     <div style={{ minHeight: "80vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -38,12 +41,21 @@ export default function LoginPage() {
         </div>
         <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <input
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="Username"
+            autoComplete="username"
+            style={inputStyle}
+            autoFocus
+          />
+          <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password"
-            style={{ border: "1px solid var(--border)", borderRadius: 6, padding: "10px 14px", fontSize: 14, fontFamily: "var(--font-lato)", color: "var(--text)", outline: "none" }}
-            autoFocus
+            autoComplete="current-password"
+            style={inputStyle}
           />
           {error && <div style={{ color: "#C05050", fontSize: 13, fontFamily: "var(--font-lato)" }}>{error}</div>}
           <button
