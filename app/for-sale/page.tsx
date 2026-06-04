@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import Link from "next/link";
+import Icon from "@/components/Icon";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,9 @@ export default async function ForSalePage() {
 
       {horses.length === 0 ? (
         <div style={{ textAlign: "center", padding: "60px 0", background: "var(--white)", border: "1px solid var(--border)", borderRadius: 8 }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>🐴</div>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
+            <Icon name="horse" size={40} color="var(--teal-light)" />
+          </div>
           <p style={{ color: "var(--text-muted)", fontFamily: "var(--font-lato)", fontSize: 15 }}>
             No horses are currently listed for sale.
           </p>
@@ -35,9 +38,8 @@ export default async function ForSalePage() {
           {horses.map((horse) => (
             <Link key={horse.id} href={`/registry/${horse.id}`} style={{ textDecoration: "none" }}>
               <div
-                style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 8, padding: 24, transition: "box-shadow 0.15s, border-color 0.15s", cursor: "pointer", height: "100%" }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.boxShadow = "0 4px 16px rgba(94,128,128,0.15)"; (e.currentTarget as HTMLDivElement).style.borderColor = "var(--teal-light)"; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.boxShadow = ""; (e.currentTarget as HTMLDivElement).style.borderColor = "var(--border)"; }}
+                className="hover-card"
+                style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 8, padding: 24, cursor: "pointer", height: "100%" }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
                   <div>

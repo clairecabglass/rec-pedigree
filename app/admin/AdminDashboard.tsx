@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import Icon from "@/components/Icon";
 
 interface Recent {
   id: string; name: string; breed: string | null; gender: string | null;
@@ -49,15 +50,17 @@ export default function AdminDashboard({ stats, recent }: {
       {/* Actions */}
       <div className="grid md:grid-cols-3 gap-4 mb-8">
         {[
-          { href: "/admin/horses/new", icon: "➕", label: "Add Horse", desc: "Register a new horse manually" },
-          { href: "/admin/import", icon: "📤", label: "Import Excel", desc: "Upload your .xlsx to sync the registry" },
-          { href: "/admin/horses", icon: "✏️", label: "Edit Registry", desc: "Find and edit existing horse records" },
+          { href: "/admin/horses/new", icon: "plus" as const, label: "Add Horse", desc: "Register a new horse manually" },
+          { href: "/admin/import", icon: "upload" as const, label: "Import Excel", desc: "Upload your .xlsx to sync the registry" },
+          { href: "/admin/horses", icon: "edit" as const, label: "Edit Registry", desc: "Find and edit existing horse records" },
         ].map((a) => (
           <Link key={a.href} href={a.href} style={{ ...cardStyle, textDecoration: "none", display: "block", transition: "border-color 0.15s" }}
             onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--teal-light)")}
             onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
           >
-            <div style={{ fontSize: 28, marginBottom: 8 }}>{a.icon}</div>
+            <div style={{ width: 44, height: 44, borderRadius: 9, background: "var(--teal-muted)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
+              <Icon name={a.icon} size={22} color="var(--teal-dark)" />
+            </div>
             <div style={{ fontFamily: "var(--font-playfair)", fontSize: 17, color: "var(--teal-dark)", marginBottom: 4 }}>{a.label}</div>
             <div style={{ fontSize: 13, color: "var(--text-muted)", fontFamily: "var(--font-lato)" }}>{a.desc}</div>
           </Link>

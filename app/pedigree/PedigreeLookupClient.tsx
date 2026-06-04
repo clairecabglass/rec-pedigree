@@ -89,16 +89,17 @@ export default function PedigreeLookupClient({ horses }: { horses: Horse[] }) {
           </div>
 
           {dupes.size > 0 && (
-            <div style={{ marginBottom: 16, background: "#FFF0F0", border: "1px solid #FFCCCC", borderRadius: 6, padding: "10px 16px", fontSize: 13, color: "#C05050", fontFamily: "var(--font-lato)" }}>
-              ⚠ Inbreeding detected — {dupes.size} duplicate ancestor{dupes.size !== 1 ? "s" : ""} found in this pedigree.
+            <div style={{ marginBottom: 16, background: "var(--inbreed-bg)", border: "1px solid var(--inbreed-border)", borderRadius: 6, padding: "10px 16px", fontSize: 13, color: "var(--inbreed-text)", fontFamily: "var(--font-lato)" }}>
+              Inbreeding detected — {dupes.size} duplicate ancestor{dupes.size !== 1 ? "s" : ""} found in this pedigree.
             </div>
           )}
 
           <div style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 8, padding: 24, overflowX: "auto" }}>
-            <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 16, fontFamily: "var(--font-lato)", display: "flex", gap: 16 }}>
-              <span><span style={{ display: "inline-block", width: 10, height: 10, borderLeft: "3px solid var(--teal-light)", background: "var(--white)", marginRight: 4, borderRadius: 2 }}></span>Sire line</span>
-              <span><span style={{ display: "inline-block", width: 10, height: 10, borderLeft: "3px solid var(--gold)", background: "var(--white)", marginRight: 4, borderRadius: 2 }}></span>Dam line</span>
-              <span><span style={{ display: "inline-block", width: 10, height: 10, background: "#FFF5F5", border: "1px solid #E07070", marginRight: 4, borderRadius: 2 }}></span>Inbreeding</span>
+            <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 16, fontFamily: "var(--font-lato)", display: "flex", gap: 18, flexWrap: "wrap" }}>
+              <span><span style={{ display: "inline-block", width: 11, height: 11, background: "var(--sire-bg)", border: "1px solid var(--sire-border)", marginRight: 5, borderRadius: 3, verticalAlign: "middle" }}></span>Sire line</span>
+              <span><span style={{ display: "inline-block", width: 11, height: 11, background: "var(--dam-bg)", border: "1px solid var(--dam-border)", marginRight: 5, borderRadius: 3, verticalAlign: "middle" }}></span>Dam line</span>
+              <span><span style={{ display: "inline-block", width: 11, height: 11, background: "var(--inbreed-bg)", border: "1px solid var(--inbreed-border)", marginRight: 5, borderRadius: 3, verticalAlign: "middle" }}></span>Inbreeding</span>
+              <span><span style={{ display: "inline-block", width: 11, height: 11, background: "var(--unknown-bg)", border: "1px solid var(--unknown-border)", marginRight: 5, borderRadius: 3, verticalAlign: "middle" }}></span>Unknown</span>
             </div>
             <PedigreeTree node={tree} dupes={dupes} allHorses={allHorsesJson} />
           </div>

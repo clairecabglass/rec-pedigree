@@ -1,12 +1,19 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
+import Icon from "@/components/Icon";
+
+// Horses we don't currently own are kept only for record-keeping.
+// Explicitly include blank-ownership rows (SQL NOT IN drops NULLs otherwise).
+const OWNED = {
+  OR: [{ ownership: { notIn: ["Outside", "Void"] } }, { ownership: null }],
+};
 
 export default async function Home() {
   const [total, forSale, stallions, mares] = await Promise.all([
-    prisma.horse.count(),
+    prisma.horse.count({ where: OWNED }),
     prisma.horse.count({ where: { ownership: "For Sale" } }),
-    prisma.horse.count({ where: { gender: "Stallion" } }),
-    prisma.horse.count({ where: { gender: "Mare" } }),
+    prisma.horse.count({ where: { ...OWNED, gender: "Stallion" } }),
+    prisma.horse.count({ where: { ...OWNED, gender: "Mare" } }),
   ]);
 
   return (
@@ -61,21 +68,21 @@ export default async function Home() {
         <div className="grid md:grid-cols-3 gap-8">
           {[
             {
-              icon: "📋",
+              icon: "registry" as const,
               title: "Full Registry",
               desc: "Search and filter all registered horses by breed, gender, ownership status, and coat.",
               href: "/registry",
               cta: "Browse Registry",
             },
             {
-              icon: "🌳",
+              icon: "tree" as const,
               title: "Pedigree Trees",
               desc: "Interactive fan-tree pedigrees going as deep as your data allows. Inbreeding is highlighted automatically.",
               href: "/pedigree",
               cta: "Look Up Pedigree",
             },
             {
-              icon: "🏷️",
+              icon: "tag" as const,
               title: "For Sale",
               desc: "Browse horses currently available for purchase from Redfield Equestrian Centre.",
               href: "/for-sale",
@@ -83,7 +90,9 @@ export default async function Home() {
             },
           ].map((f) => (
             <div key={f.title} style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 8, padding: 28 }}>
-              <div style={{ fontSize: 32, marginBottom: 12 }}>{f.icon}</div>
+              <div style={{ width: 48, height: 48, borderRadius: 10, background: "var(--teal-muted)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
+                <Icon name={f.icon} size={24} color="var(--teal-dark)" />
+              </div>
               <h3 style={{ fontFamily: "var(--font-playfair)", fontSize: 20, color: "var(--teal-dark)", marginBottom: 8 }}>{f.title}</h3>
               <p style={{ fontSize: 14, color: "var(--text-muted)", lineHeight: 1.6, marginBottom: 20, fontFamily: "var(--font-lato)" }}>{f.desc}</p>
               <Link href={f.href} style={{ color: "var(--teal)", fontSize: 13, fontWeight: 700, letterSpacing: "0.08em", textDecoration: "none", fontFamily: "var(--font-lato)" }}>

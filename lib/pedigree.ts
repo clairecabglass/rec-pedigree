@@ -19,6 +19,14 @@ export type HorseMap = Map<string, {
   damName: string | null;
 }>;
 
+// Placeholder ancestor names that are NOT specific horses, so repeats of them
+// across a pedigree do not count as inbreeding.
+const PLACEHOLDER_NAMES = new Set(["unknown", "foundation"]);
+
+export function isPlaceholderAncestor(name: string): boolean {
+  return PLACEHOLDER_NAMES.has(name.trim().toLowerCase());
+}
+
 export function buildPedigreeTree(
   name: string,
   allHorses: HorseMap,
@@ -42,7 +50,7 @@ export function buildPedigreeTree(
   if (depth >= maxDepth) return node;
 
   const key = horse.name.toLowerCase();
-  if (seen.has(key)) {
+  if (seen.has(key) && !isPlaceholderAncestor(horse.name)) {
     node.inbreeding = true;
     return node;
   }
@@ -71,6 +79,7 @@ export function findDuplicates(node: HorseNode | null | undefined): Set<string> 
   const dupes = new Set<string>();
   for (const n of names) {
     const key = n.toLowerCase();
+    if (isPlaceholderAncestor(n)) continue; // Unknown/Foundation aren't real ancestors
     if (seen.has(key)) dupes.add(key);
     seen.add(key);
   }

@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import Icon from "./Icon";
 
 const links = [
   { href: "/", label: "Home" },
@@ -20,7 +21,7 @@ export default function Nav() {
             width: 44, height: 44, borderRadius: "50%",
             background: "var(--teal)", display: "flex", alignItems: "center", justifyContent: "center",
           }}>
-            <span style={{ color: "white", fontSize: 20 }}>🐴</span>
+            <Icon name="horse" size={24} color="white" strokeWidth={1.5} />
           </div>
           <div>
             <div style={{ fontFamily: "var(--font-playfair), Georgia, serif", fontSize: 18, fontWeight: 700, color: "var(--teal-dark)", letterSpacing: "0.08em" }}>
