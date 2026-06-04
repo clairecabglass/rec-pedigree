@@ -10,7 +10,7 @@ export default async function AdminHorsesPage({ searchParams }: { searchParams: 
   const { q } = await searchParams;
 
   const horses = await prisma.horse.findMany({
-    where: q ? { name: { contains: q } } : {},
+    where: q ? { name: { contains: q, mode: "insensitive" } } : {},
     orderBy: { name: "asc" },
     take: 60,
     select: { id: true, name: true, breed: true, gender: true, ownership: true, updatedAt: true },

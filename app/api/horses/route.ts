@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
 
   const horses = await prisma.horse.findMany({
     where: {
-      ...(q ? { name: { contains: q } } : {}),
+      ...(q ? { name: { contains: q, mode: "insensitive" as const } } : {}),
       ...(ownership ? { ownership } : {}),
     },
     orderBy: { name: "asc" },
