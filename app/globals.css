@@ -1,26 +1,115 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --cream: #F5F0EB;
+  --cream-dark: #EDE6DC;
+  --teal: #5E8080;
+  --teal-dark: #3F5F5F;
+  --teal-light: #8AABA8;
+  --teal-muted: #D4E3E1;
+  --gold: #C4A96E;
+  --gold-light: #DDD0A8;
+  --text: #2C3E3C;
+  --text-muted: #7A9090;
+  --border: #C8D8D5;
+  --white: #FFFFFF;
+
+  --background: var(--cream);
+  --foreground: var(--text);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--cream);
+  color: var(--text);
+  font-family: 'Georgia', serif;
+  min-height: 100vh;
+}
+
+/* Pedigree tree layout */
+.pedigree-tree {
+  display: flex;
+  align-items: center;
+  overflow-x: auto;
+  gap: 0;
+}
+
+.pedigree-generation {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  flex-shrink: 0;
+}
+
+.pedigree-node {
+  position: relative;
+  margin: 3px 0;
+}
+
+.pedigree-card {
+  background: var(--white);
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  min-width: 160px;
+  max-width: 200px;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.pedigree-card:hover {
+  border-color: var(--teal);
+  box-shadow: 0 2px 8px rgba(94, 128, 128, 0.2);
+}
+
+.pedigree-card.sire {
+  border-left: 3px solid var(--teal-light);
+}
+
+.pedigree-card.dam {
+  border-left: 3px solid var(--gold);
+}
+
+.pedigree-card.inbreeding {
+  border-color: #E07070;
+  background: #FFF5F5;
+}
+
+.pedigree-card.unknown {
+  background: #FFFBF0;
+  border-color: var(--gold-light);
+  color: var(--text-muted);
+}
+
+.pedigree-card .horse-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--teal-dark);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pedigree-card .horse-breed {
+  font-size: 10px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Connector lines */
+.connector {
+  width: 24px;
+  flex-shrink: 0;
+  align-self: stretch;
+  position: relative;
 }

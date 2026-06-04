@@ -1,0 +1,25 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Horse {
+  id        String    @id @default(cuid())
+  microchip String?
+  name      String    @unique
+  breed     String?
+  gender    String?
+  sireName  String?
+  damName   String?
+  coat      String?
+  withFoal  Boolean   @default(false)
+  ownership String?
+  notes     String?
+  dob       DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}

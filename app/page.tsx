@@ -1,65 +1,98 @@
-import Image from "next/image";
+import Link from "next/link";
+import { prisma } from "@/lib/db";
 
-export default function Home() {
+export default async function Home() {
+  const [total, forSale, stallions, mares] = await Promise.all([
+    prisma.horse.count(),
+    prisma.horse.count({ where: { ownership: "For Sale" } }),
+    prisma.horse.count({ where: { gender: "Stallion" } }),
+    prisma.horse.count({ where: { gender: "Mare" } }),
+  ]);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <div>
+      {/* Hero */}
+      <section style={{ background: "var(--teal)", color: "var(--white)" }} className="py-20 px-6">
+        <div className="max-w-4xl mx-auto text-center">
+          <div style={{ fontSize: 12, letterSpacing: "0.25em", color: "var(--teal-muted)", marginBottom: 16, fontFamily: "var(--font-lato)" }}>
+            REDFIELD EQUESTRIAN CENTRE
+          </div>
+          <h1 style={{ fontFamily: "var(--font-playfair), Georgia, serif", fontSize: 48, fontWeight: 400, lineHeight: 1.2, marginBottom: 20 }}>
+            Horse Registry &amp; Pedigree Records
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p style={{ color: "var(--teal-muted)", fontSize: 18, maxWidth: 560, margin: "0 auto 36px", fontFamily: "var(--font-lato)", fontWeight: 300 }}>
+            Browse our full registry, explore bloodlines through interactive pedigree trees,
+            and find horses available for purchase.
           </p>
+          <div className="flex gap-4 justify-center flex-wrap">
+            <Link href="/registry" style={{ background: "var(--white)", color: "var(--teal-dark)", padding: "12px 28px", borderRadius: 4, fontFamily: "var(--font-lato)", fontWeight: 700, fontSize: 14, letterSpacing: "0.08em", textDecoration: "none" }}>
+              VIEW REGISTRY
+            </Link>
+            <Link href="/for-sale" style={{ border: "2px solid var(--teal-muted)", color: "var(--white)", padding: "12px 28px", borderRadius: 4, fontFamily: "var(--font-lato)", fontWeight: 700, fontSize: 14, letterSpacing: "0.08em", textDecoration: "none" }}>
+              HORSES FOR SALE
+            </Link>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </section>
+
+      {/* Stats */}
+      <section style={{ background: "var(--cream-dark)", borderBottom: "1px solid var(--border)" }}>
+        <div className="max-w-4xl mx-auto px-6 py-10 grid grid-cols-2 md:grid-cols-4 gap-6">
+          {[
+            { label: "Registered Horses", value: total },
+            { label: "For Sale", value: forSale },
+            { label: "Stallions", value: stallions },
+            { label: "Mares", value: mares },
+          ].map((s) => (
+            <div key={s.label} className="text-center">
+              <div style={{ fontFamily: "var(--font-playfair)", fontSize: 36, color: "var(--teal)", fontWeight: 700 }}>
+                {s.value}
+              </div>
+              <div style={{ fontSize: 12, letterSpacing: "0.1em", color: "var(--text-muted)", fontFamily: "var(--font-lato)", textTransform: "uppercase" }}>
+                {s.label}
+              </div>
+            </div>
+          ))}
         </div>
-      </main>
+      </section>
+
+      {/* Features */}
+      <section className="max-w-5xl mx-auto px-6 py-16">
+        <div className="grid md:grid-cols-3 gap-8">
+          {[
+            {
+              icon: "📋",
+              title: "Full Registry",
+              desc: "Search and filter all registered horses by breed, gender, ownership status, and coat.",
+              href: "/registry",
+              cta: "Browse Registry",
+            },
+            {
+              icon: "🌳",
+              title: "Pedigree Trees",
+              desc: "Interactive fan-tree pedigrees going as deep as your data allows. Inbreeding is highlighted automatically.",
+              href: "/pedigree",
+              cta: "Look Up Pedigree",
+            },
+            {
+              icon: "🏷️",
+              title: "For Sale",
+              desc: "Browse horses currently available for purchase from Redfield Equestrian Centre.",
+              href: "/for-sale",
+              cta: "View Listings",
+            },
+          ].map((f) => (
+            <div key={f.title} style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 8, padding: 28 }}>
+              <div style={{ fontSize: 32, marginBottom: 12 }}>{f.icon}</div>
+              <h3 style={{ fontFamily: "var(--font-playfair)", fontSize: 20, color: "var(--teal-dark)", marginBottom: 8 }}>{f.title}</h3>
+              <p style={{ fontSize: 14, color: "var(--text-muted)", lineHeight: 1.6, marginBottom: 20, fontFamily: "var(--font-lato)" }}>{f.desc}</p>
+              <Link href={f.href} style={{ color: "var(--teal)", fontSize: 13, fontWeight: 700, letterSpacing: "0.08em", textDecoration: "none", fontFamily: "var(--font-lato)" }}>
+                {f.cta} →
+              </Link>
+            </div>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
