@@ -152,6 +152,15 @@ body {
   transform: none;
 }
 
+/* Every copy of the ancestor you're hovering lights up gold, so it's obvious
+   which repeated cards are the same horse (not the card sitting next to it). */
+.ped-card.dupe-active {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(196, 169, 110, 0.25) !important;
+  z-index: 1;
+}
+
 .ped-card.root {
   border-left: 4px solid var(--teal);
   min-width: 168px;

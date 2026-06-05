@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { toPng } from "html-to-image";
 import type { HorseNode } from "@/lib/pedigree";
@@ -43,14 +43,21 @@ function Card({
       <div className="pc-name">{node.name}</div>
       {node.breed && <div className="pc-breed">{node.breed}</div>}
       {node.coat && depth < 2 && <div className="pc-coat">{node.coat}</div>}
-      {isInbreeding && <div className="pc-flag">⚠ Inbreeding</div>}
+      {isInbreeding && <div className="pc-flag">⚠ Repeated ancestor</div>}
     </>
   );
 
+  // data-dupe lets us highlight every copy of the same ancestor on hover, so
+  // it's clear WHICH cards are the matching pair (not the card beside it).
+  const dupeAttr = isInbreeding ? node.name.toLowerCase() : undefined;
+  const dupeTitle = isInbreeding
+    ? `${node.name} appears more than once in this pedigree — hover to see every copy.`
+    : undefined;
+
   return horseId ? (
-    <Link href={`/registry/${horseId}`} className={cls}>{inner}</Link>
+    <Link href={`/registry/${horseId}`} className={cls} data-dupe={dupeAttr} title={dupeTitle}>{inner}</Link>
   ) : (
-    <div className={cls}>{inner}</div>
+    <div className={cls} data-dupe={dupeAttr} title={dupeTitle}>{inner}</div>
   );
 }
 
@@ -95,19 +102,77 @@ export default function PedigreeTree({ node, dupes, allHorses, isAdmin, title, b
   const [maxDepthState, setMaxDepth] = useState(5);
   const maxDepth = bare ? (fixedDepth ?? 5) : maxDepthState;
   const [downloading, setDownloading] = useState(false);
+  const [isFs, setIsFs] = useState(false);
+  const [zoom, setZoom] = useState(1);
   const wrapRef = useRef<HTMLDivElement>(null);
   const treeRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Track fullscreen state so we can switch to the pan/zoom canvas layout.
+  useEffect(() => {
+    const onChange = () => {
+      const fs = document.fullscreenElement === wrapRef.current;
+      setIsFs(fs);
+      if (!fs) setZoom(1); // reset when leaving fullscreen
+    };
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
 
   if (!node) return <p style={{ color: "var(--text-muted)" }}>No pedigree data available.</p>;
 
   const refs: HorseRef[] = JSON.parse(allHorses);
   const idMap = new Map(refs.map((h) => [h.name.toLowerCase(), h.id]));
 
+  const clampZoom = (z: number) => Math.min(2.5, Math.max(0.3, z));
+
   async function goFullscreen() {
     const el = wrapRef.current;
     if (!el) return;
     if (document.fullscreenElement) await document.exitFullscreen();
     else await el.requestFullscreen?.();
+  }
+
+  // Ctrl/⌘ + wheel zooms; plain wheel scrolls normally.
+  function onWheel(e: React.WheelEvent) {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      setZoom((z) => clampZoom(z - e.deltaY * 0.002));
+    }
+  }
+
+  // Drag anywhere on empty canvas to pan (grab/grabbing cursor).
+  function onPanStart(e: React.MouseEvent) {
+    // Don't hijack clicks on the cards themselves (they're links).
+    if ((e.target as HTMLElement).closest(".ped-card")) return;
+    const sc = scrollRef.current;
+    if (!sc) return;
+    const startX = e.clientX, startY = e.clientY;
+    const startL = sc.scrollLeft, startT = sc.scrollTop;
+    sc.style.cursor = "grabbing";
+    const move = (ev: MouseEvent) => {
+      sc.scrollLeft = startL - (ev.clientX - startX);
+      sc.scrollTop = startT - (ev.clientY - startY);
+    };
+    const up = () => {
+      sc.style.cursor = "grab";
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseup", up);
+    };
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
+  }
+
+  // Hover a repeated ancestor → outline every other copy of it in the tree.
+  function onHover(e: React.MouseEvent) {
+    const card = (e.target as HTMLElement).closest<HTMLElement>("[data-dupe]");
+    const sc = scrollRef.current;
+    if (!sc) return;
+    sc.querySelectorAll(".dupe-active").forEach((el) => el.classList.remove("dupe-active"));
+    if (!card) return;
+    const name = card.getAttribute("data-dupe");
+    if (!name) return;
+    sc.querySelectorAll(`[data-dupe="${CSS.escape(name)}"]`).forEach((el) => el.classList.add("dupe-active"));
   }
 
   async function download() {
@@ -146,8 +211,16 @@ export default function PedigreeTree({ node, dupes, allHorses, isAdmin, title, b
     );
   }
 
+  const zoomBtn: React.CSSProperties = { ...toolBtn, padding: "5px 11px", fontWeight: 700, minWidth: 34, justifyContent: "center" };
+
   return (
-    <div ref={wrapRef} style={{ background: "var(--cream)" }}>
+    <div
+      ref={wrapRef}
+      style={{
+        background: "var(--cream)",
+        ...(isFs ? { height: "100vh", display: "flex", flexDirection: "column", padding: 16 } : {}),
+      }}
+    >
       <div style={{ marginBottom: 16, display: "flex", gap: 8, alignItems: "center", fontFamily: "var(--font-lato)", fontSize: 13, flexWrap: "wrap" }}>
         <span style={{ color: "var(--text-muted)" }}>Generations:</span>
         {[3, 4, 5, 6, 7, 8, 9, 10].map((d) => (
@@ -170,9 +243,12 @@ export default function PedigreeTree({ node, dupes, allHorses, isAdmin, title, b
           </button>
         ))}
 
-        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
+          <button onClick={() => setZoom((z) => clampZoom(z - 0.2))} style={zoomBtn} title="Zoom out">−</button>
+          <button onClick={() => setZoom(1)} style={{ ...toolBtn, minWidth: 52, justifyContent: "center" }} title="Reset zoom">{Math.round(zoom * 100)}%</button>
+          <button onClick={() => setZoom((z) => clampZoom(z + 0.2))} style={zoomBtn} title="Zoom in">+</button>
           <button onClick={goFullscreen} style={toolBtn} title="Fullscreen">
-            ⛶ Fullscreen
+            {isFs ? "✕ Exit" : "⛶ Fullscreen"}
           </button>
           {isAdmin && (
             <button onClick={download} disabled={downloading} style={{ ...toolBtn, opacity: downloading ? 0.6 : 1 }} title="Download as image">
@@ -182,9 +258,29 @@ export default function PedigreeTree({ node, dupes, allHorses, isAdmin, title, b
         </div>
       </div>
 
-      <div style={{ overflowX: "auto", paddingBottom: 12 }}>
-        <div className="ped-root" ref={treeRef}>
-          <Node node={node} role="root" depth={0} maxDepth={maxDepth} dupes={dupes} idMap={idMap} />
+      {isFs && (
+        <p style={{ margin: "0 0 10px", fontSize: 12, color: "var(--text-muted)", fontFamily: "var(--font-lato)" }}>
+          Drag to pan · ⌘/Ctrl + scroll to zoom · hover a repeated ancestor to highlight its copies
+        </p>
+      )}
+
+      <div
+        ref={scrollRef}
+        onWheel={onWheel}
+        onMouseDown={onPanStart}
+        onMouseOver={onHover}
+        onMouseOut={onHover}
+        style={{
+          overflow: "auto",
+          paddingBottom: 12,
+          cursor: "grab",
+          ...(isFs ? { flex: 1, minHeight: 0 } : {}),
+        }}
+      >
+        <div style={{ zoom, width: "max-content" }}>
+          <div className="ped-root" ref={treeRef}>
+            <Node node={node} role="root" depth={0} maxDepth={maxDepth} dupes={dupes} idMap={idMap} />
+          </div>
         </div>
       </div>
     </div>
