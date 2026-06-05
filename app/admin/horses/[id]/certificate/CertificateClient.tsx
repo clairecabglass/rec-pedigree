@@ -102,7 +102,7 @@ export default function CertificateClient({
           </div>
           {/* Registration number */}
           {regNumber && (
-            <div style={{ position: "absolute", top: "8.3%", left: "68%", width: "24%", textAlign: "center", fontFamily: "var(--font-lato), sans-serif", fontSize: 18, color: "var(--teal-dark)", letterSpacing: "0.05em" }}>
+            <div style={{ position: "absolute", top: "10.4%", left: "68%", width: "24%", textAlign: "center", fontFamily: "var(--font-lato), sans-serif", fontSize: 18, color: "var(--teal-dark)", letterSpacing: "0.05em" }}>
               {regNumber}
             </div>
           )}
