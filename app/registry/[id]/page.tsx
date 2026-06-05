@@ -88,9 +88,14 @@ export default async function HorsePage({ params }: { params: Promise<{ id: stri
           ‹ Back
         </Link>
         {admin && (
-          <Link href={`/admin/horses/${horse.id}`} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--teal-dark)", background: "var(--white)", border: "1px solid var(--teal)", padding: "7px 16px", borderRadius: 6, textDecoration: "none", fontFamily: "var(--font-lato)", fontWeight: 700 }}>
-            <Icon name="edit" size={14} color="var(--teal-dark)" /> Edit this horse
-          </Link>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <Link href={`/admin/horses/${horse.id}/certificate`} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "white", background: "var(--teal)", padding: "7px 16px", borderRadius: 6, textDecoration: "none", fontFamily: "var(--font-lato)", fontWeight: 700 }}>
+              📜 Certificate
+            </Link>
+            <Link href={`/admin/horses/${horse.id}`} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--teal-dark)", background: "var(--white)", border: "1px solid var(--teal)", padding: "7px 16px", borderRadius: 6, textDecoration: "none", fontFamily: "var(--font-lato)", fontWeight: 700 }}>
+              <Icon name="edit" size={14} color="var(--teal-dark)" /> Edit this horse
+            </Link>
+          </div>
         )}
       </div>
 

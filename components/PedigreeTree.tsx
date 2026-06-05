@@ -10,6 +10,9 @@ interface Props {
   allHorses: string; // JSON: {id, name}[]
   isAdmin?: boolean;  // download is admin-only
   title?: string;     // used for the downloaded filename
+  bare?: boolean;     // no toolbar, transparent bg (for the certificate)
+  fixedDepth?: number;
+  compact?: boolean;  // tighter rows (certificate)
 }
 
 interface HorseRef { id: string; name: string; }
@@ -88,8 +91,9 @@ function Node({
   );
 }
 
-export default function PedigreeTree({ node, dupes, allHorses, isAdmin, title }: Props) {
-  const [maxDepth, setMaxDepth] = useState(5);
+export default function PedigreeTree({ node, dupes, allHorses, isAdmin, title, bare, fixedDepth, compact }: Props) {
+  const [maxDepthState, setMaxDepth] = useState(5);
+  const maxDepth = bare ? (fixedDepth ?? 5) : maxDepthState;
   const [downloading, setDownloading] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const treeRef = useRef<HTMLDivElement>(null);
@@ -133,6 +137,14 @@ export default function PedigreeTree({ node, dupes, allHorses, isAdmin, title }:
     background: "var(--white)", color: "var(--teal-dark)", cursor: "pointer",
     fontSize: 12, fontFamily: "var(--font-lato)", display: "inline-flex", alignItems: "center", gap: 5,
   };
+
+  if (bare) {
+    return (
+      <div className={`ped-root${compact ? " cert" : ""}`} ref={treeRef} style={{ background: "transparent" }}>
+        <Node node={node} role="root" depth={0} maxDepth={maxDepth} dupes={dupes} idMap={idMap} />
+      </div>
+    );
+  }
 
   return (
     <div ref={wrapRef} style={{ background: "var(--cream)" }}>
