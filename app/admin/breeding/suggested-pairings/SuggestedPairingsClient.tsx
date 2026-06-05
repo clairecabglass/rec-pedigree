@@ -32,6 +32,15 @@ export default function SuggestedPairingsClient({ horses }: { horses: FullHorseD
   const [ownedHorsesOnly, setOwnedHorsesOnly] = useState(false);
   const [knownParentsOnly, setKnownParentsOnly] = useState(false);
 
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
+
+  // Effect to reset current page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [minGenerations, requirePurebred, maxInbreeding, selectedBreed, ownedHorsesOnly, knownParentsOnly]);
+
   // Memoized data
   const mares = useMemo(() => horses.filter(h => h.gender === "Mare"), [horses]);
   const stallions = useMemo(() => horses.filter(h => h.gender === "Stallion"), [horses]);
@@ -114,6 +123,13 @@ export default function SuggestedPairingsClient({ horses }: { horses: FullHorseD
     }
     return pairings.sort((a, b) => a.inbreedingCoefficient - b.inbreedingCoefficient || b.pedigreeDepth - a.pedigreeDepth); // Sort by COI then depth
   }, [horses, minGenerations, requirePurebred, maxInbreeding, selectedBreed, ownedHorsesOnly, knownParentsOnly, mares, stallions, horseMap]);
+
+  const totalPages = Math.ceil(suggestedPairings.length / itemsPerPage);
+  const paginatedPairings = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return suggestedPairings.slice(startIndex, endIndex);
+  }, [suggestedPairings, currentPage, itemsPerPage]);
 
 
   const cardStyle = { background: "var(--white)", border: "1px solid var(--border)", borderRadius: 8, padding: 24 };
@@ -200,13 +216,69 @@ export default function SuggestedPairingsClient({ horses }: { horses: FullHorseD
             <h2 style={{ fontFamily: "var(--font-playfair)", fontSize: 22, color: "var(--teal-dark)", marginBottom: 16 }}>
               Suggested Pairings ({suggestedPairings.length})
             </h2>
+
+            {suggestedPairings.length > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, marginBottom: 20 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, fontFamily: "var(--font-lato)", fontSize: 13, color: "var(--text-muted)" }}>
+                  Page {currentPage} of {totalPages}
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    style={{ ...secondaryButtonStyle, padding: "8px 16px" }}
+                  >
+                    Previous
+                  </button>
+                  {[...Array(totalPages)].map((_, i) => (
+                    <button
+                      key={i + 1}
+                      onClick={() => setCurrentPage(i + 1)}
+                      style={{
+                        ...secondaryButtonStyle,
+                        padding: "8px 12px",
+                        background: currentPage === i + 1 ? "var(--teal)" : "var(--white)",
+                        color: currentPage === i + 1 ? "var(--white)" : "var(--teal-dark)",
+                      }}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                    style={{ ...secondaryButtonStyle, padding: "8px 16px" }}
+                  >
+                    Next
+                  </button>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <label htmlFor="itemsPerPage" style={{ ...labelStyle, marginBottom: 0 }}>Results per page:</label>
+                  <select
+                    id="itemsPerPage"
+                    value={itemsPerPage}
+                    onChange={(e) => {
+                      setItemsPerPage(parseInt(e.target.value));
+                      setCurrentPage(1); // Reset to first page when changing items per page
+                    }}
+                    style={{ ...inputStyle, width: "auto", minWidth: "70px", padding: "7px 10px", fontSize: 12 }}
+                  >
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                  </select>
+                </div>
+              </div>
+            )}
+            
             {suggestedPairings.length === 0 ? (
               <p style={{ color: "var(--text-muted)", fontFamily: "var(--font-lato)", fontSize: 14 }}>
                 No pairings match your criteria. Try adjusting your filters.
               </p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-                {suggestedPairings.map((p, index) => (
+                {paginatedPairings.map((p, index) => (
                   <div key={`${p.mare.id}-${p.stallion.id}`} style={{ border: "1px solid var(--border)", borderRadius: 8, padding: 16, background: "var(--cream-dark)", position: "relative" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                       <h3 style={{ fontFamily: "var(--font-playfair)", fontSize: 18, color: "var(--teal-dark)" }}>
