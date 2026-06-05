@@ -17,17 +17,16 @@ export async function parsePedigreeImage(imageUrl: string): Promise<ParsedPedigr
 
 **Crucial Instructions:**
 1.  **Output Format:** Respond STRICTLY with a JSON object. Ensure the JSON is valid and complete.
-2.  **Root Horse:** The horse whose pedigree it is (typically the leftmost horse in the chart) should be identified as the `rootHorse`.
-3.  **Ancestors:** All other horses identified in the pedigree should be listed in the `ancestors` array.
-4.  **Field Confidence:** If you are NOT confident about a field's value (e.g., breed, gender, coat, genotype), leave that field as `null` in the JSON. **Do NOT guess or invent values.**
-5.  **Ownership:** For all ancestors, set the `ownership` field to `"Outside not owned"`. For the `rootHorse`, set `ownership` to `null` (as its ownership will be handled separately).
+2.  **Root Horse:** The horse whose pedigree it is (typically the leftmost horse in the chart) should be identified as the rootHorse.
+3.  **Ancestors:** All other horses identified in the pedigree should be listed in the ancestors array.
+4.  **Field Confidence:** If you are NOT confident about a field's value (e.g., breed, gender, coat, genotype), leave that field as null in the JSON. **Do NOT guess or invent values.**
+5.  **Ownership:** For all ancestors, set the ownership field to "Outside not owned". For the rootHorse, set ownership to null (as its ownership will be handled separately).
 6.  **Relationships:** Infer sire and dam relationships from the visual layout of the pedigree chart (lines, positioning).
-7.  **`uncertainFields`:** For each horse, include an array `uncertainFields`. If any field (`name`, `gender`, `breed`, `coat`, `genotype`, `sireName`, `damName`) was difficult to extract or you have low confidence in its accuracy, list the names of those fields in this array (e.g., `["breed", "genotype"]`). If all fields are extracted with high confidence, this array should be empty `[]`.
-8.  **`rawModelNotes`:** Include a `rawModelNotes` string in the top-level JSON for any general observations or difficulties encountered during extraction (e.g., "Image quality was low", "Pedigree layout was unusual"). If no notes, set to `null`.
+7.  **uncertainFields:** For each horse, include an array uncertainFields. If any field (name, gender, breed, coat, genotype, sireName, damName) was difficult to extract or you have low confidence in its accuracy, list the names of those fields in this array (e.g., ["breed", "genotype"]). If all fields are extracted with high confidence, this array should be empty [].
+8.  **rawModelNotes:** Include a rawModelNotes string in the top-level JSON for any general observations or difficulties encountered during extraction (e.g., "Image quality was low", "Pedigree layout was unusual"). If no notes, set to null.
 
 **JSON Structure (Strictly follow this):**
 
-```json
 {
   "rootHorse": {
     "name": "string | null",
@@ -55,11 +54,10 @@ export async function parsePedigreeImage(imageUrl: string): Promise<ParsedPedigr
   ],
   "rawModelNotes": "string | null"
 }
-```
 
 **Additional Context for Pedigree Interpretation:**
 *   **Generations:** Pedigrees typically show the horse, then its parents, then grandparents, etc., moving from left to right.
-*   **Gender Identification:** Try to infer gender from names (e.g., "Mare" for female-sounding names) or other visual cues if present. If unsure, default to `null`.
+*   **Gender Identification:** Try to infer gender from names (e.g., "Mare" for female-sounding names) or other visual cues if present. If unsure, default to null.
 *   **Genotype:** Often appears in parentheses or small text next to the coat or name.
 *   **Breed:** May be abbreviated or placed near the name.
 

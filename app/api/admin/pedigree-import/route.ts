@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminLoggedIn } from "@/lib/auth";
-import { uploadFile } from "@/lib/storage"; // Corrected import name
+import { uploadFile } from "@/lib/storage";
 import { parsePedigreeImage } from "@/lib/pedigree-parser";
-import { HorseData, AncestorData } from "@/lib/types";
+import { HorseData, AncestorData } from "@/lib/types"; // These imports are now unused but kept for consistency with other files or future use
 
 export async function POST(req: NextRequest) {
   if (!(await isAdminLoggedIn())) {
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(arrayBuffer);
 
     // 1. Upload image to R2 (or local dev storage)
-    const { url, key } = await uploadFile( // Corrected function name
+    const { url, key } = await uploadFile(
       "pedigree-imports", // folder
       imageFile.name,     // filename
       buffer,             // buffer
@@ -32,14 +32,12 @@ export async function POST(req: NextRequest) {
     // 2. Process image (OCR and parsing)
     const parsedData = await parsePedigreeImage(url); 
 
-    // ... (rest of the code remains the same)
-
     return NextResponse.json({
       success: true,
       imageUrl: url,
       imageKey: key,
-      rootHorse,
-      ancestors,
+      rootHorse: parsedData.rootHorse, // Directly use parsedData's rootHorse
+      ancestors: parsedData.ancestors, // Directly use parsedData's ancestors
       // Add more data as needed for the review step
     }, { status: 200 });
 

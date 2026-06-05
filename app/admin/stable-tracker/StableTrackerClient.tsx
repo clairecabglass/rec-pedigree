@@ -21,7 +21,7 @@ interface Pregnancy {
 }
 
 interface Plan {
-  id: string; damId: string; damName: string;
+  id: string; damId: string | null; damName: string;
   sireId: string | null; sireName: string | null; notes: string | null;
 }
 

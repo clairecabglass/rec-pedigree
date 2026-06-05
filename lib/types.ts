@@ -8,7 +8,7 @@ export interface HorseData {
   damName?: string;
   coat?: string;
   genotype?: string;
-  ownership?: string;
+  ownership?: string | null;
   isImportedPlaceholder?: boolean;
   // Add other fields that might be extracted or relevant
 }
@@ -22,4 +22,5 @@ export interface AncestorData extends HorseData {
 export interface ParsedPedigreeData {
   rootHorse: HorseData;
   ancestors: HorseData[];
+  rawModelNotes?: string | null;
 }
