@@ -1,11 +1,11 @@
 import { isAdminLoggedIn } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import StableTrackerClient from "./StableTrackerClient";
+import BreedingClient from "./BreedingClient"; // Updated import
 
 export const dynamic = "force-dynamic";
 
-export default async function StableTrackerPage() {
+export default async function BreedingPage() { // Renamed function
   if (!(await isAdminLoggedIn())) redirect("/admin/login");
 
   const horses = await prisma.horse.findMany({
@@ -37,5 +37,5 @@ export default async function StableTrackerPage() {
     sireId: p.sireId, sireName: p.sireName, notes: p.notes,
   }));
 
-  return <StableTrackerClient horses={horses as never} pregnancies={pregList} plans={planList} />;
+  return <BreedingClient horses={horses as never} pregnancies={pregList} plans={planList} />; // Updated component name
 }

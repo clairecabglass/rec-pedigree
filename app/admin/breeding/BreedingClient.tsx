@@ -7,13 +7,15 @@ import Icon from "@/components/Icon";
 import { buildPedigreeTree, commonAncestors, inbreedingCoefficient } from "@/lib/pedigree";
 import type { HorseMap, HorseNode } from "@/lib/pedigree";
 import { predictFoal, extractGeneCode, PATTERNS as PATTERN_LABEL } from "@/lib/genetics";
+import { FullHorseData } from "@/lib/types"; // Import FullHorseData
 
 const GESTATION_MS = 72 * 60 * 60 * 1000; // pregnancy = exactly 72 hours
 
-interface Horse {
-  id: string; name: string; breed: string | null; gender: string | null;
-  coat: string | null; genotype: string | null; sireName: string | null; damName: string | null;
-}
+// The local Horse interface is replaced by FullHorseData from "@/lib/types"
+// interface Horse {
+//   id: string; name: string; breed: string | null; gender: string | null;
+//   coat: string | null; genotype: string | null; sireName: string | null; damName: string | null;
+// }
 
 interface Pregnancy {
   id: string; sireName: string | null; dueDate: string | null;
@@ -42,13 +44,13 @@ function nodeDepth(n: HorseNode | null | undefined): number {
   return Math.max(s, d);
 }
 
-export default function StableTrackerClient({ horses, pregnancies, plans }: { horses: Horse[]; pregnancies: Pregnancy[]; plans: Plan[] }) {
+export default function BreedingClient({ horses, pregnancies, plans }: { horses: FullHorseData[]; pregnancies: Pregnancy[]; plans: Plan[] }) {
   const router = useRouter();
-  const [dam, setDam] = useState<Horse | null>(null);
-  const [sire, setSire] = useState<Horse | null>(null);
+  const [dam, setDam] = useState<FullHorseData | null>(null);
+  const [sire, setSire] = useState<FullHorseData | null>(null);
   const [busy, setBusy] = useState(false);
   const [pregOpen, setPregOpen] = useState(true);
-  const [matches, setMatches] = useState<{ stallion: Horse; depth: number; coi: number; shared: number }[] | null>(null);
+  const [matches, setMatches] = useState<{ stallion: FullHorseData; depth: number; coi: number; shared: number }[] | null>(null);
 
   // Pregnancy auto-dates: bred now, due in exactly 72 hours.
   async function registerPregnancy() {
@@ -99,7 +101,8 @@ export default function StableTrackerClient({ horses, pregnancies, plans }: { ho
   const map: HorseMap = useMemo(
     () => new Map(horses.map((h) => [h.name.toLowerCase(), {
       id: h.id, name: h.name, breed: h.breed, gender: h.gender,
-      coat: h.coat, sireName: h.sireName, damName: h.damName,
+      coat: h.coat, genotype: h.genotype, sireName: h.sireName, damName: h.damName,
+      ownership: h.ownership, isImportedPlaceholder: h.isImportedPlaceholder,
     }])),
     [horses]
   );
@@ -156,15 +159,28 @@ export default function StableTrackerClient({ horses, pregnancies, plans }: { ho
     );
   }, [dam, sire]);
 
+  const secondaryButtonStyle = {
+    background: "var(--white)", border: "1px solid var(--border)", borderRadius: 6,
+    padding: "11px 28px", fontSize: 14, fontWeight: 700, cursor: "pointer",
+    fontFamily: "var(--font-lato)", opacity: 1, color: "var(--teal-dark)",
+  };
+
   return (
     <div className="max-w-6xl mx-auto px-6 py-10">
       <div style={{ display: "flex", gap: 16, marginBottom: 12 }}>
         <Link href="/admin" style={{ fontSize: 13, color: "var(--teal)", textDecoration: "none", fontFamily: "var(--font-lato)" }}>← Admin</Link>
       </div>
-      <h1 style={{ fontFamily: "var(--font-playfair)", fontSize: 32, color: "var(--teal-dark)", marginBottom: 4 }}>Stable Tracker</h1>
+      <h1 style={{ fontFamily: "var(--font-playfair)", fontSize: 32, color: "var(--teal-dark)", marginBottom: 4 }}>Breeding</h1>
       <p style={{ color: "var(--text-muted)", fontFamily: "var(--font-lato)", fontSize: 14, marginBottom: 28 }}>
-        Track current pregnancies and plan pairings — preview a foal&apos;s pedigree, inbreeding, depth, and coat genetics.
+        Manage pregnancies, plan future pairings, and explore genetic possibilities for your horses.
       </p>
+
+      {/* Suggested Pairings Link */}
+      <div style={{ marginBottom: 28 }}>
+        <Link href="/admin/breeding/suggested-pairings" style={{ ...secondaryButtonStyle, display: "inline-flex", alignItems: "center", gap: 8 }}>
+          <Icon name="search" size={15} color="var(--teal-dark)" /> Find Suggested Pairings
+        </Link>
+      </div>
 
       {/* ===== Current pregnancies ===== */}
       <div style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 10, padding: 24, marginBottom: 28 }}>
@@ -191,14 +207,16 @@ export default function StableTrackerClient({ horses, pregnancies, plans }: { ho
                   {p.foalId && (
                     <Link href={`/registry/${p.foalId}`} style={{ fontSize: 12, color: "var(--teal)", textDecoration: "none", fontWeight: 600 }}>Foal page →</Link>
                   )}
-                  <button onClick={() => markBorn(p.id)} style={{ background: "var(--teal)", color: "white", border: "none", borderRadius: 6, padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-lato)" }}>Mark born</button>
-                  <button onClick={() => deletePregnancy(p.id)} style={{ background: "none", border: "1px solid var(--border)", color: "#C05050", borderRadius: 6, padding: "7px 12px", fontSize: 12, cursor: "pointer", fontFamily: "var(--font-lato)" }}>✕</button>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+                  <button onClick={() => markBorn(p.id)} disabled={busy} style={{ background: "var(--teal)", color: "white", border: "none", borderRadius: 6, padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: busy ? "not-allowed" : "pointer", fontFamily: "var(--font-lato)", opacity: busy ? 0.7 : 1 }}>
+                      {busy ? "Saving…" : "Mark born"}
+                    </button>
+                    <button onClick={() => deletePregnancy(p.id)} style={{ background: "none", border: "1px solid var(--border)", color: "#C05050", borderRadius: 6, padding: "7px 12px", fontSize: 12, cursor: "pointer", fontFamily: "var(--font-lato)" }}>✕</button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
       {/* ===== Breeding wishlist ===== */}
       {plans.length > 0 && (
@@ -387,7 +405,7 @@ function Stat({ label, value, note, good }: { label: string; value: string; note
 }
 
 function Picker({ label, horses, selected, onSelect, accent, accentBg, accentBorder }: {
-  label: string; horses: Horse[]; selected: Horse | null; onSelect: (h: Horse | null) => void;
+  label: string; horses: FullHorseData[]; selected: FullHorseData | null; onSelect: (h: FullHorseData | null) => void;
   accent: string; accentBg: string; accentBorder: string;
 }) {
   const [query, setQuery] = useState("");

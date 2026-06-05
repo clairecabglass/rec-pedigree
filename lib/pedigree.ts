@@ -1,3 +1,5 @@
+import { FullHorseData } from "@/lib/types";
+
 export interface HorseNode {
   id: string;
   name: string;
@@ -9,15 +11,7 @@ export interface HorseNode {
   inbreeding?: boolean;
 }
 
-export type HorseMap = Map<string, {
-  id: string;
-  name: string;
-  breed: string | null;
-  gender: string | null;
-  coat: string | null;
-  sireName: string | null;
-  damName: string | null;
-}>;
+export type HorseMap = Map<string, FullHorseData>;
 
 // Placeholder ancestor names that are NOT specific horses, so repeats of them
 // across a pedigree do not count as inbreeding.

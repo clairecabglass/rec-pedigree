@@ -5,6 +5,24 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+/**
+ * Normalizes a genotype string:
+ * - Returns null if the value is empty, null, or undefined.
+ * - Replaces all underscores with hyphens.
+ * - Removes extra spaces.
+ * - Collapses repeated hyphens into a single hyphen.
+ */
+function normalizeGenotype(value: string | null | undefined): string | null {
+  if (!value || value.trim() === "") {
+    return null;
+  }
+  let normalized = value.trim();
+  normalized = normalized.replace(/_/g, "-"); // Replace underscores with hyphens
+  normalized = normalized.replace(/\s+/g, ""); // Remove all spaces
+  normalized = normalized.replace(/-+/g, "-"); // Collapse repeated hyphens
+  return normalized;
+}
+
 // This function now integrates with OpenAI Vision for actual pedigree parsing.
 export async function parsePedigreeImage(imageUrl: string): Promise<ParsedPedigreeData> {
   if (!process.env.OPENAI_API_KEY) {
@@ -96,6 +114,9 @@ Now, analyze the image and provide the JSON output.`;
       throw new Error("OpenAI response did not contain expected rootHorse or ancestors structure.");
     }
 
+    // Apply normalization to rootHorse genotype
+    parsedData.rootHorse.genotype = normalizeGenotype(parsedData.rootHorse.genotype);
+
     // Ensure ownership for ancestors is correctly set to "Outside not owned"
     // and for rootHorse is null, as per requirements.
     if (parsedData.rootHorse.ownership !== null) {
@@ -104,6 +125,9 @@ Now, analyze the image and provide the JSON output.`;
       parsedData.rawModelNotes += " (Ownership of rootHorse was adjusted to null as per instructions)";
     }
     parsedData.ancestors = parsedData.ancestors.map(ancestor => {
+      // Apply normalization to ancestor genotype
+      ancestor.genotype = normalizeGenotype(ancestor.genotype);
+
       if (ancestor.ownership !== "Outside not owned") {
         ancestor.ownership = "Outside not owned";
         if (!parsedData.rawModelNotes) parsedData.rawModelNotes = "";

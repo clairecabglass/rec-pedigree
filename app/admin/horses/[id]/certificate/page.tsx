@@ -14,7 +14,26 @@ export default async function CertificatePage({ params }: { params: Promise<{ id
   if (!horse) notFound();
 
   const all = await prisma.horse.findMany({
-    select: { id: true, name: true, breed: true, gender: true, coat: true, sireName: true, damName: true },
+    select: {
+      id: true,
+      name: true,
+      breed: true,
+      gender: true,
+      coat: true,
+      genotype: true,
+      sireName: true,
+      damName: true,
+      ownership: true,
+      isImportedPlaceholder: true,
+      regNumber: true,
+      stablePrefix: true,
+      breedingFee: true,
+      breedingPolicies: true,
+      price: true,
+      saleDescription: true,
+      saleContact: true,
+      // Include any other fields that might be part of FullHorseData if necessary
+    },
   });
   const map: HorseMap = new Map(all.map((h) => [h.name.toLowerCase(), h]));
   const tree = buildPedigreeTree(horse.name, map, 6);

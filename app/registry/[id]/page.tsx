@@ -1,12 +1,13 @@
 import { prisma } from "@/lib/db";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import PedigreeTree from "@/components/PedigreeTree";
+// import PedigreeTree from "@/components/PedigreeTree"; // PedigreeTree is no longer used in this file
 import Icon from "@/components/Icon";
 import PhotoGallery from "@/components/PhotoGallery";
 import { buildPedigreeTree, findDuplicates, pedigreeDepth } from "@/lib/pedigree";
 import type { HorseMap } from "@/lib/pedigree";
 import { isAdminLoggedIn } from "@/lib/auth";
+import ShareCardGenerator from "@/components/ShareCardGenerator";
 
 export const dynamic = "force-dynamic";
 
@@ -29,11 +30,28 @@ export default async function HorsePage({ params }: { params: Promise<{ id: stri
   const results = await prisma.result.findMany({ where: { horseId: id }, orderBy: { date: "desc" } });
 
   const allHorses = await prisma.horse.findMany({
-    select: { id: true, name: true, breed: true, gender: true, coat: true, sireName: true, damName: true, ownership: true },
+    select: {
+      id: true,
+      name: true,
+      breed: true,
+      gender: true,
+      coat: true,
+      genotype: true,
+      sireName: true,
+      damName: true,
+      ownership: true,
+      isImportedPlaceholder: true,
+      regNumber: true,
+      stablePrefix: true,
+      breedingFee: true,
+      breedingPolicies: true,
+      price: true,
+      saleDescription: true,
+      saleContact: true,
+    },
   });
   const horseMap: HorseMap = new Map(allHorses.map((h) => [h.name.toLowerCase(), h]));
-  // Build to the deepest the generations toggle allows (10) so selecting a
-  // deeper view actually reveals more ancestors instead of hitting the limit.
+  // Pedigree data for Generations detail, but not for displaying the tree itself on this page
   const tree = buildPedigreeTree(horse.name, horseMap, 10);
   const dupes = findDuplicates(tree);
   const generations = pedigreeDepth(horse.name, horseMap);
@@ -46,7 +64,8 @@ export default async function HorsePage({ params }: { params: Promise<{ id: stri
   const sire = horse.sireName ? horseMap.get(horse.sireName.toLowerCase()) : undefined;
   const dam = horse.damName ? horseMap.get(horse.damName.toLowerCase()) : undefined;
 
-  const allHorsesJson = JSON.stringify(allHorses.map((h) => ({ id: h.id, name: h.name })));
+  // allHorsesJson is used by PedigreeTree component, which is no longer on this page
+  // const allHorsesJson = JSON.stringify(allHorses.map((h) => ({ id: h.id, name: h.name })));
   const hero = horse.photos[0];
   const admin = await isAdminLoggedIn();
 
@@ -97,6 +116,67 @@ export default async function HorsePage({ params }: { params: Promise<{ id: stri
             <Link href={`/admin/horses/${horse.id}`} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--teal-dark)", background: "var(--white)", border: "1px solid var(--teal)", padding: "7px 16px", borderRadius: 6, textDecoration: "none", fontFamily: "var(--font-lato)", fontWeight: 700 }}>
               <Icon name="edit" size={14} color="var(--teal-dark)" /> Edit this horse
             </Link>
+            <ShareCardGenerator
+              horse={{
+                id: horse.id,
+                name: horse.name,
+                breed: horse.breed,
+                gender: horse.gender,
+                coat: horse.coat,
+                genotype: horse.genotype,
+                sireName: horse.sireName,
+                damName: horse.damName,
+                ownership: horse.ownership,
+                isImportedPlaceholder: horse.isImportedPlaceholder,
+                regNumber: horse.regNumber,
+                stablePrefix: horse.stablePrefix,
+                breedingFee: horse.breedingFee,
+                breedingPolicies: horse.breedingPolicies,
+                price: horse.price,
+                saleDescription: horse.saleDescription,
+                saleContact: horse.saleContact,
+              }}
+              sire={sire ? {
+                id: sire.id,
+                name: sire.name,
+                breed: sire.breed,
+                gender: sire.gender,
+                coat: sire.coat,
+                genotype: sire.genotype,
+                sireName: sire.sireName,
+                damName: sire.damName,
+                ownership: sire.ownership,
+                isImportedPlaceholder: sire.isImportedPlaceholder,
+                regNumber: sire.regNumber,
+                stablePrefix: sire.stablePrefix,
+                breedingFee: sire.breedingFee,
+                breedingPolicies: sire.breedingPolicies,
+                price: sire.price,
+                saleDescription: sire.saleDescription,
+                saleContact: sire.saleContact,
+              } : undefined}
+              dam={dam ? {
+                id: dam.id,
+                name: dam.name,
+                breed: dam.breed,
+                gender: dam.gender,
+                coat: dam.coat,
+                genotype: dam.genotype,
+                sireName: dam.sireName,
+                damName: dam.damName,
+                ownership: dam.ownership,
+                isImportedPlaceholder: dam.isImportedPlaceholder,
+                regNumber: dam.regNumber,
+                stablePrefix: dam.stablePrefix,
+                breedingFee: dam.breedingFee,
+                breedingPolicies: dam.breedingPolicies,
+                price: dam.price,
+                saleDescription: dam.saleDescription,
+                saleContact: dam.saleContact,
+              } : undefined}
+              hero={hero}
+              allHorses={allHorses}
+            />
           </div>
         )}
       </div>
@@ -237,25 +317,6 @@ export default async function HorsePage({ params }: { params: Promise<{ id: stri
           <PhotoGallery photos={horse.photos.map((p) => ({ id: p.id, url: p.url, caption: p.caption }))} />
         </div>
       )}
-
-      {/* ===== Pedigree ===== */}
-      <div style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 10, padding: 24, marginBottom: 28 }}>
-        <div style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
-          {sectionTitle("Pedigree")}
-          {dupes.size > 0 && (
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--inbreed-text)", background: "var(--inbreed-bg)", border: "1px solid var(--inbreed-border)", borderRadius: 16, padding: "4px 12px", fontFamily: "var(--font-lato)" }}>
-              <Icon name="warning" size={14} color="var(--inbreed-text)" />
-              Inbreeding — {dupes.size} duplicate ancestor{dupes.size !== 1 ? "s" : ""}
-            </span>
-          )}
-        </div>
-        <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 16, fontFamily: "var(--font-lato)", display: "flex", gap: 18, flexWrap: "wrap" }}>
-          <LegendDot bg="var(--sire-bg)" border="var(--sire-border)" label="Sire line" />
-          <LegendDot bg="var(--dam-bg)" border="var(--dam-border)" label="Dam line" />
-          <LegendDot bg="var(--inbreed-bg)" border="var(--inbreed-border)" label="Inbreeding" />
-        </div>
-        <PedigreeTree node={tree} dupes={dupes} allHorses={allHorsesJson} isAdmin={admin} title={horse.name} />
-      </div>
 
       {/* ===== Show results ===== */}
       {results.length > 0 && (

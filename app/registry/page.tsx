@@ -11,7 +11,19 @@ export default async function RegistryPage() {
 
   // All horses (incl. Outside/Void) for the pedigree map — ancestors may be any of them.
   const allForMap = await prisma.horse.findMany({
-    select: { id: true, name: true, breed: true, gender: true, coat: true, sireName: true, damName: true },
+    select: {
+      id: true,
+      name: true,
+      breed: true,
+      gender: true,
+      coat: true,
+      genotype: true,
+      sireName: true,
+      damName: true,
+      ownership: true,
+      isImportedPlaceholder: true,
+      // Add other fields that might be part of FullHorseData if necessary
+    },
   });
   const map: HorseMap = new Map(allForMap.map((h) => [h.name.toLowerCase(), h]));
 
