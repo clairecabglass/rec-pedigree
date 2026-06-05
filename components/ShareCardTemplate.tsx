@@ -34,12 +34,12 @@ interface PhotoData {
 }
 
 interface ShareCardTemplateProps {
-  horse: FullHorseData; // Updated to FullHorseData
-  sire?: FullHorseData; // Updated to FullHorseData
-  dam?: FullHorseData; // Updated to FullHorseData
+  horse: FullHorseData;
+  sire?: FullHorseData;
+  dam?: FullHorseData;
   hero?: PhotoData;
-  template: "profile" | "sale" | "stud"; // Removed "pedigree"
-  // allHorses: FullHorseData[]; // No longer needed as pedigree template is removed
+  template: "profile" | "sale" | "stud";
+  setImageLoaded: (loaded: boolean) => void; // New prop
 }
 
 const OWNERSHIP_COLORS: Record<string, string> = {
@@ -48,8 +48,7 @@ const OWNERSHIP_COLORS: Record<string, string> = {
 };
 
 const ShareCardTemplate = forwardRef<HTMLDivElement, ShareCardTemplateProps>(
-  ({ horse, sire, dam, hero, template /*, allHorses*/ }, ref) => { // Removed allHorses from destructuring
-    const cardWidth = 800;
+  ({ horse, sire, dam, hero, template, setImageLoaded }, ref) => {    const cardWidth = 800;
     const cardHeight = 450;
     const isProfile = template === "profile";
     const isSale = template === "sale";
@@ -148,6 +147,9 @@ const ShareCardTemplate = forwardRef<HTMLDivElement, ShareCardTemplateProps>(
           <img
             src={hero.url}
             alt={horse.name}
+            onLoad={() => setImageLoaded(true)}
+            onError={() => setImageLoaded(true)} // Also set true on error to prevent infinite loading state
+            crossOrigin="anonymous" // Attempt to handle CORS for the image
             style={{
               position: "absolute",
               top: 0,

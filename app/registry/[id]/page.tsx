@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image"; // Import the Next.js Image component
 // import PedigreeTree from "@/components/PedigreeTree"; // PedigreeTree is no longer used in this file
 import Icon from "@/components/Icon";
 import PhotoGallery from "@/components/PhotoGallery";
@@ -111,10 +112,10 @@ export default async function HorsePage({ params }: { params: Promise<{ id: stri
         {admin && (
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <Link href={`/admin/horses/${horse.id}/certificate`} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "white", background: "var(--teal)", padding: "7px 16px", borderRadius: 6, textDecoration: "none", fontFamily: "var(--font-lato)", fontWeight: 700 }}>
-              📜 Certificate
+              Certificate
             </Link>
             <Link href={`/admin/horses/${horse.id}`} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--teal-dark)", background: "var(--white)", border: "1px solid var(--teal)", padding: "7px 16px", borderRadius: 6, textDecoration: "none", fontFamily: "var(--font-lato)", fontWeight: 700 }}>
-              <Icon name="edit" size={14} color="var(--teal-dark)" /> Edit this horse
+              Edit this horse
             </Link>
             <ShareCardGenerator
               horse={{
@@ -175,7 +176,6 @@ export default async function HorsePage({ params }: { params: Promise<{ id: stri
                 saleContact: dam.saleContact,
               } : undefined}
               hero={hero}
-              allHorses={allHorses}
             />
           </div>
         )}
@@ -184,9 +184,15 @@ export default async function HorsePage({ params }: { params: Promise<{ id: stri
       {/* ===== Hero image ===== */}
       {hero ? (
         <div style={{ textAlign: "center", marginBottom: 8 }}>
-          <a href={hero.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", maxWidth: 920, width: "100%" }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={hero.url} alt={horse.name} style={{ width: "100%", borderRadius: 8, border: "4px solid var(--gold)", boxShadow: "0 6px 20px rgba(0,0,0,0.12)" }} />
+          <a href={hero.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", maxWidth: 920, width: "100%", position: "relative", height: 400 }}> {/* Added position: "relative" and height for Image fill */}
+            <Image
+              src={hero.url}
+              alt={horse.name}
+              fill // Use fill to make image cover the parent
+              sizes="100vw" // Responsive sizes
+              style={{ objectFit: "cover", borderRadius: 8, border: "4px solid var(--gold)", boxShadow: "0 6px 20px rgba(0,0,0,0.12)" }} // Use style prop for objectFit
+              priority // Prioritize loading for hero image
+            />
           </a>
           <div style={{ fontSize: 11, letterSpacing: "0.12em", color: "var(--text-muted)", textTransform: "uppercase", fontFamily: "var(--font-lato)", marginTop: 8 }}>
             Click to view full image

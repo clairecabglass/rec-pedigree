@@ -1,7 +1,7 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Icon from "@/components/Icon";
 import { buildPedigreeTree, inbreedingCoefficient, commonAncestors } from "@/lib/pedigree";
 import type { HorseMap, HorseNode } from "@/lib/pedigree";
@@ -21,25 +21,32 @@ interface Pairing {
   reasons: string[];
 }
 
-export default function SuggestedPairingsClient({ horses }: { horses: FullHorseData[] }) {
+export default function SuggestedPairingsClient({
+  horses,
+  ownedHorsesOnly: initialOwnedHorsesOnly,
+}: {
+  horses: FullHorseData[],
+  ownedHorsesOnly: boolean,
+}) {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   // Filter states
   const [minGenerations, setMinGenerations] = useState(3);
   const [requirePurebred, setRequirePurebred] = useState<boolean | null>(null); // null = any, true = purebred, false = cross
   const [maxInbreeding, setMaxInbreeding] = useState(0.125); // 0.125 = 12.5%
   const [selectedBreed, setSelectedBreed] = useState<string | null>(null);
-  const [ownedHorsesOnly, setOwnedHorsesOnly] = useState(false);
   const [knownParentsOnly, setKnownParentsOnly] = useState(false);
 
-  // Pagination states
+  // Pagination states (client-side for pairings)
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
 
   // Effect to reset current page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [minGenerations, requirePurebred, maxInbreeding, selectedBreed, ownedHorsesOnly, knownParentsOnly]);
+  }, [minGenerations, requirePurebred, maxInbreeding, selectedBreed, knownParentsOnly]);
+
 
   // Memoized data
   const mares = useMemo(() => horses.filter(h => h.gender === "Mare"), [horses]);
@@ -58,9 +65,10 @@ export default function SuggestedPairingsClient({ horses }: { horses: FullHorseD
   const suggestedPairings = useMemo(() => {
     const pairings: Pairing[] = [];
 
-    // Optimize: Filter mares and stallions once based on ownedHorsesOnly and knownParentsOnly
-    const filteredMares = ownedHorsesOnly ? mares.filter(m => m.ownership === "Home") : mares;
-    const filteredStallions = ownedHorsesOnly ? stallions.filter(s => s.ownership === "Home") : stallions;
+    // Mares and stallions are already filtered by ownership: "Home" if initialOwnedHorsesOnly is true
+    // No need for client-side ownedHorsesOnly filter here.
+    const filteredMares = mares;
+    const filteredStallions = stallions;
 
     // Further filter by breed if selected
     const breedFilteredMares = selectedBreed ? filteredMares.filter(m => m.breed === selectedBreed) : filteredMares;
@@ -100,20 +108,30 @@ export default function SuggestedPairingsClient({ horses }: { horses: FullHorseD
         );
 
         // Apply filters
-        if (pedigreeDepth < minGenerations) continue;
-        reasons.push(`Pedigree depth: ${pedigreeDepth} generations (meets minimum of ${minGenerations})`);
+        if (pedigreeDepth < minGenerations) {
+            continue; // Do not include pairings that don't meet minimum depth
+        } else {
+            reasons.push(`Pedigree depth: ${pedigreeDepth} generations (meets minimum of ${minGenerations})`);
+        }
+
 
         if (requirePurebred !== null) {
-          if (requirePurebred && !isPurebredCross) continue;
-          if (!requirePurebred && isPurebredCross) continue;
+          if (requirePurebred && !isPurebredCross) {
+            continue; // Do not include cross if purebred required
+          }
+          if (!requirePurebred && isPurebredCross) {
+            continue; // Do not include purebred if cross required
+          }
           reasons.push(requirePurebred ? "Purebred pairing" : "Cross-breed pairing");
         }
 
-        if (coi > maxInbreeding) continue;
-        reasons.push(`Inbreeding CoI: ${(coi * 100).toFixed(1)}% (below maximum of ${(maxInbreeding * 100).toFixed(1)}%)`);
-        if (coi === 0) reasons.push("Outcross - no shared ancestors");
-        else if (sharedAncestors > 0) reasons.push(`${sharedAncestors} shared ancestors`);
-
+        if (coi > maxInbreeding) {
+            continue; // Do not include pairings with too high CoI
+        } else {
+            reasons.push(`Inbreeding CoI: ${(coi * 100).toFixed(1)}% (below maximum of ${(maxInbreeding * 100).toFixed(1)}%)`);
+            if (coi === 0) reasons.push("Outcross - no shared ancestors");
+            else if (sharedAncestors > 0) reasons.push(`${sharedAncestors} shared ancestors`);
+        }
 
         // If all filters pass, add the pairing
         pairings.push({
@@ -122,7 +140,7 @@ export default function SuggestedPairingsClient({ horses }: { horses: FullHorseD
       }
     }
     return pairings.sort((a, b) => a.inbreedingCoefficient - b.inbreedingCoefficient || b.pedigreeDepth - a.pedigreeDepth); // Sort by COI then depth
-  }, [horses, minGenerations, requirePurebred, maxInbreeding, selectedBreed, ownedHorsesOnly, knownParentsOnly, mares, stallions, horseMap]);
+  }, [horses, minGenerations, requirePurebred, maxInbreeding, selectedBreed, knownParentsOnly, mares, stallions, horseMap]);
 
   const totalPages = Math.ceil(suggestedPairings.length / itemsPerPage);
   const paginatedPairings = useMemo(() => {
@@ -152,6 +170,28 @@ export default function SuggestedPairingsClient({ horses }: { horses: FullHorseD
     fontSize: 11, letterSpacing: "0.1em", color: "var(--text-muted)",
     textTransform: "uppercase", fontFamily: "var(--font-lato)", fontWeight: 600,
     display: "block", marginBottom: 4,
+  };
+
+  const handleOwnedHorsesOnlyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newOwnedHorsesOnly = e.target.checked;
+    const currentParams = new URLSearchParams(Array.from(searchParams.entries()));
+    if (newOwnedHorsesOnly) {
+      currentParams.set("ownedHorsesOnly", "true");
+    } else {
+      currentParams.delete("ownedHorsesOnly");
+    }
+    // This will trigger a full page re-render with new horses from the server
+    currentParams.set("page", "1"); // Reset page when this server-side filter changes
+    router.push(`?${currentParams.toString()}`);
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handleItemsPerPageChange = (newItemsPerPage: number) => {
+    setItemsPerPage(newItemsPerPage);
+    setCurrentPage(1); // Reset to first page when changing items per page
   };
 
 
@@ -199,7 +239,7 @@ export default function SuggestedPairingsClient({ horses }: { horses: FullHorseD
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <input type="checkbox" id="ownedOnly" checked={ownedHorsesOnly} onChange={(e) => setOwnedHorsesOnly(e.target.checked)} />
+              <input type="checkbox" id="ownedOnly" checked={initialOwnedHorsesOnly} onChange={handleOwnedHorsesOnlyChange} />
               <label htmlFor="ownedOnly" style={{ ...labelStyle, marginBottom: 0 }}>Owned Horses Only ("Home" Ownership)</label>
             </div>
 
@@ -224,7 +264,7 @@ export default function SuggestedPairingsClient({ horses }: { horses: FullHorseD
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <button
-                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 1}
                     style={{ ...secondaryButtonStyle, padding: "8px 16px" }}
                   >
@@ -233,7 +273,7 @@ export default function SuggestedPairingsClient({ horses }: { horses: FullHorseD
                   {[...Array(totalPages)].map((_, i) => (
                     <button
                       key={i + 1}
-                      onClick={() => setCurrentPage(i + 1)}
+                      onClick={() => handlePageChange(i + 1)}
                       style={{
                         ...secondaryButtonStyle,
                         padding: "8px 12px",
@@ -245,7 +285,7 @@ export default function SuggestedPairingsClient({ horses }: { horses: FullHorseD
                     </button>
                   ))}
                   <button
-                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    onClick={() => handlePageChange(currentPage + 1)}
                     disabled={currentPage === totalPages}
                     style={{ ...secondaryButtonStyle, padding: "8px 16px" }}
                   >
@@ -257,10 +297,7 @@ export default function SuggestedPairingsClient({ horses }: { horses: FullHorseD
                   <select
                     id="itemsPerPage"
                     value={itemsPerPage}
-                    onChange={(e) => {
-                      setItemsPerPage(parseInt(e.target.value));
-                      setCurrentPage(1); // Reset to first page when changing items per page
-                    }}
+                    onChange={(e) => handleItemsPerPageChange(parseInt(e.target.value))}
                     style={{ ...inputStyle, width: "auto", minWidth: "70px", padding: "7px 10px", fontSize: 12 }}
                   >
                     <option value="10">10</option>

@@ -32,28 +32,35 @@ interface PhotoData {
 }
 
 interface ShareCardGeneratorProps {
-  horse: FullHorseData; // Updated to FullHorseData
-  sire?: FullHorseData; // Updated to FullHorseData
-  dam?: FullHorseData; // Updated to FullHorseData
-  hero?: PhotoData; // Primary photo
-  allHorses: FullHorseData[]; // Updated to FullHorseData
+  horse: FullHorseData;
+  sire?: FullHorseData;
+  dam?: FullHorseData;
+  hero?: PhotoData;
 }
 
-export default function ShareCardGenerator({ horse, sire, dam, hero, allHorses }: ShareCardGeneratorProps) {
+export default function ShareCardGenerator({ horse, sire, dam, hero }: ShareCardGeneratorProps) {
   const [modalOpen, setModalOpen] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<"profile" | "sale" | "stud">("profile"); // Removed "pedigree"
+  const [selectedTemplate, setSelectedTemplate] = useState<"profile" | "sale" | "stud">("profile");
   const [downloading, setDownloading] = useState(false);
-  const cardRef = useRef<HTMLDivElement>(null); // Ref to the hidden div containing the card template
+  const [imageLoaded, setImageLoaded] = useState(false); // New state to track image loading
+  const cardRef = useRef<HTMLDivElement>(null);
 
   const handleDownload = async () => {
     if (!cardRef.current) return;
 
     setDownloading(true);
+    // Wait a moment for rendering and image loading, especially in a hidden div
+    // In a real app, you might want a more robust image preloader or an IntersectionObserver
+    await new Promise(resolve => setTimeout(resolve, 500)); // Wait for 500ms
+
     try {
       const dataUrl = await htmlToImage.toPng(cardRef.current, {
-        quality: 1, // High quality PNG
-        pixelRatio: 2, // Render at 2x resolution for better clarity on Discord
-        backgroundColor: "transparent", // Ensure transparent background if needed
+        quality: 1,
+        pixelRatio: 2,
+        backgroundColor: "transparent",
+        fetchRequestInit: {
+          mode: 'cors', // Attempt to fetch resources with CORS
+        },
       });
 
       const link = document.createElement("a");
@@ -62,9 +69,9 @@ export default function ShareCardGenerator({ horse, sire, dam, hero, allHorses }
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to generate image:", error);
-      alert("Failed to generate image. Please try again.");
+      alert(`Failed to generate image. Please try again. Error: ${error.message || error}`);
     } finally {
       setDownloading(false);
       setModalOpen(false);
@@ -75,7 +82,7 @@ export default function ShareCardGenerator({ horse, sire, dam, hero, allHorses }
     display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13,
     color: "var(--teal-dark)", background: "var(--white)", border: "1px solid var(--teal)",
     padding: "7px 16px", borderRadius: 6, textDecoration: "none", fontFamily: "var(--font-lato)", fontWeight: 700,
-    cursor: "pointer", whiteSpace: "nowrap" as const, // Ensure text doesn't wrap
+    cursor: "pointer", whiteSpace: "nowrap" as const,
   };
   const modalOverlayStyle: React.CSSProperties = {
     position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
@@ -105,7 +112,7 @@ export default function ShareCardGenerator({ horse, sire, dam, hero, allHorses }
   return (
     <>
       <button onClick={() => setModalOpen(true)} style={buttonStyle}>
-        🖼️ Share Card
+        Share Card
       </button>
 
       {modalOpen && (
@@ -132,7 +139,7 @@ export default function ShareCardGenerator({ horse, sire, dam, hero, allHorses }
 
       {/* Hidden component to render the card for html-to-image conversion */}
       <div style={{ position: "absolute", left: "-9999px", top: "-9999px", opacity: 0 }}>
-        <ShareCardTemplate ref={cardRef} horse={horse} sire={sire} dam={dam} hero={hero} template={selectedTemplate} /* allHorses={allHorses} */ /> {/* allHorses is no longer needed here after pedigree template removal */}
+        <ShareCardTemplate ref={cardRef} horse={horse} sire={sire} dam={dam} hero={hero} template={selectedTemplate} setImageLoaded={setImageLoaded} />
       </div>
     </>
   );
