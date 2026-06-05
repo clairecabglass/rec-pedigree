@@ -148,8 +148,9 @@ const ShareCardTemplate = forwardRef<HTMLDivElement, ShareCardTemplateProps>(
             src={hero.url}
             alt={horse.name}
             onLoad={() => setImageLoaded(true)}
-            onError={() => setImageLoaded(true)} // Also set true on error to prevent infinite loading state
-            crossOrigin="anonymous" // Attempt to handle CORS for the image
+            onError={() => setImageLoaded(true)} // never block the export on a broken image
+            // Note: ShareCardGenerator pre-fetches this URL into a data: URL
+            // before the snapshot, so no crossOrigin attribute is needed.
             style={{
               position: "absolute",
               top: 0,

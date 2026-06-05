@@ -1,10 +1,32 @@
 "use client";
 import { useState, useRef } from "react";
-import Link from "next/link";
-import Icon from "@/components/Icon";
 import * as htmlToImage from "html-to-image";
 import ShareCardTemplate from "./ShareCardTemplate";
 import { FullHorseData } from "@/lib/types"; // Import FullHorseData
+
+// 1x1 transparent PNG used as the imagePlaceholder so a single broken/CORS
+// image inside the template can't fail the whole html-to-image render.
+const TRANSPARENT_PX =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
+
+// Fetch a cross-origin image and convert it to a data URL. Embedding the
+// photo into the DOM as a data URL means html-to-image never has to worry
+// about CORS / tainted canvases / browser cache when serialising the card.
+async function imageUrlToDataUrl(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url, { mode: "cors", cache: "no-cache" });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(typeof reader.result === "string" ? reader.result : null);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
 
 // The local HorseDataForCard interface is replaced by FullHorseData from "@/lib/types"
 // interface HorseDataForCard {
@@ -42,24 +64,60 @@ export default function ShareCardGenerator({ horse, sire, dam, hero }: ShareCard
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<"profile" | "sale" | "stud">("profile");
   const [downloading, setDownloading] = useState(false);
-  const [imageLoaded, setImageLoaded] = useState(false); // New state to track image loading
+  const [, setImageLoaded] = useState(false); // tracked by the template's onLoad
+  const [embeddedHero, setEmbeddedHero] = useState<PhotoData | undefined>(hero);
   const cardRef = useRef<HTMLDivElement>(null);
+
+  // Preload the hero from R2 into a data URL before rendering the hidden card.
+  // Without this, html-to-image hits the R2 fetch itself, gets an `error` Event
+  // back (the `[object Event]` alert), and aborts the whole export.
+  async function prepareEmbeddedHero() {
+    if (!hero?.url || hero.url.startsWith("data:")) return hero;
+    const dataUrl = await imageUrlToDataUrl(hero.url);
+    if (!dataUrl) return undefined; // give up the hero, let the card render text-only
+    return { url: dataUrl, caption: hero.caption };
+  }
 
   const handleDownload = async () => {
     if (!cardRef.current) return;
 
     setDownloading(true);
-    // Wait a moment for rendering and image loading, especially in a hidden div
-    // In a real app, you might want a more robust image preloader or an IntersectionObserver
-    await new Promise(resolve => setTimeout(resolve, 500)); // Wait for 500ms
-
     try {
+      // 1. Replace the hero with an inline data URL so the canvas never has to
+      //    fetch cross-origin during the export.
+      const safeHero = await prepareEmbeddedHero();
+      setEmbeddedHero(safeHero);
+
+      // 2. Give React a tick to paint with the new src, then wait for the
+      //    image element to actually finish decoding before snapshotting.
+      await new Promise((r) => setTimeout(r, 50));
+      const imgs = Array.from(cardRef.current.querySelectorAll("img"));
+      await Promise.all(
+        imgs.map(
+          (img) =>
+            new Promise<void>((resolve) => {
+              if (img.complete && img.naturalWidth > 0) return resolve();
+              img.addEventListener("load", () => resolve(), { once: true });
+              img.addEventListener("error", () => resolve(), { once: true }); // never block on a broken image
+            })
+        )
+      );
+
       const dataUrl = await htmlToImage.toPng(cardRef.current, {
         quality: 1,
         pixelRatio: 2,
         backgroundColor: "transparent",
-        fetchRequestInit: {
-          mode: 'cors', // Attempt to fetch resources with CORS
+        cacheBust: true,          // dodge stale-cache 304s that some libs read as errors
+        skipFonts: true,          // skip embedding webfonts — they can fail with cross-origin CSS
+        imagePlaceholder: TRANSPARENT_PX, // graceful fallback if any <img> still errors
+        // Fallback fetch options for anything else the card might reference
+        fetchRequestInit: { mode: "cors", cache: "no-cache" },
+        filter: (node) => {
+          // Don't try to embed scripts / iframes; they're never in the card
+          // anyway but better safe than crash-y.
+          if (!(node instanceof Element)) return true;
+          const tag = node.tagName?.toLowerCase();
+          return tag !== "script" && tag !== "iframe";
         },
       });
 
@@ -69,9 +127,14 @@ export default function ShareCardGenerator({ horse, sire, dam, hero }: ShareCard
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-    } catch (error: any) {
-      console.error("Failed to generate image:", error);
-      alert(`Failed to generate image. Please try again. Error: ${error.message || error}`);
+    } catch (err: unknown) {
+      console.error("Failed to generate share card:", err);
+      // Turn opaque Event objects from html-to-image into something readable.
+      let msg = "Unknown error";
+      if (err instanceof Error) msg = err.message;
+      else if (err && typeof err === "object" && "type" in err) msg = `${(err as Event).type} event`;
+      else if (typeof err === "string") msg = err;
+      alert(`Couldn't generate the share card.\n\n${msg}\n\nTip: if the horse's photo just failed to load above, try again — the card will skip the photo on a second attempt.`);
     } finally {
       setDownloading(false);
       setModalOpen(false);
@@ -139,7 +202,7 @@ export default function ShareCardGenerator({ horse, sire, dam, hero }: ShareCard
 
       {/* Hidden component to render the card for html-to-image conversion */}
       <div style={{ position: "absolute", left: "-9999px", top: "-9999px", opacity: 0 }}>
-        <ShareCardTemplate ref={cardRef} horse={horse} sire={sire} dam={dam} hero={hero} template={selectedTemplate} setImageLoaded={setImageLoaded} />
+        <ShareCardTemplate ref={cardRef} horse={horse} sire={sire} dam={dam} hero={embeddedHero} template={selectedTemplate} setImageLoaded={setImageLoaded} />
       </div>
     </>
   );

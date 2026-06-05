@@ -1,7 +1,9 @@
 import { prisma } from "@/lib/db";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image"; // Import the Next.js Image component
+// next/image was here, but its optimizer rejects un-whitelisted hosts and our
+// photos live on a public Cloudflare R2 bucket. Plain <img> renders R2 URLs
+// directly without needing remotePatterns config (matches PhotoGallery).
 // import PedigreeTree from "@/components/PedigreeTree"; // PedigreeTree is no longer used in this file
 import Icon from "@/components/Icon";
 import PhotoGallery from "@/components/PhotoGallery";
@@ -184,14 +186,12 @@ export default async function HorsePage({ params }: { params: Promise<{ id: stri
       {/* ===== Hero image ===== */}
       {hero ? (
         <div style={{ textAlign: "center", marginBottom: 8 }}>
-          <a href={hero.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", maxWidth: 920, width: "100%", position: "relative", height: 400 }}> {/* Added position: "relative" and height for Image fill */}
-            <Image
+          <a href={hero.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", maxWidth: 920, width: "100%" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
               src={hero.url}
               alt={horse.name}
-              fill // Use fill to make image cover the parent
-              sizes="100vw" // Responsive sizes
-              style={{ objectFit: "cover", borderRadius: 8, border: "4px solid var(--gold)", boxShadow: "0 6px 20px rgba(0,0,0,0.12)" }} // Use style prop for objectFit
-              priority // Prioritize loading for hero image
+              style={{ width: "100%", height: "auto", maxHeight: 520, objectFit: "cover", borderRadius: 8, border: "4px solid var(--gold)", boxShadow: "0 6px 20px rgba(0,0,0,0.12)", display: "block" }}
             />
           </a>
           <div style={{ fontSize: 11, letterSpacing: "0.12em", color: "var(--text-muted)", textTransform: "uppercase", fontFamily: "var(--font-lato)", marginTop: 8 }}>
