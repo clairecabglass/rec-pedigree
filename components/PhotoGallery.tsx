@@ -1,6 +1,5 @@
 "use client";
 import { useState, useEffect } from "react";
-import Image from "next/image"; // Import the Next.js Image component
 
 export interface GalleryPhoto { id: string; url: string; caption: string | null; }
 
@@ -22,15 +21,22 @@ export default function PhotoGallery({ photos }: { photos: GalleryPhoto[] }) {
     <>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {photos.map((p, i) => (
-          <button key={p.id} onClick={() => setOpen(i)}
-            style={{ border: "3px solid var(--gold-light)", borderRadius: 8, overflow: "hidden", padding: 0, cursor: "pointer", background: "var(--cream-dark)", aspectRatio: "4/3", position: "relative" }}> {/* Added position: "relative" for Image fill */}
-            <Image
+          <button
+            key={p.id}
+            onClick={() => setOpen(i)}
+            style={{
+              border: "3px solid var(--gold-light)", borderRadius: 8, overflow: "hidden",
+              padding: 0, cursor: "pointer", background: "var(--cream-dark)", aspectRatio: "4/3",
+            }}
+          >
+            {/* Plain <img>: photos live on Cloudflare R2 whose domain isn't whitelisted
+                for next/image, so the optimizer was returning broken icons. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
               src={p.url}
               alt={p.caption ?? "Horse photo"}
-              fill // Use fill to make image cover the parent
-              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" // Responsive sizes
-              style={{ objectFit: "cover", display: "block" }} // Use style prop for objectFit
               loading="lazy"
+              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
             />
           </button>
         ))}
@@ -43,16 +49,13 @@ export default function PhotoGallery({ photos }: { photos: GalleryPhoto[] }) {
         >
           <button onClick={(e) => { e.stopPropagation(); setOpen((open - 1 + photos.length) % photos.length); }}
             style={lightboxArrow("left")} aria-label="Previous">‹</button>
-          <div style={{ position: "relative", maxWidth: "90vw", maxHeight: "85vh", width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}> {/* Wrapper for Image fill */}
-            <Image
-              src={photos[open].url}
-              alt={photos[open].caption ?? "Horse photo"}
-              fill // Use fill to make image cover the parent
-              sizes="90vw" // Responsive sizes for lightbox
-              style={{ objectFit: "contain", borderRadius: 6, boxShadow: "0 8px 40px rgba(0,0,0,0.5)" }} // Use style prop for objectFit
-              priority // Prioritize loading for the open lightbox image
-            />
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={photos[open].url}
+            alt={photos[open].caption ?? "Horse photo"}
+            style={{ maxWidth: "90vw", maxHeight: "85vh", objectFit: "contain", borderRadius: 6, boxShadow: "0 8px 40px rgba(0,0,0,0.5)" }}
+            onClick={(e) => e.stopPropagation()}
+          />
           <button onClick={(e) => { e.stopPropagation(); setOpen((open + 1) % photos.length); }}
             style={lightboxArrow("right")} aria-label="Next">›</button>
           <button onClick={() => setOpen(null)} style={{ position: "fixed", top: 20, right: 24, background: "none", border: "none", color: "white", fontSize: 30, cursor: "pointer", lineHeight: 1 }} aria-label="Close">✕</button>

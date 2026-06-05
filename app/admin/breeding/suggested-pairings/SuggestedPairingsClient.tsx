@@ -1,11 +1,9 @@
 "use client";
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import Icon from "@/components/Icon";
 import { buildPedigreeTree, inbreedingCoefficient, commonAncestors } from "@/lib/pedigree";
 import type { HorseMap, HorseNode } from "@/lib/pedigree";
-import { predictFoal, extractGeneCode, PATTERNS as PATTERN_LABEL } from "@/lib/genetics";
+import { predictFoal, extractGeneCode } from "@/lib/genetics";
 
 import { FullHorseData } from "@/lib/types";
 
@@ -23,14 +21,9 @@ interface Pairing {
 
 export default function SuggestedPairingsClient({
   horses,
-  ownedHorsesOnly: initialOwnedHorsesOnly,
 }: {
   horses: FullHorseData[],
-  ownedHorsesOnly: boolean,
 }) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-
   // Filter states
   const [minGenerations, setMinGenerations] = useState(3);
   const [requirePurebred, setRequirePurebred] = useState<boolean | null>(null); // null = any, true = purebred, false = cross
@@ -172,19 +165,6 @@ export default function SuggestedPairingsClient({
     display: "block", marginBottom: 4,
   };
 
-  const handleOwnedHorsesOnlyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newOwnedHorsesOnly = e.target.checked;
-    const currentParams = new URLSearchParams(Array.from(searchParams.entries()));
-    if (newOwnedHorsesOnly) {
-      currentParams.set("ownedHorsesOnly", "true");
-    } else {
-      currentParams.delete("ownedHorsesOnly");
-    }
-    // This will trigger a full page re-render with new horses from the server
-    currentParams.set("page", "1"); // Reset page when this server-side filter changes
-    router.push(`?${currentParams.toString()}`);
-  };
-
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
@@ -238,10 +218,9 @@ export default function SuggestedPairingsClient({
               </select>
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <input type="checkbox" id="ownedOnly" checked={initialOwnedHorsesOnly} onChange={handleOwnedHorsesOnlyChange} />
-              <label htmlFor="ownedOnly" style={{ ...labelStyle, marginBottom: 0 }}>Owned Horses Only ("Home" Ownership)</label>
-            </div>
+            <p style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-lato)", margin: 0, lineHeight: 1.5 }}>
+              Only pairs horses you own (<strong>Home</strong> ownership).
+            </p>
 
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <input type="checkbox" id="knownParentsOnly" checked={knownParentsOnly} onChange={(e) => setKnownParentsOnly(e.target.checked)} />
@@ -258,47 +237,18 @@ export default function SuggestedPairingsClient({
             </h2>
 
             {suggestedPairings.length > 0 && (
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, marginBottom: 20 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, fontFamily: "var(--font-lato)", fontSize: 13, color: "var(--text-muted)" }}>
-                  Page {currentPage} of {totalPages}
-                </div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    style={{ ...secondaryButtonStyle, padding: "8px 16px" }}
-                  >
-                    Previous
-                  </button>
-                  {[...Array(totalPages)].map((_, i) => (
-                    <button
-                      key={i + 1}
-                      onClick={() => handlePageChange(i + 1)}
-                      style={{
-                        ...secondaryButtonStyle,
-                        padding: "8px 12px",
-                        background: currentPage === i + 1 ? "var(--teal)" : "var(--white)",
-                        color: currentPage === i + 1 ? "var(--white)" : "var(--teal-dark)",
-                      }}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
-                  <button
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                    style={{ ...secondaryButtonStyle, padding: "8px 16px" }}
-                  >
-                    Next
-                  </button>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <label htmlFor="itemsPerPage" style={{ ...labelStyle, marginBottom: 0 }}>Results per page:</label>
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-5" style={{ fontFamily: "var(--font-lato)", fontSize: 13, color: "var(--text-muted)" }}>
+                <span>
+                  Showing {(currentPage - 1) * itemsPerPage + 1}–
+                  {Math.min(currentPage * itemsPerPage, suggestedPairings.length)} of {suggestedPairings.length}
+                </span>
+                <div className="flex items-center gap-2">
+                  <label htmlFor="itemsPerPage">Results per page:</label>
                   <select
                     id="itemsPerPage"
                     value={itemsPerPage}
                     onChange={(e) => handleItemsPerPageChange(parseInt(e.target.value))}
-                    style={{ ...inputStyle, width: "auto", minWidth: "70px", padding: "7px 10px", fontSize: 12 }}
+                    style={{ ...inputStyle, width: "auto", padding: "6px 10px", fontSize: 12 }}
                   >
                     <option value="10">10</option>
                     <option value="20">20</option>
@@ -308,7 +258,7 @@ export default function SuggestedPairingsClient({
                 </div>
               </div>
             )}
-            
+
             {suggestedPairings.length === 0 ? (
               <p style={{ color: "var(--text-muted)", fontFamily: "var(--font-lato)", fontSize: 14 }}>
                 No pairings match your criteria. Try adjusting your filters.
@@ -342,11 +292,69 @@ export default function SuggestedPairingsClient({
                 ))}
               </div>
             )}
+
+            {totalPages > 1 && (
+              <nav className="mt-8 flex flex-wrap items-center justify-center gap-1.5" aria-label="Pagination">
+                <PageBtn disabled={currentPage === 1} onClick={() => handlePageChange(currentPage - 1)}>
+                  ← Previous
+                </PageBtn>
+                {buildPageWindow(currentPage, totalPages).map((p, i) =>
+                  p === "…" ? (
+                    <span key={`gap-${i}`} className="px-2 text-sm" style={{ color: "var(--text-muted)" }}>…</span>
+                  ) : (
+                    <PageBtn key={p} active={p === currentPage} onClick={() => handlePageChange(p)}>
+                      {p}
+                    </PageBtn>
+                  )
+                )}
+                <PageBtn disabled={currentPage === totalPages} onClick={() => handlePageChange(currentPage + 1)}>
+                  Next →
+                </PageBtn>
+              </nav>
+            )}
           </div>
         </div>
       </div>
     </div>
   );
+}
+
+// Compact pagination button (Tailwind).
+function PageBtn({
+  children, onClick, active, disabled,
+}: { children: React.ReactNode; onClick?: () => void; active?: boolean; disabled?: boolean }) {
+  const base =
+    "min-w-[36px] h-9 px-3 text-sm rounded-md border transition-colors font-[var(--font-lato)] " +
+    "inline-flex items-center justify-center";
+  const state = disabled
+    ? "opacity-40 cursor-not-allowed border-[var(--border)] bg-white text-[var(--text-muted)]"
+    : active
+    ? "border-[var(--teal)] bg-[var(--teal)] text-white cursor-default"
+    : "border-[var(--border)] bg-white text-[var(--teal-dark)] hover:border-[var(--teal-light)] hover:bg-[var(--teal-muted)] cursor-pointer";
+  return (
+    <button type="button" onClick={disabled || active ? undefined : onClick} disabled={disabled} className={`${base} ${state}`}>
+      {children}
+    </button>
+  );
+}
+
+/**
+ * Build a capped page window: always shows first, last, current, and one
+ * neighbour either side; collapses long runs with "…". Examples:
+ *   3 of 50  →  [1, 2, 3, 4, …, 50]
+ *  25 of 50  →  [1, …, 24, 25, 26, …, 50]
+ *  48 of 50  →  [1, …, 47, 48, 49, 50]
+ */
+function buildPageWindow(current: number, total: number): (number | "…")[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages: (number | "…")[] = [1];
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
+  if (start > 2) pages.push("…");
+  for (let i = start; i <= end; i++) pages.push(i);
+  if (end < total - 1) pages.push("…");
+  pages.push(total);
+  return pages;
 }
 
 // Re-using the nodeDepth function from BreedingClient for consistency
