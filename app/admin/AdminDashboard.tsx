@@ -52,6 +52,7 @@ export default function AdminDashboard({ stats, recent }: {
         {[
           { href: "/admin/stable-tracker", icon: "tree" as const, label: "Stable Tracker", desc: "Plan pairings — preview a foal's pedigree & inbreeding" },
           { href: "/admin/horses/new", icon: "plus" as const, label: "Add Horse", desc: "Register a new horse manually" },
+          { href: "/admin/pedigree-import", icon: "image" as const, label: "Import Pedigree Image", desc: "Upload image and OCR pedigree" },
           { href: "/admin/import", icon: "upload" as const, label: "Import Excel", desc: "Upload your .xlsx to sync the registry" },
           { href: "/admin/horses", icon: "edit" as const, label: "Edit Registry", desc: "Find and edit existing horse records" },
         ].map((a) => (
