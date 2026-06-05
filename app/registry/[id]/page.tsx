@@ -4,7 +4,7 @@ import Link from "next/link";
 // next/image was here, but its optimizer rejects un-whitelisted hosts and our
 // photos live on a public Cloudflare R2 bucket. Plain <img> renders R2 URLs
 // directly without needing remotePatterns config (matches PhotoGallery).
-// import PedigreeTree from "@/components/PedigreeTree"; // PedigreeTree is no longer used in this file
+import PedigreeTree from "@/components/PedigreeTree";
 import Icon from "@/components/Icon";
 import PhotoGallery from "@/components/PhotoGallery";
 import { buildPedigreeTree, findDuplicates, pedigreeDepth } from "@/lib/pedigree";
@@ -66,8 +66,7 @@ export default async function HorsePage({ params }: { params: Promise<{ id: stri
   const sire = horse.sireName ? horseMap.get(horse.sireName.toLowerCase()) : undefined;
   const dam = horse.damName ? horseMap.get(horse.damName.toLowerCase()) : undefined;
 
-  // allHorsesJson is used by PedigreeTree component, which is no longer on this page
-  // const allHorsesJson = JSON.stringify(allHorses.map((h) => ({ id: h.id, name: h.name })));
+  const allHorsesJson = JSON.stringify(allHorses.map((h) => ({ id: h.id, name: h.name })));
   const hero = horse.photos[0];
   const admin = await isAdminLoggedIn();
 
@@ -279,6 +278,14 @@ export default async function HorsePage({ params }: { params: Promise<{ id: stri
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* ===== Pedigree ===== */}
+      {(sire || dam) && (
+        <div style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 10, padding: 24, marginBottom: 28 }}>
+          {sectionTitle(`Pedigree${generations ? ` · ${generations} generation${generations !== 1 ? "s" : ""}` : ""}`)}
+          <PedigreeTree node={tree} dupes={dupes} allHorses={allHorsesJson} isAdmin={admin} title={horse.name} />
         </div>
       )}
 
