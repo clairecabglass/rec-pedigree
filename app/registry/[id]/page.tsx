@@ -10,7 +10,6 @@ import PhotoGallery from "@/components/PhotoGallery";
 import { buildPedigreeTree, findDuplicates, pedigreeDepth } from "@/lib/pedigree";
 import type { HorseMap } from "@/lib/pedigree";
 import { isAdminLoggedIn } from "@/lib/auth";
-import ShareCardGenerator from "@/components/ShareCardGenerator";
 
 export const dynamic = "force-dynamic";
 
@@ -119,66 +118,6 @@ export default async function HorsePage({ params }: { params: Promise<{ id: stri
             <Link href={`/admin/horses/${horse.id}`} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--teal-dark)", background: "var(--white)", border: "1px solid var(--teal)", padding: "7px 16px", borderRadius: 6, textDecoration: "none", fontFamily: "var(--font-lato)", fontWeight: 700 }}>
               Edit this horse
             </Link>
-            <ShareCardGenerator
-              horse={{
-                id: horse.id,
-                name: horse.name,
-                breed: horse.breed,
-                gender: horse.gender,
-                coat: horse.coat,
-                genotype: horse.genotype,
-                sireName: horse.sireName,
-                damName: horse.damName,
-                ownership: horse.ownership,
-                isImportedPlaceholder: horse.isImportedPlaceholder,
-                regNumber: horse.regNumber,
-                stablePrefix: horse.stablePrefix,
-                breedingFee: horse.breedingFee,
-                breedingPolicies: horse.breedingPolicies,
-                price: horse.price,
-                saleDescription: horse.saleDescription,
-                saleContact: horse.saleContact,
-              }}
-              sire={sire ? {
-                id: sire.id,
-                name: sire.name,
-                breed: sire.breed,
-                gender: sire.gender,
-                coat: sire.coat,
-                genotype: sire.genotype,
-                sireName: sire.sireName,
-                damName: sire.damName,
-                ownership: sire.ownership,
-                isImportedPlaceholder: sire.isImportedPlaceholder,
-                regNumber: sire.regNumber,
-                stablePrefix: sire.stablePrefix,
-                breedingFee: sire.breedingFee,
-                breedingPolicies: sire.breedingPolicies,
-                price: sire.price,
-                saleDescription: sire.saleDescription,
-                saleContact: sire.saleContact,
-              } : undefined}
-              dam={dam ? {
-                id: dam.id,
-                name: dam.name,
-                breed: dam.breed,
-                gender: dam.gender,
-                coat: dam.coat,
-                genotype: dam.genotype,
-                sireName: dam.sireName,
-                damName: dam.damName,
-                ownership: dam.ownership,
-                isImportedPlaceholder: dam.isImportedPlaceholder,
-                regNumber: dam.regNumber,
-                stablePrefix: dam.stablePrefix,
-                breedingFee: dam.breedingFee,
-                breedingPolicies: dam.breedingPolicies,
-                price: dam.price,
-                saleDescription: dam.saleDescription,
-                saleContact: dam.saleContact,
-              } : undefined}
-              hero={hero}
-            />
           </div>
         )}
       </div>
