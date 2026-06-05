@@ -43,7 +43,7 @@ function Card({
       <div className="pc-name">{node.name}</div>
       {node.breed && <div className="pc-breed">{node.breed}</div>}
       {node.coat && depth < 2 && <div className="pc-coat">{node.coat}</div>}
-      {isInbreeding && <div className="pc-flag">⚠ Repeated ancestor</div>}
+      {isInbreeding && <div className="pc-flag">⚠ Inbreeding</div>}
     </>
   );
 
