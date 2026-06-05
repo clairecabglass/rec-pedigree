@@ -36,7 +36,16 @@ interface HorseData {
 }
 
 const BREEDS = ["American Paint Horse", "American Quarter Horse", "Andalusian", "Anglo-Arabian", "Arabian", "Belgian", "Clydesdale", "Colorado Ranger", "Connemara", "Criollo", "Friesian", "Hanoverian", "Holsteiner", "Irish Cob", "KWPN", "Kladruber", "Klabruber", "Lipizzaner", "Lusitano", "Menorquin", "Mustang", "Norfolk Roadster", "Nokota", "Oldenburg", "Paso Fino", "Percheron", "Selle Francais", "Shire", "Sugarbush Harlequin", "Suffolk Punch", "Thoroughbred", "Trotteur Francais", "Turkoman", "Warlander"];
-const OWNERSHIPS = ["Home", "For Sale", "Sold", "Outside", "Void"];
+// Each entry is [stored value, label shown in the dropdown]. The label spells
+// out what each status DOES so it's obvious which to pick when adding ancestors
+// vs. real owned horses.
+const OWNERSHIPS: ReadonlyArray<readonly [string, string]> = [
+  ["Home", "My Horse (HOME) — active, included in breeding tools"],
+  ["For Sale", "For Sale — listed on the For Sale page"],
+  ["Sold", "Sold — no longer owned, kept for history"],
+  ["Outside", "Outside / Reference — pedigree ancestor only, not in breeding tools"],
+  ["Void", "Void — hide from the registry entirely"],
+];
 
 const fieldStyle: React.CSSProperties = {
   border: "1px solid var(--border)", borderRadius: 6, padding: "9px 12px",
@@ -51,7 +60,9 @@ const labelStyle: React.CSSProperties = {
 
 export default function HorseForm({ initial, mode }: { initial?: HorseData; mode: "create" | "edit" }) {
   const router = useRouter();
-  const [data, setData] = useState<HorseData>(initial ?? { name: "" });
+  // New horses default to "Home" so they're immediately usable in the breeding
+  // tools. Switch to "Outside" when adding a pedigree-only reference horse.
+  const [data, setData] = useState<HorseData>(initial ?? { name: "", ownership: "Home" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -109,12 +120,16 @@ export default function HorseForm({ initial, mode }: { initial?: HorseData; mode
             <option value="Mare">Mare</option>
           </select>
         </div>
-        <div>
+        <div style={{ gridColumn: "1 / -1" }}>
           <label style={labelStyle}>Ownership</label>
           <select value={data.ownership ?? ""} onChange={(e) => set("ownership", e.target.value)} style={fieldStyle}>
             <option value="">— Select —</option>
-            {OWNERSHIPS.map((o) => <option key={o} value={o}>{o}</option>)}
+            {OWNERSHIPS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
+          <p style={{ marginTop: 6, fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-lato)", lineHeight: 1.5 }}>
+            Pick <strong>Home</strong> for horses you actually own. Pick <strong>Outside / Reference</strong> for
+            sires/dams added purely so the pedigree resolves — they won't appear in Suggested Pairings.
+          </p>
         </div>
         <Text k="sireName" label="Sire Name" ph="[TAG] SIRE NAME" />
         <Text k="damName" label="Dam Name" ph="[TAG] DAM NAME" />

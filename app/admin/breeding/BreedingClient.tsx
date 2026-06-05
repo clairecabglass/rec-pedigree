@@ -1,7 +1,7 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import PedigreeTree from "@/components/PedigreeTree";
 import Icon from "@/components/Icon";
 import { buildPedigreeTree, commonAncestors, inbreedingCoefficient } from "@/lib/pedigree";
@@ -46,11 +46,42 @@ function nodeDepth(n: HorseNode | null | undefined): number {
 
 export default function BreedingClient({ horses, pregnancies, plans }: { horses: FullHorseData[]; pregnancies: Pregnancy[]; plans: Plan[] }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [dam, setDam] = useState<FullHorseData | null>(null);
   const [sire, setSire] = useState<FullHorseData | null>(null);
   const [busy, setBusy] = useState(false);
   const [pregOpen, setPregOpen] = useState(true);
+  const [wishlistOpen, setWishlistOpen] = useState(true);
   const [matches, setMatches] = useState<{ stallion: FullHorseData; depth: number; coi: number; shared: number }[] | null>(null);
+
+  // Prefill the planner from URL params. Suggested Pairings sends
+  // ?mareId=...&stallionId=...; we also accept ?dam=...&sire=... for flexibility.
+  useEffect(() => {
+    const damId = searchParams.get("mareId") ?? searchParams.get("damId") ?? searchParams.get("dam");
+    const sireId = searchParams.get("stallionId") ?? searchParams.get("sireId") ?? searchParams.get("sire");
+    if (damId) {
+      const h = horses.find((x) => x.id === damId);
+      if (h) setDam(h);
+    }
+    if (sireId) {
+      const h = horses.find((x) => x.id === sireId);
+      if (h) setSire(h);
+    }
+    // Only run on mount / when the URL params change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  // Drop a wishlist row straight into the planner — no manual re-selection.
+  function loadPair(plan: Plan) {
+    const d = plan.damId ? horses.find((h) => h.id === plan.damId) : null;
+    const s = plan.sireId ? horses.find((h) => h.id === plan.sireId) : null;
+    if (d) setDam(d);
+    if (s) setSire(s);
+    // Scroll to the planner so the user sees the prefilled values.
+    setTimeout(() => {
+      document.getElementById("plan-a-pairing")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  }
 
   // Pregnancy auto-dates: bred now, due in exactly 72 hours.
   async function registerPregnancy() {
@@ -221,23 +252,55 @@ export default function BreedingClient({ horses, pregnancies, plans }: { horses:
       {/* ===== Breeding wishlist ===== */}
       {plans.length > 0 && (
         <div style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 10, padding: 24, marginBottom: 28 }}>
-          <h2 style={{ fontFamily: "var(--font-playfair)", fontSize: 22, color: "var(--teal-dark)", marginBottom: 16 }}>Breeding Wishlist ({plans.length})</h2>
-          <div className="grid sm:grid-cols-2 gap-3">
-            {plans.map((pl) => (
-              <div key={pl.id} style={{ display: "flex", alignItems: "center", gap: 10, border: "1px solid var(--border)", borderRadius: 8, padding: "10px 14px", background: "var(--cream)", fontFamily: "var(--font-lato)" }}>
-                <div style={{ flex: 1, fontSize: 13 }}>
-                  <Link href={`/registry/${pl.damId}`} style={{ color: "var(--dam-text)", fontWeight: 700, textDecoration: "none" }}>{pl.damName}</Link>
-                  <span style={{ color: "var(--text-muted)" }}>  ×  </span>
-                  {pl.sireId ? <Link href={`/registry/${pl.sireId}`} style={{ color: "var(--sire-text)", fontWeight: 700, textDecoration: "none" }}>{pl.sireName}</Link> : <span style={{ color: "var(--sire-text)", fontWeight: 700 }}>{pl.sireName ?? "any stallion"}</span>}
-                </div>
-                <button onClick={() => deletePlan(pl.id)} style={{ background: "none", border: "1px solid var(--border)", color: "#C05050", borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer" }}>✕</button>
-              </div>
-            ))}
-          </div>
+          <h2
+            onClick={() => setWishlistOpen((o) => !o)}
+            style={{ fontFamily: "var(--font-playfair)", fontSize: 22, color: "var(--teal-dark)", marginBottom: wishlistOpen ? 16 : 0, cursor: "pointer", display: "flex", alignItems: "center", gap: 10, userSelect: "none" }}
+          >
+            <span style={{ fontSize: 15, color: "var(--text-muted)", transform: wishlistOpen ? "rotate(90deg)" : "none", transition: "transform 0.15s", display: "inline-block" }}>▸</span>
+            Breeding Wishlist ({plans.length})
+          </h2>
+          {wishlistOpen && (
+            <div className="grid sm:grid-cols-2 gap-3">
+              {plans.map((pl) => {
+                const canLoad = !!(pl.damId && pl.sireId);
+                return (
+                  <div key={pl.id} style={{ display: "flex", alignItems: "center", gap: 10, border: "1px solid var(--border)", borderRadius: 8, padding: "10px 14px", background: "var(--cream)", fontFamily: "var(--font-lato)" }}>
+                    <div style={{ flex: 1, fontSize: 13 }}>
+                      <Link href={`/registry/${pl.damId}`} style={{ color: "var(--dam-text)", fontWeight: 700, textDecoration: "none" }}>{pl.damName}</Link>
+                      <span style={{ color: "var(--text-muted)" }}>  ×  </span>
+                      {pl.sireId ? <Link href={`/registry/${pl.sireId}`} style={{ color: "var(--sire-text)", fontWeight: 700, textDecoration: "none" }}>{pl.sireName}</Link> : <span style={{ color: "var(--sire-text)", fontWeight: 700 }}>{pl.sireName ?? "any stallion"}</span>}
+                    </div>
+                    <button
+                      onClick={() => loadPair(pl)}
+                      disabled={!canLoad}
+                      title={canLoad ? "Load this pair into the planner below" : "Both horses must still exist to load"}
+                      style={{
+                        background: canLoad ? "var(--teal)" : "var(--cream-dark)",
+                        color: canLoad ? "white" : "var(--text-muted)",
+                        border: "none",
+                        borderRadius: 6,
+                        padding: "5px 10px",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: canLoad ? "pointer" : "not-allowed",
+                        fontFamily: "var(--font-lato)",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4,
+                      }}
+                    >
+                      ↓ Use pair
+                    </button>
+                    <button onClick={() => deletePlan(pl.id)} style={{ background: "none", border: "1px solid var(--border)", color: "#C05050", borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer" }}>✕</button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
-      <h2 style={{ fontFamily: "var(--font-playfair)", fontSize: 22, color: "var(--teal-dark)", marginBottom: 16 }}>Plan a Pairing</h2>
+      <h2 id="plan-a-pairing" style={{ fontFamily: "var(--font-playfair)", fontSize: 22, color: "var(--teal-dark)", marginBottom: 16, scrollMarginTop: 80 }}>Plan a Pairing</h2>
 
       {/* Pairing pickers */}
       <div className="grid md:grid-cols-2 gap-5" style={{ marginBottom: 28 }}>
