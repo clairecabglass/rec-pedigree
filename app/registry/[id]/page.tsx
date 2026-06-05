@@ -32,7 +32,9 @@ export default async function HorsePage({ params }: { params: Promise<{ id: stri
     select: { id: true, name: true, breed: true, gender: true, coat: true, sireName: true, damName: true, ownership: true },
   });
   const horseMap: HorseMap = new Map(allHorses.map((h) => [h.name.toLowerCase(), h]));
-  const tree = buildPedigreeTree(horse.name, horseMap, 5);
+  // Build to the deepest the generations toggle allows (10) so selecting a
+  // deeper view actually reveals more ancestors instead of hitting the limit.
+  const tree = buildPedigreeTree(horse.name, horseMap, 10);
   const dupes = findDuplicates(tree);
   const generations = pedigreeDepth(horse.name, horseMap);
 

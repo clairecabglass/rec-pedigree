@@ -150,7 +150,7 @@ export default function PedigreeTree({ node, dupes, allHorses, isAdmin, title, b
     <div ref={wrapRef} style={{ background: "var(--cream)" }}>
       <div style={{ marginBottom: 16, display: "flex", gap: 8, alignItems: "center", fontFamily: "var(--font-lato)", fontSize: 13, flexWrap: "wrap" }}>
         <span style={{ color: "var(--text-muted)" }}>Generations:</span>
-        {[3, 4, 5, 6, 7].map((d) => (
+        {[3, 4, 5, 6, 7, 8, 9, 10].map((d) => (
           <button
             key={d}
             onClick={() => setMaxDepth(d)}

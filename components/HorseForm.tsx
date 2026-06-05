@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, createContext, useContext } from "react";
 import { useRouter } from "next/navigation";
 
 interface HorseData {
@@ -58,20 +58,6 @@ export default function HorseForm({ initial, mode }: { initial?: HorseData; mode
   const set = (key: keyof HorseData, value: string | boolean) =>
     setData((d) => ({ ...d, [key]: value }));
 
-  // Field helpers ----------------------------------------------------------
-  const Text = ({ k, label, ph, full }: { k: keyof HorseData; label: string; ph?: string; full?: boolean }) => (
-    <div style={full ? { gridColumn: "1 / -1" } : undefined}>
-      <label style={labelStyle}>{label}</label>
-      <input value={(data[k] as string) ?? ""} onChange={(e) => set(k, e.target.value)} style={fieldStyle} placeholder={ph} />
-    </div>
-  );
-  const Area = ({ k, label, ph, rows = 3 }: { k: keyof HorseData; label: string; ph?: string; rows?: number }) => (
-    <div style={{ gridColumn: "1 / -1" }}>
-      <label style={labelStyle}>{label}</label>
-      <textarea value={(data[k] as string) ?? ""} onChange={(e) => set(k, e.target.value)} rows={rows} style={{ ...fieldStyle, resize: "vertical" }} placeholder={ph} />
-    </div>
-  );
-
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!data.name.trim()) { setError("Name is required."); return; }
@@ -101,6 +87,7 @@ export default function HorseForm({ initial, mode }: { initial?: HorseData; mode
   }
 
   return (
+    <FormCtx.Provider value={{ data, set }}>
     <form onSubmit={submit}>
       {/* Identity */}
       <Section title="Identity" first>
@@ -193,6 +180,34 @@ export default function HorseForm({ initial, mode }: { initial?: HorseData; mode
         )}
       </div>
     </form>
+    </FormCtx.Provider>
+  );
+}
+
+// Shared form state so the field helpers can live at module scope (defining them
+// inside HorseForm remounted every input on each keystroke, dropping focus).
+const FormCtx = createContext<{
+  data: HorseData;
+  set: (key: keyof HorseData, value: string | boolean) => void;
+}>({ data: { name: "" }, set: () => {} });
+
+function Text({ k, label, ph, full }: { k: keyof HorseData; label: string; ph?: string; full?: boolean }) {
+  const { data, set } = useContext(FormCtx);
+  return (
+    <div style={full ? { gridColumn: "1 / -1" } : undefined}>
+      <label style={labelStyle}>{label}</label>
+      <input value={(data[k] as string) ?? ""} onChange={(e) => set(k, e.target.value)} style={fieldStyle} placeholder={ph} />
+    </div>
+  );
+}
+
+function Area({ k, label, ph, rows = 3 }: { k: keyof HorseData; label: string; ph?: string; rows?: number }) {
+  const { data, set } = useContext(FormCtx);
+  return (
+    <div style={{ gridColumn: "1 / -1" }}>
+      <label style={labelStyle}>{label}</label>
+      <textarea value={(data[k] as string) ?? ""} onChange={(e) => set(k, e.target.value)} rows={rows} style={{ ...fieldStyle, resize: "vertical" }} placeholder={ph} />
+    </div>
   );
 }
 
