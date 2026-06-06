@@ -14,6 +14,7 @@ const flatLinks = [
 
 const RESOURCES_LINKS = [
   { href: "/resources/foal-calculator", label: "Foal Genetics" },
+  { href: "/resources/course-planner", label: "Course Planner" },
 ];
 
 export default function Nav() {
