@@ -3,7 +3,40 @@ import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { buildPedigreeTree, inbreedingCoefficient, commonAncestors } from "@/lib/pedigree";
 import type { HorseMap, HorseNode } from "@/lib/pedigree";
-import { predictFoal, extractGeneCode } from "@/lib/genetics";
+import { predictFoal, extractGeneCode, DILUTIONS, PATTERNS } from "@/lib/genetics";
+
+// Codes the user can target. Bases + dilutions + patterns.
+const TARGET_BASES = [
+  { code: "R", label: "Red / Chestnut" },
+  { code: "B", label: "Bay" },
+  { code: "BL", label: "Black" },
+];
+const TARGET_DILUTIONS = (DILUTIONS as readonly string[]).map((code) => ({
+  code,
+  label: ({ CH: "Champagne", CR: "Cream (1 copy)", CR2: "Cream (2 copies)", Z: "Silver", M: "Mushroom",
+    P: "Pangare", G: "Grey", DW: "Dominant White", FLX: "Flaxen" } as Record<string, string>)[code] ?? code,
+}));
+const TARGET_PATTERNS = Object.entries(PATTERNS).map(([code, label]) => ({ code, label }));
+
+// Does the predicted foal's reachable outcomes include EVERY targeted code?
+function foalCanProduce(pred: ReturnType<typeof predictFoal>, targets: string[]): boolean {
+  if (!targets.length) return true;
+  if (!pred.ok) return false;
+  const baseSet = new Set<string>(pred.bases);
+  const modSet = new Set<string>(pred.modifiers.map((m) => m.code));
+  // Cream is reported as creamCopies + a CR modifier; surface both CR & CR2 explicitly.
+  if (pred.creamCopies.includes(1) || pred.creamCopies.includes(2)) modSet.add("CR");
+  if (pred.creamCopies.includes(2)) modSet.add("CR2");
+  const patSet = new Set<string>(pred.patterns);
+
+  for (const t of targets) {
+    if (baseSet.has(t)) continue;
+    if (modSet.has(t)) continue;
+    if (patSet.has(t)) continue;
+    return false; // this target cannot be produced — pair fails
+  }
+  return true;
+}
 
 import { FullHorseData } from "@/lib/types";
 
@@ -30,6 +63,8 @@ export default function SuggestedPairingsClient({
   const [maxInbreeding, setMaxInbreeding] = useState(0.125); // 0.125 = 12.5%
   const [selectedBreed, setSelectedBreed] = useState<string | null>(null);
   const [knownParentsOnly, setKnownParentsOnly] = useState(false);
+  // Multi-select set of gene codes the foal must be able to produce.
+  const [targetGenotypes, setTargetGenotypes] = useState<string[]>([]);
 
   // Pagination states (client-side for pairings)
   const [currentPage, setCurrentPage] = useState(1);
@@ -38,7 +73,10 @@ export default function SuggestedPairingsClient({
   // Effect to reset current page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [minGenerations, requirePurebred, maxInbreeding, selectedBreed, knownParentsOnly]);
+  }, [minGenerations, requirePurebred, maxInbreeding, selectedBreed, knownParentsOnly, targetGenotypes]);
+
+  const toggleTarget = (code: string) =>
+    setTargetGenotypes((prev) => prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]);
 
 
   // Memoized data
@@ -87,8 +125,10 @@ export default function SuggestedPairingsClient({
         // Build potential foal pedigree (up to max generations for inbreeding calc)
         const foal: HorseNode = {
           id: "foal", name: "Potential Foal", breed: null, gender: null, coat: null,
-          sire: buildPedigreeTree(stallion.name, horseMap, 6), // Max 6 generations for pedigree calculations
-          dam: buildPedigreeTree(mare.name, horseMap, 6),
+          // Build to 10 generations so the "Minimum Pedigree Depth" filter
+          // can scale up to 10. Deeper trees also tighten COI accuracy.
+          sire: buildPedigreeTree(stallion.name, horseMap, 10),
+          dam: buildPedigreeTree(mare.name, horseMap, 10),
         };
 
         const pedigreeDepth = foal ? nodeDepth(foal) : 0;
@@ -126,6 +166,15 @@ export default function SuggestedPairingsClient({
             else if (sharedAncestors > 0) reasons.push(`${sharedAncestors} shared ancestors`);
         }
 
+        // Target foal genotype filter: pair must be able to produce EVERY
+        // selected code (base / dilution / pattern). Drops impossible pairs.
+        if (targetGenotypes.length && !foalCanProduce(foalGenetics, targetGenotypes)) {
+          continue;
+        }
+        if (targetGenotypes.length) {
+          reasons.push(`Can produce target genotype: ${targetGenotypes.join(", ")}`);
+        }
+
         // If all filters pass, add the pairing
         pairings.push({
           mare, stallion, foal, pedigreeDepth, inbreedingCoefficient: coi, sharedAncestors, isPurebredCross, foalGenetics, reasons,
@@ -133,7 +182,7 @@ export default function SuggestedPairingsClient({
       }
     }
     return pairings.sort((a, b) => a.inbreedingCoefficient - b.inbreedingCoefficient || b.pedigreeDepth - a.pedigreeDepth); // Sort by COI then depth
-  }, [horses, minGenerations, requirePurebred, maxInbreeding, selectedBreed, knownParentsOnly, mares, stallions, horseMap]);
+  }, [horses, minGenerations, requirePurebred, maxInbreeding, selectedBreed, knownParentsOnly, targetGenotypes, mares, stallions, horseMap]);
 
   const totalPages = Math.ceil(suggestedPairings.length / itemsPerPage);
   const paginatedPairings = useMemo(() => {
@@ -192,7 +241,19 @@ export default function SuggestedPairingsClient({
 
             <div>
               <label style={labelStyle}>Minimum Pedigree Depth (Generations)</label>
-              <input type="number" min="1" max="6" value={minGenerations} onChange={(e) => setMinGenerations(parseInt(e.target.value))} style={inputStyle} />
+              <input
+                type="number" min={1} max={10}
+                value={minGenerations}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value, 10);
+                  // Clamp to [1,10]. NaN happens if the field is cleared mid-edit.
+                  setMinGenerations(Number.isFinite(v) ? Math.min(10, Math.max(1, v)) : 1);
+                }}
+                style={inputStyle}
+              />
+              <p style={{ marginTop: 4, fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-lato)" }}>
+                1–10 generations. If no horse has that depth recorded, the list will be empty.
+              </p>
             </div>
 
             <div>
@@ -225,6 +286,26 @@ export default function SuggestedPairingsClient({
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <input type="checkbox" id="knownParentsOnly" checked={knownParentsOnly} onChange={(e) => setKnownParentsOnly(e.target.checked)} />
               <label htmlFor="knownParentsOnly" style={{ ...labelStyle, marginBottom: 0 }}>Known Parents Only (Sire/Dam Names Present)</label>
+            </div>
+
+            {/* ===== Target Foal Genotypes ===== */}
+            <div>
+              <label style={labelStyle}>Target Foal Genotypes</label>
+              <p style={{ marginTop: 0, marginBottom: 8, fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-lato)" }}>
+                Only show pairs that could pass <em>every</em> selected code to the foal.
+              </p>
+              <TargetGroup title="Base" options={TARGET_BASES} selected={targetGenotypes} onToggle={toggleTarget} />
+              <TargetGroup title="Modifiers" options={TARGET_DILUTIONS} selected={targetGenotypes} onToggle={toggleTarget} />
+              <TargetGroup title="Patterns" options={TARGET_PATTERNS} selected={targetGenotypes} onToggle={toggleTarget} />
+              {targetGenotypes.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setTargetGenotypes([])}
+                  style={{ marginTop: 6, fontSize: 11, color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", fontFamily: "var(--font-lato)" }}
+                >
+                  Clear targets
+                </button>
+              )}
             </div>
 
           </div>
@@ -363,4 +444,39 @@ function nodeDepth(n: HorseNode | null | undefined): number {
   const s = n.sire ? 1 + nodeDepth(n.sire) : 0;
   const d = n.dam ? 1 + nodeDepth(n.dam) : 0;
   return Math.max(s, d);
+}
+
+// Sidebar pill group for the Target Genotype filter.
+function TargetGroup({
+  title, options, selected, onToggle,
+}: { title: string; options: { code: string; label: string }[]; selected: string[]; onToggle: (c: string) => void }) {
+  return (
+    <div className="mb-2">
+      <div className="text-[10px] uppercase tracking-[0.1em] text-[var(--text-muted)] font-semibold mb-1.5" style={{ fontFamily: "var(--font-lato)" }}>
+        {title}
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {options.map((o) => {
+          const on = selected.includes(o.code);
+          return (
+            <button
+              key={o.code}
+              type="button"
+              onClick={() => onToggle(o.code)}
+              title={o.label}
+              className={
+                "text-[11px] px-2.5 py-1 rounded-full border transition-colors " +
+                (on
+                  ? "bg-[var(--teal)] text-white border-[var(--teal)]"
+                  : "bg-white text-[var(--teal-dark)] border-[var(--border)] hover:border-[var(--teal-light)]")
+              }
+              style={{ fontFamily: "var(--font-lato)" }}
+            >
+              {o.code}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 }

@@ -7,6 +7,7 @@ const links = [
   { href: "/", label: "Home" },
   { href: "/registry", label: "Registry" },
   { href: "/for-sale", label: "For Sale" },
+  { href: "/resources/foal-calculator", label: "Resources" },
 ];
 
 export default function Nav() {
