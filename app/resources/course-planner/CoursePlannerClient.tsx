@@ -525,13 +525,18 @@ export default function CoursePlannerClient() {
   const trackLabels = useMemo(() => labelTrack(track), [track]);
 
   const trackStats = useMemo(() => {
-    let totalM = 0;
+    // Distance is the actual arc length along the curved spline path the
+    // horse would travel, NOT the straight Euclidean chord between fences.
+    // Per spline segment we sample the cubic Bezier and sum chord lengths.
+    const segs = buildCubicSegments(track);
     const legs: number[] = [];
-    for (let i = 1; i < track.length; i++) {
-      const m = distanceM(track[i - 1], track[i]);
-      legs.push(m);
-      totalM += m;
+    let totalPx = 0;
+    for (const s of segs) {
+      const lenPx = cubicArcLength(s);
+      totalPx += lenPx;
+      legs.push(lenPx / PX_PER_M);
     }
+    const totalM = totalPx / PX_PER_M;
     return {
       totalM,
       strides: totalM / STRIDE_M,
@@ -656,15 +661,21 @@ export default function CoursePlannerClient() {
 
         {/* ===== Canvas ===== */}
         <section>
-          {selected && (
-            <SelectionToolbar
-              prop={selected}
-              onRotate={rotateSelected}
-              onDelete={deleteSelected}
-              onAddToTrack={() => addToTrack(selected.id)}
-              onResetSize={resetScale}
-            />
-          )}
+          {/* Permanently reserved slot for the selection toolbar. The slot
+              always renders and keeps the same min-height regardless of
+              selection state, so the arena below never shifts vertically
+              when a prop is selected or deselected. */}
+          <div className="min-h-[52px] mb-2" aria-hidden={!selected}>
+            {selected && (
+              <SelectionToolbar
+                prop={selected}
+                onRotate={rotateSelected}
+                onDelete={deleteSelected}
+                onAddToTrack={() => addToTrack(selected.id)}
+                onResetSize={resetScale}
+              />
+            )}
+          </div>
 
           <div
             style={{ background: "var(--cream-dark)", border: "1px solid var(--border)", borderRadius: 12, padding: 10 }}
@@ -868,21 +879,101 @@ function PropOnCanvas({
   );
 }
 
+/* ===================== Catmull-Rom → Cubic-Bezier spline =====================
+   Real horses don't pivot 90° between fences — they take a sweeping turn. We
+   smooth the track by converting consecutive props into a Catmull-Rom spline
+   then emitting it as one continuous cubic-Bezier path (each segment uses
+   the "C x1 y1, x2 y2, x y" form). This keeps a single SVG <path> element
+   while still letting the renderer interpolate every position and tangent
+   along the curve.
+
+   For points P[i-1], P[i], P[i+1], P[i+2] (the segment is P[i] → P[i+1]):
+     C1 = P[i]   +  (P[i+1] - P[i-1]) * tension / 3
+     C2 = P[i+1] -  (P[i+2] - P[i])   * tension / 3
+   Endpoints reflect the missing neighbour so the curve starts/ends tangent
+   to the line into/out of the first / last prop.
+
+   Tension 0.5 gives nicely rounded equestrian arcs without overshooting
+   the way tension 1.0 (uniform Catmull-Rom) sometimes does in tight zigzags. */
+const SPLINE_TENSION = 0.5;
+
+interface CubicSeg {
+  /** Start point (P0). */ x0: number; y0: number;
+  /** First control point.  */ x1: number; y1: number;
+  /** Second control point. */ x2: number; y2: number;
+  /** End point (P3).    */   x3: number; y3: number;
+}
+
+function buildCubicSegments(points: { x: number; y: number }[]): CubicSeg[] {
+  const segs: CubicSeg[] = [];
+  if (points.length < 2) return segs;
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[i - 1] ?? points[i];       // reflect first
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[i + 2] ?? points[i + 1];   // reflect last
+    const c1x = p1.x + (p2.x - p0.x) * (SPLINE_TENSION / 3);
+    const c1y = p1.y + (p2.y - p0.y) * (SPLINE_TENSION / 3);
+    const c2x = p2.x - (p3.x - p1.x) * (SPLINE_TENSION / 3);
+    const c2y = p2.y - (p3.y - p1.y) * (SPLINE_TENSION / 3);
+    segs.push({ x0: p1.x, y0: p1.y, x1: c1x, y1: c1y, x2: c2x, y2: c2y, x3: p2.x, y3: p2.y });
+  }
+  return segs;
+}
+
+/** Evaluate a cubic Bezier at parameter t ∈ [0,1]. */
+function cubicAt(s: CubicSeg, t: number): { x: number; y: number } {
+  const u = 1 - t;
+  const a = u * u * u, b = 3 * u * u * t, c = 3 * u * t * t, d = t * t * t;
+  return {
+    x: a * s.x0 + b * s.x1 + c * s.x2 + d * s.x3,
+    y: a * s.y0 + b * s.y1 + c * s.y2 + d * s.y3,
+  };
+}
+
+/** Derivative of a cubic Bezier at parameter t (the tangent vector). */
+function cubicTangent(s: CubicSeg, t: number): { dx: number; dy: number } {
+  const u = 1 - t;
+  // B'(t) = 3u²(P1-P0) + 6ut(P2-P1) + 3t²(P3-P2)
+  const c1 = 3 * u * u;
+  const c2 = 6 * u * t;
+  const c3 = 3 * t * t;
+  return {
+    dx: c1 * (s.x1 - s.x0) + c2 * (s.x2 - s.x1) + c3 * (s.x3 - s.x2),
+    dy: c1 * (s.y1 - s.y0) + c2 * (s.y2 - s.y1) + c3 * (s.y3 - s.y2),
+  };
+}
+
+/** Approximate the arc length of a cubic Bezier by sampling chord lengths. */
+function cubicArcLength(s: CubicSeg, samples = 24): number {
+  let len = 0;
+  let prev = cubicAt(s, 0);
+  for (let i = 1; i <= samples; i++) {
+    const t = i / samples;
+    const cur = cubicAt(s, t);
+    len += Math.hypot(cur.x - prev.x, cur.y - prev.y);
+    prev = cur;
+  }
+  return len;
+}
+
 function TrackPath({ track, labels }: { track: PlacedProp[]; labels: string[] }) {
   void labels;
   if (track.length < 2) return null;
 
-  // Straight-segment polyline through the prop centres. Using straight lines
-  // (instead of the previous quadratic-Bezier smoothing) means the visual
-  // path direction and the arrow tangent are guaranteed identical.
-  const d = track.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+  const segs = buildCubicSegments(track);
+  // Emit one continuous SVG path string: M to the very first point, then a
+  // chain of cubic Bezier segments.
+  const d =
+    `M ${segs[0].x0} ${segs[0].y0} ` +
+    segs.map((s) => `C ${s.x1} ${s.y1}, ${s.x2} ${s.y2}, ${s.x3} ${s.y3}`).join(" ");
 
   return (
     <g>
       <defs>
-        {/* auto-orient lets the SVG renderer rotate the marker along the
-            path tangent, so this stays correct regardless of curvature. */}
-        <marker id="cp-arrow" viewBox="0 0 10 10" refX={9} refY={5} markerWidth={8} markerHeight={8} orient="auto">
+        {/* auto-start-reverse lets the SVG renderer auto-rotate the
+            arrowhead along the path's own tangent at the path end. */}
+        <marker id="cp-arrow" viewBox="0 0 10 10" refX={9} refY={5} markerWidth={8} markerHeight={8} orient="auto-start-reverse">
           <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--teal-dark)" />
         </marker>
       </defs>
@@ -898,21 +989,15 @@ function TrackPath({ track, labels }: { track: PlacedProp[]; labels: string[] })
         opacity={0.85}
       />
 
-      {/* Per-segment direction arrow at the midpoint, rotated by the EXACT
-          tangent angle atan2(y2-y1, x2-x1) * 180/PI per the spec. Because
-          each segment is straight, this tangent is the segment direction. */}
-      {track.slice(1).map((cur, i) => {
-        const prev = track[i]; // slice(1) makes cur = track[i+1] so this is the previous
-        const dx = cur.x - prev.x;
-        const dy = cur.y - prev.y;
-        const angle = Math.atan2(dy, dx) * (180 / Math.PI);
-        // Place the arrow ~55% along the segment so it sits clear of the
-        // numbered badge bubble at the previous fence.
+      {/* Per-segment mid-curve arrow. Position = curve point at t=0.55,
+          orientation = derivative tangent angle atan2(dy, dx)·180/π. */}
+      {segs.map((s, i) => {
         const t = 0.55;
-        const mx = prev.x + dx * t;
-        const my = prev.y + dy * t;
+        const pos = cubicAt(s, t);
+        const { dx, dy } = cubicTangent(s, t);
+        const angle = Math.atan2(dy, dx) * (180 / Math.PI);
         return (
-          <g key={`arrow-${i}`} transform={`translate(${mx}, ${my}) rotate(${angle})`}>
+          <g key={`arrow-${i}`} transform={`translate(${pos.x}, ${pos.y}) rotate(${angle})`}>
             <polygon points="-7,-6 8,0 -7,6" fill="var(--teal-dark)" />
           </g>
         );
@@ -953,7 +1038,7 @@ function SelectionToolbar({
   };
   const scaled = Math.abs(prop.scaleX - 1) > 0.01 || Math.abs(prop.scaleY - 1) > 0.01;
   return (
-    <div className="mb-2 flex flex-wrap items-center gap-2" style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 8, padding: "8px 12px" }}>
+    <div className="flex flex-wrap items-center gap-2" style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 8, padding: "8px 12px" }}>
       <span className="text-xs" style={{ fontFamily: "var(--font-lato)", color: "var(--text-muted)" }}>
         Selected: <strong style={{ color: "var(--teal-dark)" }}>{def.label}</strong>
         {" · "}{Math.round(prop.rotation)}°
