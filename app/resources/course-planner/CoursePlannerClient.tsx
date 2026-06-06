@@ -150,13 +150,17 @@ function labelTrack(track: PlacedProp[]): string[] {
 /**
  * Returns the inner SVG markup for a prop, drawn around (0,0) before
  * translation/rotation. Dimensions in SVG user units (metres × PX_PER_M).
+ *
+ * The glyph's own stroke and size are CONSTANT regardless of selection —
+ * all "is this selected" visual feedback lives in a sibling overlay group
+ * so that toggling selection can never resize / shift the prop itself.
  */
-function PropGlyph({ type, selected }: { type: PropType; selected: boolean }) {
+function PropGlyph({ type }: { type: PropType }) {
   const d = getDef(type);
   const w = d.w * PX_PER_M;
   const h = d.h * PX_PER_M;
-  const stroke = selected ? "var(--gold)" : "var(--teal-dark)";
-  const sw = selected ? 2.5 : 1.5;
+  const stroke = "var(--teal-dark)";
+  const sw = 1.5;
 
   switch (type) {
     case "vertical":
@@ -316,8 +320,21 @@ export default function CoursePlannerClient() {
     setSelectedId(id);
   }
 
-  /* ---- Existing-prop drag inside the canvas ---- */
-  const dragState = useRef<{ id: string; dx: number; dy: number } | null>(null);
+  /* ---- Existing-prop drag inside the canvas ----
+     Drag only kicks in AFTER the cursor has moved past a small threshold from
+     the mousedown point. Before that, the gesture is a pure click → it only
+     mutates the selection variable and explicitly leaves x/y untouched, so
+     sub-pixel pointer jitter while clicking can never shift the prop. */
+  const DRAG_THRESHOLD_PX = 4;
+  const dragState = useRef<{
+    id: string;
+    /** Offset between cursor and prop centre at mousedown, in SVG units. */
+    dx: number; dy: number;
+    /** Mousedown position in client pixels — used for the threshold check. */
+    startClientX: number; startClientY: number;
+    /** Has the cursor moved far enough to commit to dragging? */
+    dragging: boolean;
+  } | null>(null);
 
   function onPropMouseDown(e: React.MouseEvent, p: PlacedProp) {
     e.stopPropagation();
@@ -328,13 +345,25 @@ export default function CoursePlannerClient() {
     }
     setSelectedId(p.id);
     const { x, y } = eventToSvg(e.clientX, e.clientY);
-    dragState.current = { id: p.id, dx: p.x - x, dy: p.y - y };
+    dragState.current = {
+      id: p.id,
+      dx: p.x - x, dy: p.y - y,
+      startClientX: e.clientX, startClientY: e.clientY,
+      dragging: false,
+    };
     window.addEventListener("mousemove", onWindowMove);
     window.addEventListener("mouseup", onWindowUp);
   }
   function onWindowMove(e: MouseEvent) {
     const ds = dragState.current;
     if (!ds) return;
+    // Don't commit any position change until the cursor has moved past the
+    // threshold. This stops a click-without-drag from nudging the prop.
+    if (!ds.dragging) {
+      const moved = Math.hypot(e.clientX - ds.startClientX, e.clientY - ds.startClientY);
+      if (moved < DRAG_THRESHOLD_PX) return;
+      ds.dragging = true;
+    }
     const { x, y } = eventToSvg(e.clientX, e.clientY);
     setProps((arr) =>
       arr.map((p) => (p.id === ds.id ? { ...p, x: x + ds.dx, y: y + ds.dy } : p))
@@ -745,7 +774,7 @@ function PaletteTile({ def, onDragStart }: { def: PropDef; onDragStart: (e: Reac
       }}
     >
       <svg width={28} height={20} viewBox="-30 -20 60 40">
-        <PropGlyph type={def.type} selected={false} />
+        <PropGlyph type={def.type} />
       </svg>
       {def.label}
     </div>
@@ -792,16 +821,20 @@ function PropOnCanvas({
         onMouseDown={onMouseDown}
         style={{ cursor: "move" }}
       >
-        <PropGlyph type={prop.type} selected={selected} />
+        <PropGlyph type={prop.type} />
       </g>
 
-      {/* Selection bounding box + resize handles */}
+      {/* Selection bounding box + resize handles — rendered as an absolute
+          visual overlay on top of the glyph. The frame itself is non-interactive
+          (pointerEvents="none"), so it never intercepts clicks meant for the
+          glyph or the canvas. Only the four corner handles consume events. */}
       {selected && (
-        <g pointerEvents="all">
+        <g>
           <rect
             x={-halfW - 4} y={-halfH - 4}
             width={halfW * 2 + 8} height={halfH * 2 + 8}
             fill="none" stroke="var(--gold)" strokeWidth={1.5} strokeDasharray="4 3"
+            pointerEvents="none"
           />
           {/* Four corner handles. Cursor hints match the rotated frame. */}
           {([
@@ -1017,7 +1050,7 @@ function ExportModal({
                 return (
                   <g key={p.id} transform={`translate(${p.x},${p.y}) rotate(${p.rotation})`}>
                     <g transform={`scale(${p.scaleX}, ${p.scaleY})`}>
-                      <PropGlyph type={p.type} selected={false} />
+                      <PropGlyph type={p.type} />
                     </g>
                     {(() => {
                       const idx = track.indexOf(p);
