@@ -73,6 +73,9 @@ interface PlacedProp {
   x: number;
   y: number;
   rotation: number; // degrees
+  /** Per-axis scale multipliers applied on top of the catalogue size. */
+  scaleX: number;
+  scaleY: number;
 }
 
 type Difficulty = "Novice" | "Intermediate" | "Advanced";
@@ -309,7 +312,7 @@ export default function CoursePlannerClient() {
     e.preventDefault();
     const { x, y } = eventToSvg(e.clientX, e.clientY);
     const id = uid();
-    setProps((p) => [...p, { id, type, x, y, rotation: 0 }]);
+    setProps((p) => [...p, { id, type, x, y, rotation: 0, scaleX: 1, scaleY: 1 }]);
     setSelectedId(id);
   }
 
@@ -342,10 +345,86 @@ export default function CoursePlannerClient() {
     window.removeEventListener("mousemove", onWindowMove);
     window.removeEventListener("mouseup", onWindowUp);
   }
-  // Ensure listeners are torn down on unmount
+
+  /* ---- Resize handles ---- */
+  // We do the math in the prop's own (rotated) frame so corner pulls always
+  // map to width / height intuitively, regardless of how the prop is angled.
+  const resizeState = useRef<{
+    id: string; corner: "tl" | "tr" | "bl" | "br";
+    startScaleX: number; startScaleY: number;
+    startLocal: { lx: number; ly: number };
+    cx: number; cy: number;
+    rot: number;
+    defW: number; defH: number;
+  } | null>(null);
+
+  // Map SVG-space mouse coords into the prop's rotated frame (so X = along
+  // the prop's width axis, Y = along its height axis).
+  function toLocal(svgX: number, svgY: number, cx: number, cy: number, rotDeg: number) {
+    const rx = svgX - cx, ry = svgY - cy;
+    const r = (-rotDeg * Math.PI) / 180; // inverse rotation
+    const cos = Math.cos(r), sin = Math.sin(r);
+    return { lx: rx * cos - ry * sin, ly: rx * sin + ry * cos };
+  }
+
+  function onHandleDown(e: React.MouseEvent, prop: PlacedProp, corner: "tl" | "tr" | "bl" | "br") {
+    e.stopPropagation();
+    e.preventDefault();
+    const def = getDef(prop.type);
+    const { x, y } = eventToSvg(e.clientX, e.clientY);
+    resizeState.current = {
+      id: prop.id, corner,
+      startScaleX: prop.scaleX, startScaleY: prop.scaleY,
+      startLocal: toLocal(x, y, prop.x, prop.y, prop.rotation),
+      cx: prop.x, cy: prop.y, rot: prop.rotation,
+      defW: def.w * PX_PER_M, defH: def.h * PX_PER_M,
+    };
+    window.addEventListener("mousemove", onResizeMove);
+    window.addEventListener("mouseup", onResizeUp);
+  }
+  function onResizeMove(e: MouseEvent) {
+    const rs = resizeState.current;
+    if (!rs) return;
+    const { x, y } = eventToSvg(e.clientX, e.clientY);
+    const cur = toLocal(x, y, rs.cx, rs.cy, rs.rot);
+
+    // Direction the corner pulls in the prop's own frame. tl/bl pull -X,
+    // tr/br pull +X; tl/tr pull -Y; bl/br pull +Y.
+    const signX = rs.corner === "tl" || rs.corner === "bl" ? -1 : 1;
+    const signY = rs.corner === "tl" || rs.corner === "tr" ? -1 : 1;
+
+    // Translate the local distance back into a scale ratio against the
+    // original (start-of-drag) corner position.
+    const startSpanX = Math.abs(rs.startLocal.lx) || 1;
+    const startSpanY = Math.abs(rs.startLocal.ly) || 1;
+    const newSpanX = Math.max(8, cur.lx * signX);
+    const newSpanY = Math.max(4, cur.ly * signY);
+
+    const ratioX = newSpanX / startSpanX;
+    const ratioY = newSpanY / startSpanY;
+    const nextX = clamp(rs.startScaleX * ratioX, 0.25, 6);
+    const nextY = clamp(rs.startScaleY * ratioY, 0.25, 6);
+
+    setProps((arr) => arr.map((p) => p.id === rs.id ? { ...p, scaleX: nextX, scaleY: nextY } : p));
+  }
+  function onResizeUp() {
+    resizeState.current = null;
+    window.removeEventListener("mousemove", onResizeMove);
+    window.removeEventListener("mouseup", onResizeUp);
+  }
+
+  // Reset selected prop's scale back to 1×1
+  function resetScale() {
+    if (!selectedId) return;
+    setProps((arr) => arr.map((p) => p.id === selectedId ? { ...p, scaleX: 1, scaleY: 1 } : p));
+  }
+
+  // Ensure all window listeners are torn down on unmount
   useEffect(() => () => {
     window.removeEventListener("mousemove", onWindowMove);
     window.removeEventListener("mouseup", onWindowUp);
+    window.removeEventListener("mousemove", onResizeMove);
+    window.removeEventListener("mouseup", onResizeUp);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -554,6 +633,7 @@ export default function CoursePlannerClient() {
               onRotate={rotateSelected}
               onDelete={deleteSelected}
               onAddToTrack={() => addToTrack(selected.id)}
+              onResetSize={resetScale}
             />
           )}
 
@@ -579,6 +659,7 @@ export default function CoursePlannerClient() {
                   trackIndex={trackIds.indexOf(p.id)}
                   trackLabel={trackLabels[trackIds.indexOf(p.id)] ?? null}
                   onMouseDown={(e) => onPropMouseDown(e, p)}
+                  onHandleDown={(e, corner) => onHandleDown(e, p, corner)}
                 />
               ))}
               {props.length === 0 && (
@@ -691,18 +772,61 @@ function ArenaDecor() {
 }
 
 function PropOnCanvas({
-  prop, selected, trackLabel, onMouseDown,
+  prop, selected, trackLabel, onMouseDown, onHandleDown,
 }: {
   prop: PlacedProp; selected: boolean; trackIndex: number; trackLabel: string | null;
   onMouseDown: (e: React.MouseEvent) => void;
+  onHandleDown: (e: React.MouseEvent, corner: "tl" | "tr" | "bl" | "br") => void;
 }) {
+  const def = getDef(prop.type);
+  // Render-space half-dimensions (after scale, before rotation).
+  const halfW = (def.w * PX_PER_M * prop.scaleX) / 2;
+  const halfH = (def.h * PX_PER_M * prop.scaleY) / 2;
+  const labelOffset = halfH + 14;
+
   return (
-    <g transform={`translate(${prop.x}, ${prop.y}) rotate(${prop.rotation})`} onMouseDown={onMouseDown} style={{ cursor: "move" }}>
-      <PropGlyph type={prop.type} selected={selected} />
+    <g transform={`translate(${prop.x}, ${prop.y}) rotate(${prop.rotation})`}>
+      {/* Glyph: scale here so the underlying shape stays unit-agnostic. */}
+      <g
+        transform={`scale(${prop.scaleX}, ${prop.scaleY})`}
+        onMouseDown={onMouseDown}
+        style={{ cursor: "move" }}
+      >
+        <PropGlyph type={prop.type} selected={selected} />
+      </g>
+
+      {/* Selection bounding box + resize handles */}
+      {selected && (
+        <g pointerEvents="all">
+          <rect
+            x={-halfW - 4} y={-halfH - 4}
+            width={halfW * 2 + 8} height={halfH * 2 + 8}
+            fill="none" stroke="var(--gold)" strokeWidth={1.5} strokeDasharray="4 3"
+          />
+          {/* Four corner handles. Cursor hints match the rotated frame. */}
+          {([
+            ["tl", -halfW - 4, -halfH - 4, "nwse-resize"],
+            ["tr",  halfW + 4, -halfH - 4, "nesw-resize"],
+            ["bl", -halfW - 4,  halfH + 4, "nesw-resize"],
+            ["br",  halfW + 4,  halfH + 4, "nwse-resize"],
+          ] as const).map(([corner, hx, hy, cursor]) => (
+            <rect
+              key={corner}
+              x={hx - 5} y={hy - 5}
+              width={10} height={10}
+              fill="var(--white)" stroke="var(--gold)" strokeWidth={1.5}
+              style={{ cursor }}
+              onMouseDown={(e) => onHandleDown(e, corner)}
+            />
+          ))}
+        </g>
+      )}
+
+      {/* Track-number badge — rotate back so it stays upright */}
       {trackLabel && (
         <g transform={`rotate(${-prop.rotation})`}>
-          <circle cx={0} cy={-getDef(prop.type).h * PX_PER_M / 2 - 14} r={11} fill="var(--gold)" stroke="var(--teal-dark)" strokeWidth={1.5} />
-          <text x={0} y={-getDef(prop.type).h * PX_PER_M / 2 - 10} textAnchor="middle" fontSize={11} fontWeight={700} fill="var(--teal-dark)" fontFamily="var(--font-lato), sans-serif">
+          <circle cx={0} cy={-labelOffset} r={11} fill="var(--gold)" stroke="var(--teal-dark)" strokeWidth={1.5} />
+          <text x={0} y={-labelOffset + 4} textAnchor="middle" fontSize={11} fontWeight={700} fill="var(--teal-dark)" fontFamily="var(--font-lato), sans-serif">
             {trackLabel}
           </text>
         </g>
@@ -712,55 +836,51 @@ function PropOnCanvas({
 }
 
 function TrackPath({ track, labels }: { track: PlacedProp[]; labels: string[] }) {
+  void labels;
   if (track.length < 2) return null;
 
-  // Build a smooth quadratic-bezier path that curves around the prop centres.
-  const segs: string[] = [];
-  for (let i = 0; i < track.length; i++) {
-    if (i === 0) {
-      segs.push(`M ${track[0].x} ${track[0].y}`);
-    } else if (i === track.length - 1) {
-      segs.push(`L ${track[i].x} ${track[i].y}`);
-    } else {
-      const prev = track[i - 1];
-      const cur = track[i];
-      const next = track[i + 1];
-      // Control point is the current prop, smoothed midpoint to the next.
-      const midX = (cur.x + next.x) / 2;
-      const midY = (cur.y + next.y) / 2;
-      segs.push(`Q ${cur.x} ${cur.y} ${midX} ${midY}`);
-      // For the very last segment, we'll close to next via the final L above.
-      if (i === track.length - 2) segs.push(`L ${next.x} ${next.y}`);
-    }
-  }
-  void labels; // labels are rendered on each prop, kept here so future tweaks can branch on combinations
+  // Straight-segment polyline through the prop centres. Using straight lines
+  // (instead of the previous quadratic-Bezier smoothing) means the visual
+  // path direction and the arrow tangent are guaranteed identical.
+  const d = track.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
 
   return (
     <g>
       <defs>
-        <marker id="cp-arrow" viewBox="0 0 10 10" refX={7} refY={5} markerWidth={6} markerHeight={6} orient="auto-start-reverse">
+        {/* auto-orient lets the SVG renderer rotate the marker along the
+            path tangent, so this stays correct regardless of curvature. */}
+        <marker id="cp-arrow" viewBox="0 0 10 10" refX={9} refY={5} markerWidth={8} markerHeight={8} orient="auto">
           <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--teal-dark)" />
         </marker>
       </defs>
+
       <path
-        d={segs.join(" ")}
+        d={d}
         fill="none"
         stroke="var(--teal-dark)"
         strokeWidth={3}
         strokeLinecap="round"
+        strokeLinejoin="round"
         strokeDasharray="10 6"
         opacity={0.85}
-        markerEnd="url(#cp-arrow)"
       />
-      {/* Direction arrows at each segment midpoint */}
+
+      {/* Per-segment direction arrow at the midpoint, rotated by the EXACT
+          tangent angle atan2(y2-y1, x2-x1) * 180/PI per the spec. Because
+          each segment is straight, this tangent is the segment direction. */}
       {track.slice(1).map((cur, i) => {
-        const prev = track[i];
-        const mx = (prev.x + cur.x) / 2;
-        const my = (prev.y + cur.y) / 2;
-        const angle = (Math.atan2(cur.y - prev.y, cur.x - prev.x) * 180) / Math.PI;
+        const prev = track[i]; // slice(1) makes cur = track[i+1] so this is the previous
+        const dx = cur.x - prev.x;
+        const dy = cur.y - prev.y;
+        const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+        // Place the arrow ~55% along the segment so it sits clear of the
+        // numbered badge bubble at the previous fence.
+        const t = 0.55;
+        const mx = prev.x + dx * t;
+        const my = prev.y + dy * t;
         return (
           <g key={`arrow-${i}`} transform={`translate(${mx}, ${my}) rotate(${angle})`}>
-            <polygon points="-6,-5 6,0 -6,5" fill="var(--teal-dark)" />
+            <polygon points="-7,-6 8,0 -7,6" fill="var(--teal-dark)" />
           </g>
         );
       })}
@@ -790,24 +910,30 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 function SelectionToolbar({
-  prop, onRotate, onDelete, onAddToTrack,
-}: { prop: PlacedProp; onRotate: (d: number) => void; onDelete: () => void; onAddToTrack: () => void }) {
+  prop, onRotate, onDelete, onAddToTrack, onResetSize,
+}: { prop: PlacedProp; onRotate: (d: number) => void; onDelete: () => void; onAddToTrack: () => void; onResetSize: () => void }) {
   const def = getDef(prop.type);
   const btn: React.CSSProperties = {
     background: "var(--white)", border: "1px solid var(--border)", borderRadius: 6,
     padding: "5px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer",
     fontFamily: "var(--font-lato)", color: "var(--teal-dark)",
   };
+  const scaled = Math.abs(prop.scaleX - 1) > 0.01 || Math.abs(prop.scaleY - 1) > 0.01;
   return (
     <div className="mb-2 flex flex-wrap items-center gap-2" style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 8, padding: "8px 12px" }}>
       <span className="text-xs" style={{ fontFamily: "var(--font-lato)", color: "var(--text-muted)" }}>
-        Selected: <strong style={{ color: "var(--teal-dark)" }}>{def.label}</strong> · {Math.round(prop.rotation)}°
+        Selected: <strong style={{ color: "var(--teal-dark)" }}>{def.label}</strong>
+        {" · "}{Math.round(prop.rotation)}°
+        {scaled && (
+          <> {" · "}<span style={{ color: "var(--teal-dark)" }}>{prop.scaleX.toFixed(2)}× / {prop.scaleY.toFixed(2)}×</span></>
+        )}
       </span>
       <div className="ml-auto flex gap-1.5 flex-wrap">
         <button style={btn} onClick={() => onRotate(-45)}>⟲ 45°</button>
         <button style={btn} onClick={() => onRotate(-15)}>⟲ 15°</button>
         <button style={btn} onClick={() => onRotate(15)}>15° ⟳</button>
         <button style={btn} onClick={() => onRotate(45)}>45° ⟳</button>
+        {scaled && <button style={btn} onClick={onResetSize}>Reset size</button>}
         {def.jumpable && <button style={{ ...btn, background: "var(--teal-muted)" }} onClick={onAddToTrack}>+ Add to track</button>}
         <button style={{ ...btn, color: "var(--inbreed-text)", borderColor: "var(--inbreed-border)" }} onClick={onDelete}>Delete</button>
       </div>
@@ -886,22 +1012,27 @@ function ExportModal({
             <svg viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} preserveAspectRatio="xMidYMid meet" style={{ width: "100%", height: "auto", display: "block", background: "var(--cream)", borderRadius: 8 }}>
               <ArenaDecor />
               <TrackPath track={track} labels={trackLabels} />
-              {props.map((p) => (
-                <g key={p.id} transform={`translate(${p.x},${p.y}) rotate(${p.rotation})`}>
-                  <PropGlyph type={p.type} selected={false} />
-                  {(() => {
-                    const idx = track.indexOf(p);
-                    const label = idx === -1 ? null : trackLabels[idx];
-                    if (!label) return null;
-                    return (
-                      <g transform={`rotate(${-p.rotation})`}>
-                        <circle cx={0} cy={-getDef(p.type).h * PX_PER_M / 2 - 14} r={11} fill="var(--gold)" stroke="var(--teal-dark)" strokeWidth={1.5} />
-                        <text x={0} y={-getDef(p.type).h * PX_PER_M / 2 - 10} textAnchor="middle" fontSize={11} fontWeight={700} fill="var(--teal-dark)" fontFamily="var(--font-lato), sans-serif">{label}</text>
-                      </g>
-                    );
-                  })()}
-                </g>
-              ))}
+              {props.map((p) => {
+                const halfH = (getDef(p.type).h * PX_PER_M * p.scaleY) / 2;
+                return (
+                  <g key={p.id} transform={`translate(${p.x},${p.y}) rotate(${p.rotation})`}>
+                    <g transform={`scale(${p.scaleX}, ${p.scaleY})`}>
+                      <PropGlyph type={p.type} selected={false} />
+                    </g>
+                    {(() => {
+                      const idx = track.indexOf(p);
+                      const label = idx === -1 ? null : trackLabels[idx];
+                      if (!label) return null;
+                      return (
+                        <g transform={`rotate(${-p.rotation})`}>
+                          <circle cx={0} cy={-halfH - 14} r={11} fill="var(--gold)" stroke="var(--teal-dark)" strokeWidth={1.5} />
+                          <text x={0} y={-halfH - 10} textAnchor="middle" fontSize={11} fontWeight={700} fill="var(--teal-dark)" fontFamily="var(--font-lato), sans-serif">{label}</text>
+                        </g>
+                      );
+                    })()}
+                  </g>
+                );
+              })}
             </svg>
           </div>
 
