@@ -3,6 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { ChevronDown } from "lucide-react";
 
 // Flat top-level links. The "Resources" dropdown is rendered separately
 // because it needs hover state for the submenu.
@@ -27,12 +28,14 @@ export default function Nav() {
 
   const linkStyle = (active: boolean): React.CSSProperties => ({
     fontSize: 14,
+    lineHeight: 1,
     letterSpacing: "0.05em",
     fontFamily: "var(--font-lato)",
     color: active ? "var(--teal-dark)" : "var(--text-muted)",
     borderBottom: active ? "2px solid var(--teal)" : "2px solid transparent",
     paddingBottom: 2,
     textDecoration: "none",
+    whiteSpace: "nowrap",
     transition: "color 0.15s",
   });
 
@@ -54,16 +57,21 @@ export default function Nav() {
           </div>
         </Link>
 
-        <nav className="flex items-center gap-6">
+        <nav className="flex items-center gap-x-6 leading-none">
           {flatLinks.map((l) => (
-            <Link key={l.href} href={l.href} style={linkStyle(isActive(l.href))}>
+            <Link
+              key={l.href}
+              href={l.href}
+              className="inline-flex items-center leading-none"
+              style={linkStyle(isActive(l.href))}
+            >
               {l.label}
             </Link>
           ))}
 
           {/* Resources — hover dropdown */}
           <div
-            style={{ position: "relative" }}
+            className="relative inline-flex items-center"
             onMouseEnter={() => setResourcesOpen(true)}
             onMouseLeave={() => setResourcesOpen(false)}
           >
@@ -71,22 +79,44 @@ export default function Nav() {
               type="button"
               onClick={() => setResourcesOpen((o) => !o)}
               onFocus={() => setResourcesOpen(true)}
+              className="inline-flex items-center gap-1 cursor-pointer"
+              // Build the button style from scratch (rather than spreading
+              // linkStyle and then trying to reset <button> UA defaults with
+              // padding:0/border:none, which kept clobbering the bottom-border
+              // restore via inline-style deduplication).
               style={{
-                ...linkStyle(resourcesActive),
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                padding: 0,
+                background: "transparent",
+                borderTop: "none",
+                borderLeft: "none",
+                borderRight: "none",
+                borderBottom: resourcesActive ? "2px solid var(--teal)" : "2px solid transparent",
+                paddingTop: 0,
+                paddingLeft: 0,
+                paddingRight: 0,
                 paddingBottom: 2,
+                margin: 0,
+                fontSize: 14,
+                lineHeight: 1,
+                letterSpacing: "0.05em",
+                fontFamily: "var(--font-lato)",
+                color: resourcesActive ? "var(--teal-dark)" : "var(--text-muted)",
+                whiteSpace: "nowrap",
+                textDecoration: "none",
+                transition: "color 0.15s",
               }}
               aria-haspopup="true"
               aria-expanded={resourcesOpen}
             >
-              Resources
-              <span style={{ fontSize: 9, lineHeight: 1, transform: resourcesOpen ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>▼</span>
+              <span className="leading-none">Resources</span>
+              <ChevronDown
+                size={14}
+                aria-hidden
+                style={{
+                  transform: resourcesOpen ? "rotate(180deg)" : "none",
+                  transition: "transform 0.15s",
+                  flexShrink: 0,
+                }}
+              />
             </button>
 
             {/* Hover bridge — invisible strip so the menu doesn't close while
