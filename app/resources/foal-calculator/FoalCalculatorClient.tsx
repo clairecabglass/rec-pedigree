@@ -5,11 +5,10 @@ import { DILUTIONS, PATTERNS, predictFoal } from "@/lib/genetics";
 
 type Base = "R" | "B" | "BL" | "";
 
-const BASE_OPTIONS: { code: Base; label: string }[] = [
-  { code: "", label: "— Select base —" },
-  { code: "R", label: "Red / Chestnut (R)" },
-  { code: "B", label: "Bay (B)" },
-  { code: "BL", label: "Black (BL)" },
+const BASE_OPTIONS: { code: Exclude<Base, "">; label: string }[] = [
+  { code: "R", label: "Red / Chestnut" },
+  { code: "B", label: "Bay" },
+  { code: "BL", label: "Black" },
 ];
 
 // "Modifier" pills exclude CR2 — we surface it via the "+ double cream" toggle
@@ -59,13 +58,9 @@ export default function FoalCalculatorClient() {
           ← Back home
         </Link>
       </div>
-      <h1 style={{ fontFamily: "var(--font-playfair)", fontSize: 36, color: "var(--teal-dark)", marginBottom: 6 }}>
+      <h1 style={{ fontFamily: "var(--font-playfair)", fontSize: 36, color: "var(--teal-dark)", marginBottom: 24 }}>
         Foal Coat Calculator
       </h1>
-      <p className="text-[var(--text-muted)] mb-8" style={{ fontFamily: "var(--font-lato)", fontSize: 14 }}>
-        Build a hypothetical sire and dam and see every coat their foal could produce.
-        Genetics rules and coat names are the Azelas Coat Catalogue used by The Rift.
-      </p>
 
       <div className="grid md:grid-cols-2 gap-5 mb-8">
         <ParentBuilder title="Sire" accent="var(--sire-text)" bg="var(--sire-bg)" border="var(--sire-border)" state={sire} setState={setSire} genome={sireGenome} />
@@ -153,16 +148,27 @@ function ParentBuilder({
 
       {/* Base */}
       <SectionLabel>Base colour</SectionLabel>
-      <select
-        value={state.base}
-        onChange={(e) => setBase(e.target.value as Base)}
-        className="w-full text-sm rounded-md p-2.5 border bg-white mb-4"
-        style={{ borderColor: border, fontFamily: "var(--font-lato)", color: "var(--text)" }}
-      >
-        {BASE_OPTIONS.map((o) => (
-          <option key={o.code} value={o.code}>{o.label}</option>
-        ))}
-      </select>
+      <div className="flex flex-wrap gap-1.5 mb-4">
+        {BASE_OPTIONS.map((o) => {
+          const on = state.base === o.code;
+          return (
+            <button
+              key={o.code}
+              type="button"
+              onClick={() => setBase(o.code)}
+              className={
+                "text-xs px-3 py-1.5 rounded-full border transition-colors " +
+                (on
+                  ? "bg-[var(--teal)] text-white border-[var(--teal)]"
+                  : "bg-white text-[var(--teal-dark)] border-[var(--border)] hover:border-[var(--teal-light)]")
+              }
+              style={{ fontFamily: "var(--font-lato)", fontWeight: on ? 700 : 500 }}
+            >
+              {o.label} <span style={{ opacity: 0.7 }}>({o.code})</span>
+            </button>
+          );
+        })}
+      </div>
 
       {/* Modifiers */}
       <SectionLabel>Modifiers (optional)</SectionLabel>
