@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import Icon from "@/components/Icon";
+import { Layers } from "lucide-react";
 
 // Public counts: owned, [REC]-tagged horses (matches the public registry).
 const OWNED = {
@@ -67,9 +68,10 @@ export default async function Home() {
 
       {/* Features */}
       <section className="max-w-5xl mx-auto px-6 py-16">
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[
             {
+              kind: "icon" as const,
               icon: "registry" as const,
               title: "Full Registry",
               desc: "Search and filter all registered horses by breed, gender, ownership status, and coat.",
@@ -77,13 +79,15 @@ export default async function Home() {
               cta: "Browse Registry",
             },
             {
-              icon: "tree" as const,
-              title: "Pedigree Trees",
-              desc: "Open any horse to explore its interactive pedigree, going as deep as the data allows. Inbreeding is highlighted automatically.",
-              href: "/registry",
-              cta: "Browse Pedigrees",
+              // Middle card: gateway to the public interactive utilities.
+              kind: "lucide" as const,
+              title: "Interactive Resources",
+              desc: "Access our suite of player utilities. Design custom layouts with the Course Planner, simulate breeding outcomes with the Foal Calculator, or run live tournaments with the Show Scoreboard.",
+              href: "/resources",
+              cta: "Explore Resources",
             },
             {
+              kind: "icon" as const,
               icon: "tag" as const,
               title: "For Sale",
               desc: "Browse horses currently available for purchase from Redfield Equestrian Centre.",
@@ -91,16 +95,42 @@ export default async function Home() {
               cta: "View Listings",
             },
           ].map((f) => (
-            <div key={f.title} style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 8, padding: 28 }}>
-              <div style={{ width: 48, height: 48, borderRadius: 10, background: "var(--teal-muted)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
-                <Icon name={f.icon} size={24} color="var(--teal-dark)" />
+            <Link
+              key={f.title}
+              href={f.href}
+              className="group flex flex-col rounded-2xl border bg-white p-8 no-underline transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(94,128,128,0.12)]"
+              style={{ borderColor: "var(--border)" }}
+            >
+              <div
+                className="mb-4 inline-flex items-center justify-center rounded-xl"
+                style={{ width: 56, height: 56, background: "var(--teal-muted)", border: "1px solid var(--teal-light)" }}
+              >
+                {f.kind === "lucide" ? (
+                  <Layers size={28} strokeWidth={1.6} color="var(--teal-dark)" />
+                ) : (
+                  <Icon name={f.icon} size={28} color="var(--teal-dark)" />
+                )}
               </div>
-              <h3 style={{ fontFamily: "var(--font-playfair)", fontSize: 20, color: "var(--teal-dark)", marginBottom: 8 }}>{f.title}</h3>
-              <p style={{ fontSize: 14, color: "var(--text-muted)", lineHeight: 1.6, marginBottom: 20, fontFamily: "var(--font-lato)" }}>{f.desc}</p>
-              <Link href={f.href} style={{ color: "var(--teal)", fontSize: 13, fontWeight: 700, letterSpacing: "0.08em", textDecoration: "none", fontFamily: "var(--font-lato)" }}>
-                {f.cta} →
-              </Link>
-            </div>
+              <h3
+                className="mb-2"
+                style={{ fontFamily: "var(--font-playfair)", fontSize: 22, color: "var(--teal-dark)", lineHeight: 1.2 }}
+              >
+                {f.title}
+              </h3>
+              <p
+                className="mb-6 flex-1"
+                style={{ fontFamily: "var(--font-lato)", fontSize: 14, color: "var(--text-muted)", lineHeight: 1.55 }}
+              >
+                {f.desc}
+              </p>
+              <span
+                className="inline-flex items-center gap-1.5 self-start text-sm font-semibold transition-colors group-hover:text-[var(--teal-dark)]"
+                style={{ fontFamily: "var(--font-lato)", color: "var(--teal)" }}
+              >
+                {f.cta}
+                <span aria-hidden className="transition-transform duration-200 group-hover:translate-x-1">→</span>
+              </span>
+            </Link>
           ))}
         </div>
       </section>
