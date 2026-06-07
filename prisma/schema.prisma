@@ -163,7 +163,7 @@ model PreferredService {
   id           String   @id @default(cuid())
   providerName String
   serviceType  String // Training | Farrier | Vet Check | Custom Tack | Other
-  priceCents   Int? // optional, stored as integer cents
+  price        String? // free-text price, e.g. "Free", "250k", "Negotiable"
   notes        String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

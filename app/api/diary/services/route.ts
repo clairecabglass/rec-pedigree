@@ -15,12 +15,12 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const providerName = typeof body.providerName === "string" ? body.providerName.trim() : "";
   const serviceType = ALLOWED_TYPES.has(body.serviceType) ? body.serviceType : "Other";
-  const priceCents = Number.isFinite(body.priceCents) ? Math.round(Number(body.priceCents)) : null;
+  const price = typeof body.price === "string" && body.price.trim() ? body.price.trim() : null;
   const notes = typeof body.notes === "string" ? body.notes : null;
   if (!providerName) return NextResponse.json({ error: "providerName required" }, { status: 400 });
 
   const created = await prisma.preferredService.create({
-    data: { providerName, serviceType, priceCents, notes },
+    data: { providerName, serviceType, price, notes },
   });
   return NextResponse.json(created);
 }

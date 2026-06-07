@@ -6,7 +6,7 @@ interface Service {
   id: string;
   providerName: string;
   serviceType: string;
-  priceCents: number | null;
+  price: string | null;
   notes: string | null;
   createdAt: string;
   updatedAt: string;
@@ -70,7 +70,6 @@ function NotesPanel({ initial, updatedAt: initUpdatedAt }: { initial: string; up
   const debounceRef = useRef<number | null>(null);
   const skipFirstRef = useRef(true);
 
-  // Auto-save 1.5 s after typing stops. First mount doesn't re-PUT the initial.
   useEffect(() => {
     if (skipFirstRef.current) { skipFirstRef.current = false; return; }
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
@@ -118,8 +117,7 @@ function ServicesPanel({ initial }: { initial: Service[] }) {
   const [adding, setAdding] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  // New entry draft state
-  const [d, setD] = useState({ providerName: "", serviceType: "Training" as (typeof SERVICE_TYPES)[number], priceCents: "" as string | "", notes: "" });
+  const [d, setD] = useState({ providerName: "", serviceType: "Training" as (typeof SERVICE_TYPES)[number], price: "", notes: "" });
 
   async function createService() {
     if (!d.providerName.trim()) return;
@@ -130,7 +128,7 @@ function ServicesPanel({ initial }: { initial: Service[] }) {
       body: JSON.stringify({
         providerName: d.providerName.trim(),
         serviceType: d.serviceType,
-        priceCents: d.priceCents === "" ? null : Math.round(Number(d.priceCents) * 100),
+        price: d.price.trim() || null,
         notes: d.notes || null,
       }),
     });
@@ -138,7 +136,7 @@ function ServicesPanel({ initial }: { initial: Service[] }) {
     if (!res.ok) { alert("Could not save."); return; }
     const created = await res.json();
     setServices((s) => [created, ...s]);
-    setD({ providerName: "", serviceType: "Training", priceCents: "", notes: "" });
+    setD({ providerName: "", serviceType: "Training", price: "", notes: "" });
     setAdding(false);
   }
 
@@ -188,8 +186,15 @@ function ServicesPanel({ initial }: { initial: Service[] }) {
               </select>
             </div>
             <div>
-              <Label>Price (e.g. 250)</Label>
-              <input className={inputCls} type="number" inputMode="numeric" min={0} step={1} value={d.priceCents} onChange={(e) => setD({ ...d, priceCents: e.target.value })} placeholder="—" style={{ borderColor: "var(--border)", fontFamily: "var(--font-lato)" }} />
+              <Label>Price</Label>
+              <input
+                className={inputCls}
+                type="text"
+                value={d.price}
+                onChange={(e) => setD({ ...d, price: e.target.value })}
+                placeholder="e.g. Free, 250k, Negotiable"
+                style={{ borderColor: "var(--border)", fontFamily: "var(--font-lato)" }}
+              />
             </div>
             <div className="col-span-2">
               <Label>Status / Notes</Label>
@@ -225,7 +230,7 @@ function ServiceCard({ svc, onDelete, onPatch }: { svc: Service; onDelete: () =>
   const [d, setD] = useState({
     providerName: svc.providerName,
     serviceType: svc.serviceType,
-    priceCents: svc.priceCents != null ? String(svc.priceCents / 100) : "",
+    price: svc.price ?? "",
     notes: svc.notes ?? "",
   });
 
@@ -237,7 +242,14 @@ function ServiceCard({ svc, onDelete, onPatch }: { svc: Service; onDelete: () =>
         <select className={inputCls} value={d.serviceType} onChange={(e) => setD({ ...d, serviceType: e.target.value })} style={{ borderColor: "var(--border)", marginBottom: 6 }}>
           {SERVICE_TYPES.map((t) => <option key={t}>{t}</option>)}
         </select>
-        <input className={inputCls} type="number" min={0} step={1} value={d.priceCents} onChange={(e) => setD({ ...d, priceCents: e.target.value })} placeholder="Price" style={{ borderColor: "var(--border)", marginBottom: 6 }} />
+        <input
+          className={inputCls}
+          type="text"
+          value={d.price}
+          onChange={(e) => setD({ ...d, price: e.target.value })}
+          placeholder="e.g. Free, 250k, Negotiable"
+          style={{ borderColor: "var(--border)", marginBottom: 6 }}
+        />
         <textarea className={inputCls} rows={2} value={d.notes} onChange={(e) => setD({ ...d, notes: e.target.value })} placeholder="Notes" style={{ borderColor: "var(--border)", marginBottom: 8 }} />
         <div className="flex justify-end gap-2">
           <button onClick={() => setEditing(false)} style={{ background: "var(--white)", border: "1px solid var(--border)", padding: "5px 10px", borderRadius: 6, fontSize: 11, cursor: "pointer", fontFamily: "var(--font-lato)" }}>Cancel</button>
@@ -246,7 +258,7 @@ function ServiceCard({ svc, onDelete, onPatch }: { svc: Service; onDelete: () =>
               onPatch({
                 providerName: d.providerName.trim(),
                 serviceType: d.serviceType,
-                priceCents: d.priceCents === "" ? null : Math.round(Number(d.priceCents) * 100),
+                price: d.price.trim() || null,
                 notes: d.notes || null,
               });
               setEditing(false);
@@ -264,7 +276,7 @@ function ServiceCard({ svc, onDelete, onPatch }: { svc: Service; onDelete: () =>
         <div>
           <div style={{ fontFamily: "var(--font-playfair)", fontSize: 16, color: "var(--teal-dark)" }}>{svc.providerName}</div>
           <div style={{ fontFamily: "var(--font-lato)", fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 1 }}>
-            {svc.serviceType}{svc.priceCents != null ? ` · ${formatPrice(svc.priceCents)}` : ""}
+            {svc.serviceType}{svc.price ? ` · ${svc.price}` : ""}
           </div>
         </div>
         <div className="flex gap-1">
@@ -287,8 +299,4 @@ function Label({ children }: { children: React.ReactNode }) {
       {children}
     </div>
   );
-}
-
-function formatPrice(cents: number): string {
-  return `$${(cents / 100).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 }
