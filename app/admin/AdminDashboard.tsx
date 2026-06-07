@@ -92,7 +92,9 @@ export default function AdminDashboard({ stats, recent }: {
       {/* Actions */}
       <div className="grid md:grid-cols-3 gap-4 mb-8">
         {[
-          { href: "/admin/breeding", icon: "tree" as const, label: "Breeding", desc: "Manage pregnancies, plan pairings, and explore genetics" },
+          { href: "/admin/my-stable", icon: "registry" as const, label: "My Stable", desc: "Owned horses + character assignment (Athena / Lucille)" },
+          { href: "/admin/breeding", icon: "tree" as const, label: "Breeding", desc: "Pregnancies with auto-growth tracker, plan pairings" },
+          { href: "/admin/diary", icon: "edit" as const, label: "Diary & Services", desc: "Notes + favourite player services ledger" },
           { href: "/admin/horses/new", icon: "plus" as const, label: "Add Horse", desc: "Register a new horse manually" },
           { href: "/admin/pedigree-import", icon: "image" as const, label: "Import Pedigree Image", desc: "Upload image and OCR pedigree" },
           { href: "/admin/import", icon: "upload" as const, label: "Import Excel", desc: "Upload your .xlsx to sync the registry" },

@@ -7,7 +7,8 @@ import Icon from "@/components/Icon";
 import { buildPedigreeTree, commonAncestors, inbreedingCoefficient } from "@/lib/pedigree";
 import type { HorseMap, HorseNode } from "@/lib/pedigree";
 import { predictFoal, extractGeneCode, PATTERNS as PATTERN_LABEL } from "@/lib/genetics";
-import { FullHorseData } from "@/lib/types"; // Import FullHorseData
+import { FullHorseData } from "@/lib/types";
+import { computeFoalStage, fmtCountdown } from "@/lib/foalGrowth";
 
 const GESTATION_MS = 72 * 60 * 60 * 1000; // pregnancy = exactly 72 hours
 
@@ -18,8 +19,15 @@ const GESTATION_MS = 72 * 60 * 60 * 1000; // pregnancy = exactly 72 hours
 // }
 
 interface Pregnancy {
-  id: string; sireName: string | null; dueDate: string | null;
-  damId: string; damName: string; foalId: string | null; foalName: string | null;
+  id: string;
+  sireName: string | null;
+  /** Original breeding/cover date — the source of truth for the growth tracker. */
+  coverDate: string | null;
+  dueDate: string | null;
+  damId: string;
+  damName: string;
+  foalId: string | null;
+  foalName: string | null;
 }
 
 interface Plan {
@@ -226,14 +234,35 @@ export default function BreedingClient({ horses, pregnancies, plans }: { horses:
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {pregnancies.map((p) => {
+              const stage = computeFoalStage(p.coverDate);
+              const stageColor = stage?.code === "gestation" ? "var(--dam-text)"
+                : stage?.code === "weanling" ? "var(--teal)"
+                : stage?.code === "yearling" ? "var(--teal-dark)"
+                : stage?.code === "youngster" ? "var(--gold)"
+                : "var(--teal-dark)";
               return (
-                <div key={p.id} style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12, border: "1px solid var(--border)", borderRadius: 8, padding: "12px 16px", background: "var(--cream)", fontFamily: "var(--font-lato)" }}>
-                  <div style={{ flex: 1, minWidth: 200 }}>
-                    <Link href={`/registry/${p.damId}`} style={{ fontWeight: 700, color: "var(--dam-text)", textDecoration: "none", fontSize: 14 }}>{p.damName}</Link>
-                    {p.sireName ? <span style={{ color: "var(--text-muted)", fontSize: 13 }}>  ×  <span style={{ color: "var(--sire-text)", fontWeight: 600 }}>{p.sireName}</span></span> : null}
-                    <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
-                      {p.dueDate ? <>Due {new Date(p.dueDate).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}  ·  <strong style={{ color: "var(--dam-text)" }}>{countdown(p.dueDate)}</strong></> : "No due date set"}
+                <div key={p.id} style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-start", gap: 12, border: "1px solid var(--border)", borderRadius: 8, padding: "12px 16px", background: "var(--cream)", fontFamily: "var(--font-lato)" }}>
+                  <div style={{ flex: 1, minWidth: 220 }}>
+                    <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                      <Link href={`/registry/${p.damId}`} style={{ fontWeight: 700, color: "var(--dam-text)", textDecoration: "none", fontSize: 14 }}>{p.damName}</Link>
+                      {p.sireName ? <span style={{ color: "var(--text-muted)", fontSize: 13 }}>×  <span style={{ color: "var(--sire-text)", fontWeight: 600 }}>{p.sireName}</span></span> : null}
+                      {stage && (
+                        <span style={{ background: stageColor, color: "white", fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase", fontWeight: 700, borderRadius: 999, padding: "2px 10px" }}>
+                          {stage.label}
+                        </span>
+                      )}
                     </div>
+                    <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
+                      {p.dueDate ? <>Due {new Date(p.dueDate).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}  ·  <strong style={{ color: "var(--dam-text)" }}>{countdown(p.dueDate)}</strong></> : "No due date set"}
+                      {stage && Number.isFinite(stage.hoursToNextPhase) && stage.hoursToNextPhase > 0 && (
+                        <>  ·  next phase in <strong>{fmtCountdown(stage.hoursToNextPhase)}</strong></>
+                      )}
+                    </div>
+                    {stage && stage.code !== "gestation" && (
+                      <p style={{ fontSize: 11.5, color: "var(--text)", lineHeight: 1.5, marginTop: 6, opacity: 0.85 }}>
+                        {stage.description}
+                      </p>
+                    )}
                   </div>
                   {p.foalId && (
                     <Link href={`/registry/${p.foalId}`} style={{ fontSize: 12, color: "var(--teal)", textDecoration: "none", fontWeight: 600 }}>Foal page →</Link>

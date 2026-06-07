@@ -39,6 +39,10 @@ model Horse {
   ownerCharacter String? // in-game character
   stablePrefix   String?
 
+  // Per-server character capacity assignment. Today the two slots are
+  // "Athena Redfield" and "Lucille"; nullable so non-Home rows stay clean.
+  assignedCharacter String?
+
   // Breeding
   breedingFee      String?
   breedingPolicies String?
@@ -140,4 +144,24 @@ model Pregnancy {
   updatedAt DateTime  @updatedAt
 
   @@index([damId])
+}
+
+// Admin-only diary entries. We keep a single global "general notes" row
+// keyed by the string "general" and add more keyed sections (e.g.
+// "stable-strategy") later if needed.
+model DiaryNote {
+  key       String   @id
+  body      String   @default("")
+  updatedAt DateTime @updatedAt
+}
+
+// Preferred-services ledger — favourite providers across The Rift community.
+model PreferredService {
+  id           String   @id @default(cuid())
+  providerName String
+  serviceType  String // Training | Farrier | Vet Check | Custom Tack | Other
+  priceCents   Int? // optional, stored as integer cents
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
