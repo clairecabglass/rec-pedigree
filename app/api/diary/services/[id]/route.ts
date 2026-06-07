@@ -12,6 +12,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (typeof body.providerName === "string") data.providerName = body.providerName.trim();
   if (typeof body.serviceType === "string" && ALLOWED_TYPES.has(body.serviceType)) data.serviceType = body.serviceType;
   if (typeof body.price === "string" || body.price === null) data.price = body.price === null ? null : body.price.trim() || null;
+  if (typeof body.link  === "string" || body.link  === null) data.link  = body.link  === null ? null : body.link.trim()  || null;
   if (typeof body.notes === "string" || body.notes === null) data.notes = body.notes;
   const updated = await prisma.preferredService.update({ where: { id }, data });
   return NextResponse.json(updated);

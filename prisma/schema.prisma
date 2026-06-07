@@ -164,6 +164,7 @@ model PreferredService {
   providerName String
   serviceType  String // Training | Farrier | Vet Check | Custom Tack | Other
   price        String? // free-text price, e.g. "Free", "250k", "Negotiable"
+  link         String? // optional URL to provider's profile, shop, or thread
   notes        String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

@@ -7,6 +7,7 @@ interface Service {
   providerName: string;
   serviceType: string;
   price: string | null;
+  link: string | null;
   notes: string | null;
   createdAt: string;
   updatedAt: string;
@@ -117,7 +118,7 @@ function ServicesPanel({ initial }: { initial: Service[] }) {
   const [adding, setAdding] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const [d, setD] = useState({ providerName: "", serviceType: "Training" as (typeof SERVICE_TYPES)[number], price: "", notes: "" });
+  const [d, setD] = useState({ providerName: "", serviceType: "Training" as (typeof SERVICE_TYPES)[number], price: "", link: "", notes: "" });
 
   async function createService() {
     if (!d.providerName.trim()) return;
@@ -129,6 +130,7 @@ function ServicesPanel({ initial }: { initial: Service[] }) {
         providerName: d.providerName.trim(),
         serviceType: d.serviceType,
         price: d.price.trim() || null,
+        link: d.link.trim() || null,
         notes: d.notes || null,
       }),
     });
@@ -136,7 +138,7 @@ function ServicesPanel({ initial }: { initial: Service[] }) {
     if (!res.ok) { alert("Could not save."); return; }
     const created = await res.json();
     setServices((s) => [created, ...s]);
-    setD({ providerName: "", serviceType: "Training", price: "", notes: "" });
+    setD({ providerName: "", serviceType: "Training", price: "", link: "", notes: "" });
     setAdding(false);
   }
 
@@ -197,6 +199,17 @@ function ServicesPanel({ initial }: { initial: Service[] }) {
               />
             </div>
             <div className="col-span-2">
+              <Label>Link (profile, shop, or thread URL)</Label>
+              <input
+                className={inputCls}
+                type="url"
+                value={d.link}
+                onChange={(e) => setD({ ...d, link: e.target.value })}
+                placeholder="https://…"
+                style={{ borderColor: "var(--border)", fontFamily: "var(--font-lato)" }}
+              />
+            </div>
+            <div className="col-span-2">
               <Label>Status / Notes</Label>
               <textarea className={inputCls} rows={2} value={d.notes} onChange={(e) => setD({ ...d, notes: e.target.value })} placeholder="Quality, location, anything to remember" style={{ borderColor: "var(--border)", fontFamily: "var(--font-lato)", resize: "vertical" }} />
             </div>
@@ -231,6 +244,7 @@ function ServiceCard({ svc, onDelete, onPatch }: { svc: Service; onDelete: () =>
     providerName: svc.providerName,
     serviceType: svc.serviceType,
     price: svc.price ?? "",
+    link: svc.link ?? "",
     notes: svc.notes ?? "",
   });
 
@@ -250,6 +264,14 @@ function ServiceCard({ svc, onDelete, onPatch }: { svc: Service; onDelete: () =>
           placeholder="e.g. Free, 250k, Negotiable"
           style={{ borderColor: "var(--border)", marginBottom: 6 }}
         />
+        <input
+          className={inputCls}
+          type="url"
+          value={d.link}
+          onChange={(e) => setD({ ...d, link: e.target.value })}
+          placeholder="https://…"
+          style={{ borderColor: "var(--border)", marginBottom: 6 }}
+        />
         <textarea className={inputCls} rows={2} value={d.notes} onChange={(e) => setD({ ...d, notes: e.target.value })} placeholder="Notes" style={{ borderColor: "var(--border)", marginBottom: 8 }} />
         <div className="flex justify-end gap-2">
           <button onClick={() => setEditing(false)} style={{ background: "var(--white)", border: "1px solid var(--border)", padding: "5px 10px", borderRadius: 6, fontSize: 11, cursor: "pointer", fontFamily: "var(--font-lato)" }}>Cancel</button>
@@ -259,6 +281,7 @@ function ServiceCard({ svc, onDelete, onPatch }: { svc: Service; onDelete: () =>
                 providerName: d.providerName.trim(),
                 serviceType: d.serviceType,
                 price: d.price.trim() || null,
+                link: d.link.trim() || null,
                 notes: d.notes || null,
               });
               setEditing(false);
@@ -286,8 +309,18 @@ function ServiceCard({ svc, onDelete, onPatch }: { svc: Service; onDelete: () =>
             style={{ background: "none", border: "1px solid var(--inbreed-border)", borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer", fontFamily: "var(--font-lato)", color: "var(--inbreed-text)" }}>✕</button>
         </div>
       </div>
+      {svc.link && (
+        <a
+          href={svc.link}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ display: "inline-block", marginTop: 8, fontSize: 11, color: "var(--teal)", fontFamily: "var(--font-lato)", wordBreak: "break-all" }}
+        >
+          {svc.link.replace(/^https?:\/\//, "")}
+        </a>
+      )}
       {svc.notes && (
-        <p style={{ marginTop: 8, fontSize: 12, color: "var(--text)", fontFamily: "var(--font-lato)", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{svc.notes}</p>
+        <p style={{ marginTop: 6, fontSize: 12, color: "var(--text)", fontFamily: "var(--font-lato)", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{svc.notes}</p>
       )}
     </div>
   );
