@@ -43,6 +43,9 @@ model Horse {
   // "Athena Redfield" and "Lucille"; nullable so non-Home rows stay clean.
   assignedCharacter String?
 
+  // Roleplay life-stage: null = Adult, or one of "Gestation" | "Weanling" | "Yearling" | "Youngster"
+  lifeStage String?
+
   // Breeding
   breedingFee      String?
   breedingPolicies String?

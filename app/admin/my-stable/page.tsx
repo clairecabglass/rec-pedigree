@@ -19,6 +19,7 @@ export default async function MyStablePage() {
       gender: true,
       coat: true,
       assignedCharacter: true,
+      lifeStage: true,
       updatedAt: true,
     },
   });
