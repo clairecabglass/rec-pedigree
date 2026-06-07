@@ -14,12 +14,15 @@ interface Rider {
   id: string;
   name: string;
   horse: string;
+  /** Stable / faction / ranch / team the rider competes for. */
+  representing: string;
 }
 
 interface Score {
   riderId: string;
   name: string;
   horse: string;
+  representing: string;
   /** Elapsed time in milliseconds when the run was finalised. */
   timeMs: number;
   /** Show Jumping faults OR Cross Country penalty points. */
@@ -136,7 +139,12 @@ export default function ShowScoreboardClient() {
   }, [timer.running]);
 
   /* ---- Roster parser ---- */
-  // Accepts "Name / Horse" or "Name - Horse" or "Name, Horse" per line.
+  // Accepts up to 3 segments per line: Rider / Horse / Representing.
+  // Separators: "/", "-", "—", "–", ",", " on ", " riding ".
+  // Examples:
+  //   "Jane Doe / Lightning / REC"
+  //   "John Smith - Wildfire"
+  //   "Alex Lee on Echo, Wild Roses Stable"
   function parseRoster(raw: string) {
     const out: Rider[] = [];
     for (const line of raw.split(/\r?\n/)) {
@@ -145,12 +153,21 @@ export default function ShowScoreboardClient() {
       const split = t.split(/\s*(?:\/|—|–|-|,| on | riding )\s*/i);
       const name = (split[0] || "").trim();
       const horse = (split[1] || "").trim();
+      const representing = (split[2] || "").trim();
       if (!name) continue;
-      out.push({ id: uid(), name, horse });
+      out.push({ id: uid(), name, horse, representing });
     }
     setRoster(out);
     setActiveIdx(0);
     resetRun();
+  }
+
+  /* ---- Queue navigation ---- */
+  function jumpToRider(idx: number) {
+    if (idx === activeIdx) return;
+    if (idx < 0 || idx >= roster.length) return;
+    setActiveIdx(idx);
+    resetRun(); // clear timer + live penalties for the new rider
   }
 
   /* ---- Timer controls ---- */
@@ -187,6 +204,7 @@ export default function ShowScoreboardClient() {
         riderId: activeRider.id,
         name: activeRider.name,
         horse: activeRider.horse,
+        representing: activeRider.representing,
         timeMs: finalMs,
         penalties: livePenalties,
         dnf: liveDnf,
@@ -306,8 +324,41 @@ export default function ShowScoreboardClient() {
             <RosterBox onParse={parseRoster} count={roster.length} />
 
             {!!roster.length && (
-              <div className="mt-3 mb-3 text-[11px]" style={{ fontFamily: "var(--font-lato)", color: "var(--text-muted)" }}>
-                Up next: {roster.slice(activeIdx + 1, activeIdx + 4).map((r) => r.name).join(" · ") || "—"}
+              <div className="mt-3 mb-3">
+                <SectionLabel>Pending queue (click to jump)</SectionLabel>
+                <ul className="flex flex-col gap-1 max-h-40 overflow-y-auto pr-1" style={{ listStyle: "none", margin: 0, padding: 0 }}>
+                  {roster.map((r, i) => {
+                    const isActive = i === activeIdx;
+                    const isDone = i < activeIdx;
+                    return (
+                      <li key={r.id}>
+                        <button
+                          type="button"
+                          onClick={() => jumpToRider(i)}
+                          disabled={isDone}
+                          title={isDone ? "Already scored" : isActive ? "Currently on course" : "Make this rider active"}
+                          style={{
+                            width: "100%",
+                            textAlign: "left",
+                            padding: "6px 10px",
+                            borderRadius: 6,
+                            fontSize: 12,
+                            fontFamily: "var(--font-lato)",
+                            background: isActive ? "var(--teal)" : isDone ? "var(--cream-dark)" : "var(--white)",
+                            color: isActive ? "white" : isDone ? "var(--text-muted)" : "var(--teal-dark)",
+                            border: `1px solid ${isActive ? "var(--teal)" : "var(--border)"}`,
+                            cursor: isDone ? "not-allowed" : "pointer",
+                            opacity: isDone ? 0.7 : 1,
+                          }}
+                        >
+                          <span style={{ fontWeight: 700 }}>{i + 1}. {r.name}</span>
+                          {r.horse ? <span style={{ opacity: 0.85 }}> · {r.horse}</span> : null}
+                          {r.representing ? <span style={{ opacity: 0.65 }}> · {r.representing}</span> : null}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
               </div>
             )}
 
@@ -414,7 +465,7 @@ function RosterBox({ onParse, count }: { onParse: (raw: string) => void; count: 
       <textarea
         value={raw}
         onChange={(e) => setRaw(e.target.value)}
-        placeholder={"One per line — Name / Horse\n\nJane Doe / Lightning\nJohn Smith - Wildfire"}
+        placeholder={"One per line — Name / Horse / Representing\n\nJane Doe / Lightning / REC\nJohn Smith - Wildfire - Wild Roses\nAlex Lee on Echo"}
         rows={6}
         className="w-full text-xs rounded-md border bg-white px-2 py-1.5"
         style={{ borderColor: "var(--border)", fontFamily: "var(--font-lato)", resize: "vertical" }}
@@ -483,6 +534,21 @@ function ActiveSpotlight({
           <div style={{ fontFamily: "var(--font-lato)", fontSize: 14, opacity: 0.85, marginTop: 2 }}>
             {rider?.horse ? `riding ${rider.horse}` : ""}
           </div>
+          {rider?.representing && (
+            <div
+              className="mt-1 inline-flex items-center"
+              style={{
+                fontFamily: "var(--font-lato)",
+                fontSize: 11,
+                letterSpacing: "0.16em",
+                textTransform: "uppercase",
+                color: "rgba(251, 248, 244, 0.55)",
+                fontWeight: 600,
+              }}
+            >
+              Representing&nbsp;·&nbsp;{rider.representing}
+            </div>
+          )}
         </div>
         <div className="text-right">
           <div
@@ -602,16 +668,21 @@ const Leaderboard = forwardRef<HTMLDivElement, LeaderboardProps>(function Leader
   );
 });
 
+// Single source of truth for the leaderboard grid columns. Keep this
+// identical between Header and Row so cells line up.
+const LB_COLS = "44px 1.1fr 1fr 0.9fr 90px 70px 120px";
+
 function Header() {
   const cell = "text-[10px] uppercase tracking-[0.08em]";
   return (
     <div
       className="grid items-center gap-2 px-3 py-1"
-      style={{ gridTemplateColumns: "44px 1fr 1fr 90px 70px 120px", color: "var(--text-muted)", fontFamily: "var(--font-lato)" }}
+      style={{ gridTemplateColumns: LB_COLS, color: "var(--text-muted)", fontFamily: "var(--font-lato)" }}
     >
       <div className={cell}>Pl.</div>
       <div className={cell}>Rider</div>
       <div className={cell}>Horse</div>
+      <div className={cell}>Representing</div>
       <div className={cell + " text-right"}>Time</div>
       <div className={cell + " text-right"}>Pen.</div>
       <div className={cell + " text-right"}>Detail</div>
@@ -646,7 +717,7 @@ function Row({
       ref={refSetter}
       className="grid items-center gap-2 px-3 py-2.5 rounded-md"
       style={{
-        gridTemplateColumns: "44px 1fr 1fr 90px 70px 120px",
+        gridTemplateColumns: LB_COLS,
         background: podium ? PODIUM_BG[place] : (place % 2 === 0 ? "var(--cream)" : "var(--white)"),
         border: podium ? `2px solid ${PODIUM_BORDER[place]}` : "1px solid var(--border)",
         fontFamily: "var(--font-lato)",
@@ -660,6 +731,9 @@ function Row({
       </div>
       <div className="font-semibold" style={{ color: "var(--teal-dark)" }}>{score.name}</div>
       <div style={{ color: "var(--text-muted)" }}>{score.horse || "—"}</div>
+      <div style={{ color: "var(--text-muted)", fontStyle: score.representing ? "normal" : "italic" }}>
+        {score.representing || "—"}
+      </div>
       <div className="text-right tabular-nums">{score.dnf ? "—" : fmtTime(score.timeMs)}</div>
       <div className="text-right font-semibold" style={{ color: score.dnf ? "var(--inbreed-text)" : score.penalties > 0 ? "var(--inbreed-text)" : "var(--teal-dark)" }}>
         {score.dnf ? "DNF" : score.penalties}

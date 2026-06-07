@@ -2,6 +2,7 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import Icon from "@/components/Icon";
+import { parseHorseCoat } from "@/lib/horseCoat";
 
 interface Horse {
   id: string;
@@ -253,7 +254,7 @@ export default function RegistryClient({ horses, breeds, isAdmin }: {
                   </td>
                   <td style={{ padding: "10px 14px", color: "var(--text-muted)" }}>{h.breed ?? "—"}</td>
                   <td style={{ padding: "10px 14px", color: "var(--text-muted)" }}>{h.gender ?? "—"}</td>
-                  <td style={{ padding: "10px 14px", color: "var(--text-muted)", maxWidth: 170, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{h.coat ?? "—"}</td>
+                  <td style={{ padding: "10px 14px", color: "var(--text-muted)", maxWidth: 170, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{parseHorseCoat(h.coat).cleanName || "—"}</td>
                   <td style={{ padding: "10px 14px", color: "var(--sire-text)" }}>{h.sireName ?? "—"}</td>
                   <td style={{ padding: "10px 14px", color: "var(--dam-text)" }}>{h.damName ?? "—"}</td>
                   <td style={{ padding: "10px 14px" }}>

@@ -13,6 +13,10 @@ interface Props {
   bare?: boolean;     // no toolbar, transparent bg (for the certificate)
   fixedDepth?: number;
   compact?: boolean;  // tighter rows (certificate)
+  /** Generations of ancestor data actually available for this horse. Toggle
+      values above this are disabled and the active button is clamped so the
+      highlighted number always equals what's rendered on screen. */
+  availableDepth?: number;
 }
 
 interface HorseRef { id: string; name: string; }
@@ -98,9 +102,13 @@ function Node({
   );
 }
 
-export default function PedigreeTree({ node, dupes, allHorses, isAdmin, title, bare, fixedDepth, compact }: Props) {
+export default function PedigreeTree({ node, dupes, allHorses, isAdmin, title, bare, fixedDepth, compact, availableDepth }: Props) {
   const [maxDepthState, setMaxDepth] = useState(5);
-  const maxDepth = bare ? (fixedDepth ?? 5) : maxDepthState;
+  // Clamp the user-selected depth to what the dataset actually provides, so
+  // the active button highlight is always bound to the integer that's
+  // actually being rendered (not an aspirational value the data can't hit).
+  const cap = availableDepth != null && availableDepth > 0 ? availableDepth : Infinity;
+  const maxDepth = bare ? (fixedDepth ?? 5) : Math.min(maxDepthState, cap);
   const [downloading, setDownloading] = useState(false);
   const [isFs, setIsFs] = useState(false);
   const [zoom, setZoom] = useState(1);
@@ -223,25 +231,32 @@ export default function PedigreeTree({ node, dupes, allHorses, isAdmin, title, b
     >
       <div style={{ marginBottom: 16, display: "flex", gap: 8, alignItems: "center", fontFamily: "var(--font-lato)", fontSize: 13, flexWrap: "wrap" }}>
         <span style={{ color: "var(--text-muted)" }}>Generations:</span>
-        {[3, 4, 5, 6, 7, 8, 9, 10].map((d) => (
+        {[3, 4, 5, 6, 7, 8, 9, 10].map((d) => {
+          const beyondData = d > cap;
+          const isActive = maxDepth === d;
+          return (
           <button
             key={d}
-            onClick={() => setMaxDepth(d)}
+            onClick={() => !beyondData && setMaxDepth(d)}
+            disabled={beyondData}
+            title={beyondData ? `Only ${cap} generation${cap !== 1 ? "s" : ""} of data available` : undefined}
             style={{
               padding: "5px 13px",
               border: "1px solid var(--border)",
               borderRadius: 4,
-              background: maxDepth === d ? "var(--teal)" : "var(--white)",
-              color: maxDepth === d ? "var(--white)" : "var(--text-muted)",
-              cursor: "pointer",
+              background: isActive ? "var(--teal)" : "var(--white)",
+              color: isActive ? "var(--white)" : beyondData ? "var(--border)" : "var(--text-muted)",
+              opacity: beyondData ? 0.5 : 1,
+              cursor: beyondData ? "not-allowed" : "pointer",
               fontSize: 12,
-              fontWeight: maxDepth === d ? 700 : 400,
+              fontWeight: isActive ? 700 : 400,
               fontFamily: "var(--font-lato)",
             }}
           >
             {d}
           </button>
-        ))}
+          );
+        })}
 
         <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
           <button onClick={() => setZoom((z) => clampZoom(z - 0.2))} style={zoomBtn} title="Zoom out">−</button>

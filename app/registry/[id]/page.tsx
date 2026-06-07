@@ -5,6 +5,8 @@ import Link from "next/link";
 // photos live on a public Cloudflare R2 bucket. Plain <img> renders R2 URLs
 // directly without needing remotePatterns config (matches PhotoGallery).
 import PedigreeTree from "@/components/PedigreeTree";
+import AdminHorseDeleteButton from "@/components/AdminHorseDeleteButton";
+import { parseHorseCoat } from "@/lib/horseCoat";
 import Icon from "@/components/Icon";
 import PhotoGallery from "@/components/PhotoGallery";
 import { buildPedigreeTree, findDuplicates, pedigreeDepth } from "@/lib/pedigree";
@@ -91,7 +93,7 @@ export default async function HorsePage({ params }: { params: Promise<{ id: stri
     ["Breed", horse.breed],
     ["Sex", horse.gender],
     ["Personality", horse.personality],
-    ["Coat", horse.coat],
+    ["Coat", parseHorseCoat(horse.coat).cleanName || null],
     ["Genotype", horse.genotype],
     ["Eye Color", horse.eyeColor],
     ["Base Stats", horse.baseStats],
@@ -117,6 +119,7 @@ export default async function HorsePage({ params }: { params: Promise<{ id: stri
             <Link href={`/admin/horses/${horse.id}`} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--teal-dark)", background: "var(--white)", border: "1px solid var(--teal)", padding: "7px 16px", borderRadius: 6, textDecoration: "none", fontFamily: "var(--font-lato)", fontWeight: 700 }}>
               Edit this horse
             </Link>
+            <AdminHorseDeleteButton id={horse.id} name={horse.name} />
           </div>
         )}
       </div>
@@ -147,7 +150,7 @@ export default async function HorsePage({ params }: { params: Promise<{ id: stri
       <div style={{ textAlign: "center", marginBottom: 28 }}>
         <h1 style={{ fontFamily: "var(--font-playfair)", fontSize: 44, color: "var(--teal-dark)", lineHeight: 1.1 }}>{horse.name}</h1>
         <div style={{ fontSize: 14, color: "var(--text-muted)", fontFamily: "var(--font-lato)", marginTop: 6 }}>
-          {[horse.breed, horse.gender, horse.coat].filter(Boolean).join("  ·  ") || "—"}
+          {[horse.breed, horse.gender, parseHorseCoat(horse.coat).cleanName || null].filter(Boolean).join("  ·  ") || "—"}
         </div>
         <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", marginTop: 12 }}>
           {horse.ownership && (
@@ -285,7 +288,7 @@ export default async function HorsePage({ params }: { params: Promise<{ id: stri
       {(sire || dam) && (
         <div style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 10, padding: 24, marginBottom: 28 }}>
           {sectionTitle(`Pedigree${generations ? ` · ${generations} generation${generations !== 1 ? "s" : ""}` : ""}`)}
-          <PedigreeTree node={tree} dupes={dupes} allHorses={allHorsesJson} isAdmin={admin} title={horse.name} />
+          <PedigreeTree node={tree} dupes={dupes} allHorses={allHorsesJson} isAdmin={admin} title={horse.name} availableDepth={generations} />
         </div>
       )}
 

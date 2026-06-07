@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import Link from "next/link";
 import Icon from "@/components/Icon";
+import { parseHorseCoat } from "@/lib/horseCoat";
 
 export const dynamic = "force-dynamic";
 
@@ -69,7 +70,7 @@ export default async function ForSalePage() {
                       {horse.name}
                     </div>
                     <div style={{ fontSize: 12, color: "var(--text-muted)", fontFamily: "var(--font-lato)", marginBottom: 10 }}>
-                      {[horse.breed, horse.gender, horse.coat].filter(Boolean).join(" · ")}
+                      {[horse.breed, horse.gender, parseHorseCoat(horse.coat).cleanName || null].filter(Boolean).join(" · ")}
                     </div>
 
                     <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "4px 10px", fontSize: 12, fontFamily: "var(--font-lato)" }}>
