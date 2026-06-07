@@ -46,6 +46,9 @@ model Horse {
   // Roleplay life-stage: null = Adult, or one of "Gestation" | "Weanling" | "Yearling" | "Youngster"
   lifeStage String?
 
+  // Breeding cool-down tracker: set to the real-world timestamp when the mare was bred.
+  lastBredDateTime DateTime?
+
   // Breeding
   breedingFee      String?
   breedingPolicies String?

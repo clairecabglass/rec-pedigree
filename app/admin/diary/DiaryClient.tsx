@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Search, X as XIcon } from "lucide-react";
 
 interface Service {
   id: string;
@@ -118,6 +119,23 @@ function ServicesPanel({ initial }: { initial: Service[] }) {
   const [adding, setAdding] = useState(false);
   const [busy, setBusy] = useState(false);
 
+  /* --- Filter state --- */
+  const [filterQuery, setFilterQuery] = useState("");
+  const [filterType,  setFilterType]  = useState("");
+
+  const visible = useMemo(() => {
+    const q = filterQuery.trim().toLowerCase();
+    return services.filter((s) => {
+      if (filterType && s.serviceType !== filterType) return false;
+      if (q) {
+        const inName  = s.providerName.toLowerCase().includes(q);
+        const inNotes = (s.notes ?? "").toLowerCase().includes(q);
+        if (!inName && !inNotes) return false;
+      }
+      return true;
+    });
+  }, [services, filterQuery, filterType]);
+
   const [d, setD] = useState({ providerName: "", serviceType: "Training" as (typeof SERVICE_TYPES)[number], price: "", link: "", notes: "" });
 
   async function createService() {
@@ -164,6 +182,7 @@ function ServicesPanel({ initial }: { initial: Service[] }) {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <h2 style={{ fontFamily: "var(--font-playfair)", fontSize: 18, color: "var(--teal-dark)" }}>Preferred Services</h2>
         <button
@@ -173,6 +192,61 @@ function ServicesPanel({ initial }: { initial: Service[] }) {
           {adding ? "× Cancel" : "+ Add Service"}
         </button>
       </div>
+
+      {/* ---- Filter bar ---- */}
+      {services.length > 0 && (
+        <div
+          className="flex flex-wrap gap-2 p-3 rounded-lg"
+          style={{ background: "var(--cream-dark)", border: "1px solid var(--border)" }}
+        >
+          {/* Text search with inline icon + X clear */}
+          <div className="relative flex-1" style={{ minWidth: 200 }}>
+            <Search size={13} color="var(--text-muted)"
+              style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
+            <input
+              type="text"
+              value={filterQuery}
+              onChange={(e) => setFilterQuery(e.target.value)}
+              placeholder="Search provider or notes…"
+              className="w-full text-sm rounded-md border"
+              style={{
+                background: "var(--white)", borderColor: "var(--border)",
+                padding: "7px 28px 7px 28px", fontFamily: "var(--font-lato)", color: "var(--text)",
+              }}
+            />
+            {filterQuery && (
+              <button
+                type="button"
+                onClick={() => setFilterQuery("")}
+                aria-label="Clear search"
+                style={{
+                  position: "absolute", right: 7, top: "50%", transform: "translateY(-50%)",
+                  background: "none", border: "none", cursor: "pointer", padding: 2,
+                  color: "var(--text-muted)", display: "flex", alignItems: "center",
+                }}
+              >
+                <XIcon size={13} />
+              </button>
+            )}
+          </div>
+
+          {/* Service-type dropdown */}
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            className="text-sm rounded-md border"
+            style={{
+              background: "var(--white)", borderColor: "var(--border)",
+              padding: "7px 10px", fontFamily: "var(--font-lato)",
+              color: filterType ? "var(--teal-dark)" : "var(--text-muted)",
+              cursor: "pointer",
+            }}
+          >
+            <option value="">All types</option>
+            {SERVICE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </div>
+      )}
 
       {adding && (
         <div style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 10, padding: 16 }}>
@@ -227,9 +301,19 @@ function ServicesPanel({ initial }: { initial: Service[] }) {
         <div style={{ background: "var(--white)", border: "1px dashed var(--border)", borderRadius: 10, padding: 28, textAlign: "center", color: "var(--text-muted)", fontFamily: "var(--font-lato)", fontSize: 13 }}>
           No services tracked yet — add your first favourite provider.
         </div>
+      ) : visible.length === 0 ? (
+        <div style={{ background: "var(--white)", border: "1px dashed var(--border)", borderRadius: 10, padding: 24, textAlign: "center", color: "var(--text-muted)", fontFamily: "var(--font-lato)", fontSize: 13 }}>
+          No matching services found.{" "}
+          <button
+            onClick={() => { setFilterQuery(""); setFilterType(""); }}
+            style={{ background: "none", border: "none", color: "var(--teal)", cursor: "pointer", fontFamily: "var(--font-lato)", fontSize: 13, textDecoration: "underline", padding: 0 }}
+          >
+            Clear filters
+          </button>
+        </div>
       ) : (
         <div className="grid sm:grid-cols-2 gap-3">
-          {services.map((s) => (
+          {visible.map((s) => (
             <ServiceCard key={s.id} svc={s} onDelete={() => deleteService(s.id)} onPatch={(patch) => patchService(s.id, patch)} />
           ))}
         </div>

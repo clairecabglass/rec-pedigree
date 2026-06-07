@@ -20,9 +20,14 @@ export default async function MyStablePage() {
       coat: true,
       assignedCharacter: true,
       lifeStage: true,
+      lastBredDateTime: true,
       updatedAt: true,
     },
   });
 
-  return <MyStableClient horses={horses.map((h) => ({ ...h, updatedAt: h.updatedAt.toISOString() }))} />;
+  return <MyStableClient horses={horses.map((h) => ({
+    ...h,
+    lastBredDateTime: h.lastBredDateTime ? h.lastBredDateTime.toISOString() : null,
+    updatedAt: h.updatedAt.toISOString(),
+  }))} />;
 }

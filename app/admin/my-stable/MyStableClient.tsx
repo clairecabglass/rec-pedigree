@@ -10,6 +10,10 @@ type Character = (typeof CHARACTERS)[number];
 
 const FOAL_STAGES = ["Gestation", "Weanling", "Yearling", "Youngster"] as const;
 
+// Server cool-down window in milliseconds (7 real-world days).
+// Change this constant if the server rules change.
+const COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
+
 interface StableHorse {
   id: string;
   name: string;
@@ -18,7 +22,25 @@ interface StableHorse {
   coat: string | null;
   assignedCharacter: string | null;
   lifeStage: string | null;
+  lastBredDateTime: string | null; // ISO string — set when mare was bred
   updatedAt: string;
+}
+
+/** Returns a human-readable countdown string if the mare is still in cool-down, otherwise null. */
+function breedingCooldownRemaining(lastBredISO: string | null): string | null {
+  if (!lastBredISO) return null;
+  const elapsed = Date.now() - new Date(lastBredISO).getTime();
+  const remaining = COOLDOWN_MS - elapsed;
+  if (remaining <= 0) return null;
+
+  const totalMinutes = Math.ceil(remaining / 60_000);
+  const days    = Math.floor(totalMinutes / 1440);
+  const hours   = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+
+  if (days > 0)  return `Cool-down: ${days}d ${hours}h remaining`;
+  if (hours > 0) return `Cool-down: ${hours}h ${minutes}m remaining`;
+  return `Cool-down: ${minutes}m remaining`;
 }
 
 type ViewMode = "list" | "gallery";
@@ -545,7 +567,10 @@ function ListView({ horses, selected, pendingId, onToggle, onSetCharacter }: {
                   <input type="checkbox" aria-label={`Select ${h.name}`} checked={isSel} onChange={() => onToggle(h.id)} />
                 </td>
                 <td style={{ padding: "8px 12px", fontWeight: 600 }}>
-                  <Link href={`/registry/${h.id}`} style={{ color: "var(--teal-dark)", textDecoration: "none" }}>{h.name}</Link>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <Link href={`/registry/${h.id}`} style={{ color: "var(--teal-dark)", textDecoration: "none" }}>{h.name}</Link>
+                    <CooldownBadge gender={h.gender} lastBredDateTime={h.lastBredDateTime} />
+                  </div>
                 </td>
                 <td style={{ padding: "8px 12px", color: "var(--text-muted)" }}>{h.breed ?? "—"}</td>
                 <td style={{ padding: "8px 12px", color: "var(--text-muted)" }}>{h.gender ?? "—"}</td>
@@ -596,10 +621,13 @@ function GalleryView({ horses, selected, pendingId, onToggle, onSetCharacter }: 
             }}>
             <div className="flex items-start justify-between gap-2">
               <input type="checkbox" aria-label={`Select ${h.name}`} checked={isSel} onChange={() => onToggle(h.id)} style={{ marginTop: 4 }} />
-              <Link href={`/registry/${h.id}`} className="flex-1 no-underline"
-                style={{ fontFamily: "var(--font-playfair)", fontSize: 17, color: "var(--teal-dark)", fontWeight: 700, lineHeight: 1.2 }}>
-                {h.name}
-              </Link>
+              <div className="flex-1 flex flex-col gap-1">
+                <Link href={`/registry/${h.id}`} className="no-underline"
+                  style={{ fontFamily: "var(--font-playfair)", fontSize: 17, color: "var(--teal-dark)", fontWeight: 700, lineHeight: 1.2 }}>
+                  {h.name}
+                </Link>
+                <CooldownBadge gender={h.gender} lastBredDateTime={h.lastBredDateTime} />
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-1.5">
@@ -638,6 +666,39 @@ function Pill({ children, kind = "muted" }: { children: React.ReactNode; kind?: 
     <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold"
       style={{ background: p.bg, color: p.fg, border: `1px solid ${p.border}`, fontFamily: "var(--font-lato)" }}>
       {children}
+    </span>
+  );
+}
+
+/** Amber timer badge shown on mares still within their breeding cool-down window. */
+function CooldownBadge({ gender, lastBredDateTime }: { gender: string | null; lastBredDateTime: string | null }) {
+  // Re-render every 60 seconds so the countdown ticks without a page refresh.
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (!lastBredDateTime || gender !== "Mare") return;
+    const interval = setInterval(() => setTick((t) => t + 1), 60_000);
+    return () => clearInterval(interval);
+  }, [lastBredDateTime, gender]);
+
+  if (gender !== "Mare") return null;
+  const label = breedingCooldownRemaining(lastBredDateTime);
+  if (!label) return null;
+
+  return (
+    <span
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 4,
+        fontSize: 10, fontWeight: 700, fontFamily: "var(--font-lato)",
+        background: "#fffbeb", color: "#92400e",
+        border: "1px solid #fde68a", borderRadius: 999,
+        padding: "2px 7px", whiteSpace: "nowrap",
+      }}
+    >
+      {/* clock icon — inline SVG keeps the bundle zero-dep */}
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+      </svg>
+      {label}
     </span>
   );
 }
