@@ -152,8 +152,7 @@ export default function MyStableClient({ horses }: { horses: StableHorse[] }) {
       {/* ===== Header ===== */}
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
-          {/* Back to the central registry panel, not the admin root */}
-          <Link href="/admin/horses" className="text-xs uppercase tracking-[0.12em] text-[var(--teal)] no-underline" style={{ fontFamily: "var(--font-lato)" }}>← Registry</Link>
+          <button onClick={() => router.back()} className="text-xs uppercase tracking-[0.12em] bg-transparent border-none p-0 cursor-pointer" style={{ color: "var(--teal)", fontFamily: "var(--font-lato)" }}>← Back</button>
           <h1 className="mt-1" style={{ fontFamily: "var(--font-playfair)", fontSize: 30, color: "var(--teal-dark)" }}>My Stable</h1>
           <p className="text-xs" style={{ color: "var(--text-muted)", fontFamily: "var(--font-lato)" }}>{totalLabel}</p>
         </div>
