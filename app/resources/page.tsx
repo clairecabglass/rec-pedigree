@@ -53,12 +53,6 @@ export default function ResourcesIndexPage() {
         >
           Resources
         </h1>
-        <p
-          className="mx-auto max-w-2xl"
-          style={{ fontFamily: "var(--font-lato)", fontSize: 15, color: "var(--text-muted)", lineHeight: 1.6 }}
-        >
-          Open tools for The Rift equestrian community. All utilities run entirely in your browser — no account or login required.
-        </p>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
