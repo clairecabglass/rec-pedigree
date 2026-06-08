@@ -44,10 +44,15 @@ interface Pairing {
   mare: FullHorseData;
   stallion: FullHorseData;
   foal: HorseNode;
+  /** Minimum of sire/dam depth + 1 — the balanced, honest generation count. */
   pedigreeDepth: number;
+  /** Raw depth of the stallion's recorded pedigree (not +1 for the foal). */
+  stallionDepth: number;
+  /** Raw depth of the mare's recorded pedigree (not +1 for the foal). */
+  mareDepth: number;
   inbreedingCoefficient: number;
   sharedAncestors: number;
-  isPurebredCross: boolean; // true if both parents same breed, false if different
+  isPurebredCross: boolean;
   foalGenetics: ReturnType<typeof predictFoal> | null;
   reasons: string[];
 }
@@ -131,7 +136,12 @@ export default function SuggestedPairingsClient({
           dam: buildPedigreeTree(mare.name, horseMap, 10),
         };
 
-        const pedigreeDepth = foal ? nodeDepth(foal) : 0;
+        // Depth of each parent's own recorded pedigree (not +1 for the foal).
+        const stallionDepth = foal.sire ? nodeDepth(foal.sire) : 0;
+        const mareDepth     = foal.dam  ? nodeDepth(foal.dam)  : 0;
+        // Use the MINIMUM side so a lopsided pedigree doesn't inflate the number.
+        // e.g. stallion=6 gen, mare=3 gen → balanced depth = 4 (not 7).
+        const pedigreeDepth = 1 + Math.min(stallionDepth, mareDepth);
         const coi = foal ? inbreedingCoefficient(foal) : 0;
         const sharedAncestors = commonAncestors(foal).size;
         const isPurebredCross = mare.breed === stallion.breed;
@@ -140,11 +150,14 @@ export default function SuggestedPairingsClient({
             extractGeneCode(mare.coat, mare.genotype),
         );
 
-        // Apply filters
+        // Apply filters — use balanced depth so the filter is honest
         if (pedigreeDepth < minGenerations) {
-            continue; // Do not include pairings that don't meet minimum depth
+            continue;
         } else {
-            reasons.push(`Pedigree depth: ${pedigreeDepth} generations (meets minimum of ${minGenerations})`);
+            const balanced = stallionDepth === mareDepth
+              ? `${pedigreeDepth} gen`
+              : `${pedigreeDepth} gen balanced (♂ ${stallionDepth} · ♀ ${mareDepth})`;
+            reasons.push(`Pedigree depth: ${balanced}`);
         }
 
 
@@ -177,7 +190,7 @@ export default function SuggestedPairingsClient({
 
         // If all filters pass, add the pairing
         pairings.push({
-          mare, stallion, foal, pedigreeDepth, inbreedingCoefficient: coi, sharedAncestors, isPurebredCross, foalGenetics, reasons,
+          mare, stallion, foal, pedigreeDepth, stallionDepth, mareDepth, inbreedingCoefficient: coi, sharedAncestors, isPurebredCross, foalGenetics, reasons,
         });
       }
     }
