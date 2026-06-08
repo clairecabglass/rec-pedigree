@@ -44,8 +44,22 @@ export function buildPedigreeTree(
   if (depth >= maxDepth) return node;
 
   const key = horse.name.toLowerCase();
+
   if (seen.has(key) && !isPlaceholderAncestor(horse.name)) {
+    // This ancestor is inbred (appears more than once in the pedigree).
+    // We still populate its parents so the tree renders the full lineage for
+    // every occurrence. We pass `seen` (not nextSeen) to the children:
+    // since this horse is already in `seen`, any true cycle back to it on
+    // this path is caught immediately in the child call.
     node.inbreeding = true;
+    if (depth < maxDepth) {
+      if (horse.sireName && !isPlaceholderAncestor(horse.sireName)) {
+        node.sire = buildPedigreeTree(horse.sireName, allHorses, maxDepth, depth + 1, seen);
+      }
+      if (horse.damName && !isPlaceholderAncestor(horse.damName)) {
+        node.dam = buildPedigreeTree(horse.damName, allHorses, maxDepth, depth + 1, seen);
+      }
+    }
     return node;
   }
 

@@ -75,7 +75,9 @@ function Node({
   dupes: Set<string>;
   idMap: Map<string, string>;
 }) {
-  const showParents = depth < maxDepth && (node.sire || node.dam) && !node.inbreeding;
+  // Show parents for ALL nodes that have them — including inbred ones.
+  // Inbreeding is flagged visually on the Card but doesn't truncate the lineage.
+  const showParents = depth < maxDepth && (node.sire || node.dam);
   const sire = node.sire ?? null;
   const dam = node.dam ?? null;
   const bothPresent = !!sire && !!dam;
