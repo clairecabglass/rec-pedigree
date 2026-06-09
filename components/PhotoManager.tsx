@@ -10,6 +10,52 @@ export interface PhotoItem {
   isPrimary: boolean;
 }
 
+const MAX_DIM = 2000;        // longest edge after downscale
+const TARGET_BYTES = 4_000_000; // stay safely under Vercel's ~4.5 MB body cap
+
+/** Downscale + re-encode a large raster image so it fits under the upload cap.
+ *  Returns the original file unchanged for animated GIFs or if it's already small. */
+async function shrinkImage(file: File): Promise<File> {
+  // Leave GIFs alone (canvas would flatten the animation) and skip non-images.
+  if (!file.type.startsWith("image/") || file.type === "image/gif") return file;
+  if (file.size <= TARGET_BYTES) return file;
+
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = reject;
+      i.src = url;
+    });
+
+    const scale = Math.min(1, MAX_DIM / Math.max(img.width, img.height));
+    const w = Math.round(img.width * scale);
+    const h = Math.round(img.height * scale);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.drawImage(img, 0, 0, w, h);
+
+    // Re-encode as JPEG, stepping quality down until it fits the target size.
+    for (const q of [0.85, 0.7, 0.55, 0.4]) {
+      const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/jpeg", q));
+      if (blob && blob.size <= TARGET_BYTES) {
+        const base = file.name.replace(/\.[^.]+$/, "") || "photo";
+        return new File([blob], `${base}.jpg`, { type: "image/jpeg" });
+      }
+    }
+    return file; // fall through — server will reject if still too big
+  } catch {
+    return file;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 export default function PhotoManager({ horseId, initial }: { horseId: string; initial: PhotoItem[] }) {
   const [photos, setPhotos] = useState<PhotoItem[]>(
     [...initial].sort((a, b) => a.order - b.order)
@@ -22,13 +68,24 @@ export default function PhotoManager({ horseId, initial }: { horseId: string; in
     if (!files || !files.length) return;
     setUploading(true);
     setError("");
-    const fd = new FormData();
-    Array.from(files).forEach((f) => fd.append("files", f));
-    const res = await fetch(`/api/horses/${horseId}/photos`, { method: "POST", body: fd });
-    setUploading(false);
-    if (!res.ok) { setError("Upload failed."); return; }
-    const { created } = await res.json();
-    setPhotos((prev) => [...prev, ...created].sort((a, b) => a.order - b.order));
+    try {
+      // Downscale/compress in the browser first — Vercel caps the request
+      // body at ~4.5 MB, so full-size camera photos would 413 otherwise.
+      const prepared = await Promise.all(Array.from(files).map(shrinkImage));
+      const fd = new FormData();
+      prepared.forEach((f) => fd.append("files", f));
+      const res = await fetch(`/api/horses/${horseId}/photos`, { method: "POST", body: fd });
+      if (!res.ok) {
+        setError(res.status === 413 ? "Photo is too large even after compression — try a smaller image." : "Upload failed.");
+        return;
+      }
+      const { created } = await res.json();
+      setPhotos((prev) => [...prev, ...created].sort((a, b) => a.order - b.order));
+    } catch {
+      setError("Upload failed.");
+    } finally {
+      setUploading(false);
+    }
   }
 
   async function makePrimary(id: string) {
