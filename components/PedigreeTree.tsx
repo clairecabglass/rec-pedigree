@@ -20,20 +20,24 @@ interface Props {
 interface HorseRef { id: string; name: string; }
 
 /* ---- Layout constants ---- */
-const ROW_H      = 44;   // px per row at zoom 1
-const COL_ROOT   = 200;  // px — root (subject) column
-const COL_ANC    = 155;  // px — each ancestor column
-const CANVAS_H   = 580;  // px — visible scroll-container height
+const ROW_H    = 44;   // px per row at zoom 1
+const CANVAS_H = 580;  // px — visible scroll-container height
 
-/* ---- Color tokens ---- */
-type Side = "root" | "sire" | "dam";
+/* ---- Color tokens — keyed by gender ---- */
+const STALLION = { bg: "var(--sire-bg)",  border: "var(--sire-border)", text: "var(--sire-text)", muted: "#7A9BB0" };
+const MARE     = { bg: "var(--dam-bg)",   border: "var(--dam-border)",  text: "var(--dam-text)",  muted: "#AE8099" };
+const ROOT_CLR = { bg: "var(--cream)",    border: "var(--gold)",        text: "var(--teal-dark)", muted: "var(--text-muted)" };
+const UNKNOWN_CLR = { bg: "var(--cream-dark)", border: "var(--border)", text: "var(--text-muted)", muted: "var(--text-muted)" };
+const INBREED  = { bg: "var(--inbreed-bg)", border: "var(--inbreed-border)", text: "var(--inbreed-text)", muted: "var(--inbreed-text)" };
 
-const SIDE: Record<Side, { bg: string; border: string; text: string; muted: string }> = {
-  root: { bg: "var(--cream)",    border: "var(--gold)",        text: "var(--teal-dark)",    muted: "var(--text-muted)" },
-  sire: { bg: "var(--sire-bg)",  border: "var(--sire-border)", text: "var(--sire-text)",    muted: "#7A9BB0" },
-  dam:  { bg: "var(--dam-bg)",   border: "var(--dam-border)",  text: "var(--dam-text)",     muted: "#AE8099" },
-};
-const INBREED = { bg: "var(--inbreed-bg)", border: "var(--inbreed-border)", text: "var(--inbreed-text)", muted: "var(--inbreed-text)" };
+function cardColors(col: number, node: HorseNode | null, inbreed: boolean) {
+  if (inbreed) return INBREED;
+  if (col === 1) return ROOT_CLR;
+  if (!node || node.name.toLowerCase() === "unknown") return UNKNOWN_CLR;
+  if (node.gender === "Stallion") return STALLION;
+  if (node.gender === "Mare")     return MARE;
+  return ROOT_CLR; // gender not set — neutral
+}
 
 /* ---- Grid cell ---- */
 interface GridCell {
@@ -41,7 +45,6 @@ interface GridCell {
   rowStart: number;
   rowSpan: number;
   node: HorseNode | null;
-  side: Side;
   inbreed: boolean;
 }
 
@@ -50,37 +53,30 @@ function buildGrid(
   col: number,
   rowStart: number,
   rowSpan: number,
-  side: Side,
   maxDepth: number,
   dupes: Set<string>,
   cells: GridCell[],
 ) {
   const inbreed = !!node && dupes.has(node.name.toLowerCase());
-  cells.push({ col, rowStart, rowSpan, node, side, inbreed });
-  if (col >= maxDepth + 1) return; // deepest column — no further recursion
+  cells.push({ col, rowStart, rowSpan, node, inbreed });
+  if (col >= maxDepth + 1) return;
   const half = rowSpan / 2;
-  buildGrid(node?.sire ?? null, col + 1, rowStart,        half, col === 1 ? "sire" : side, maxDepth, dupes, cells);
-  buildGrid(node?.dam  ?? null, col + 1, rowStart + half, half, col === 1 ? "dam"  : side, maxDepth, dupes, cells);
+  buildGrid(node?.sire ?? null, col + 1, rowStart,        half, maxDepth, dupes, cells);
+  buildGrid(node?.dam  ?? null, col + 1, rowStart + half, half, maxDepth, dupes, cells);
 }
 
-/* ---- Font sizes by column (index = col - 1) ---- */
-const NAME_SZ = [15, 13, 12, 11, 10,  9,  8, 8, 8, 8, 8];
-const META_SZ = [12, 11, 10,  9,  9,  8,  7, 7, 7, 7, 7];
+/* ---- Font sizes by column depth (index = col - 1) ---- */
+const NAME_SZ = [15, 13, 12, 11, 10,  9, 8, 8, 8, 8, 8];
+const META_SZ = [12, 11, 10,  9,  9,  8, 7, 7, 7, 7, 7];
 
 /* ---- Single grid card ---- */
-function GridCard({
-  cell, idMap,
-}: {
-  cell: GridCell;
-  idMap: Map<string, string>;
-}) {
-  const { col, rowStart, rowSpan, node, side, inbreed } = cell;
-  const s = inbreed ? INBREED : SIDE[side];
+function GridCard({ cell, idMap }: { cell: GridCell; idMap: Map<string, string> }) {
+  const { col, rowStart, rowSpan, node, inbreed } = cell;
+  const s = cardColors(col, node, inbreed);
   const nameSize = NAME_SZ[col - 1] ?? 8;
   const metaSize = META_SZ[col - 1] ?? 7;
-
-  const coat = node?.coat ? (parseHorseCoat(node.coat).cleanName || null) : null;
   const isUnknown = !node || node.name.toLowerCase() === "unknown";
+  const coat = node?.coat ? (parseHorseCoat(node.coat).cleanName || null) : null;
   const horseId = node ? idMap.get(node.name.toLowerCase()) : null;
   const dupeKey = inbreed && node ? node.name.toLowerCase() : undefined;
 
@@ -92,13 +88,12 @@ function GridCard({
     }}>
       <div style={{
         fontFamily: "var(--font-playfair)", fontSize: nameSize, fontWeight: 700,
-        color: isUnknown ? "var(--text-muted)" : s.text,
-        lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        color: s.text, lineHeight: 1.2,
+        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
       }}>
         {node?.name ?? "Unknown"}
       </div>
-
-      {node?.breed && (
+      {node?.breed && !isUnknown && (
         <div style={{
           fontFamily: "var(--font-lato)", fontSize: metaSize, color: s.muted,
           overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", lineHeight: 1.3,
@@ -106,8 +101,7 @@ function GridCard({
           {node.gender ? `${node.gender} · ` : ""}{node.breed}
         </div>
       )}
-
-      {coat && (
+      {coat && !isUnknown && (
         <div style={{
           fontFamily: "var(--font-lato)", fontSize: metaSize - 1, color: s.muted,
           overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", opacity: 0.85,
@@ -115,7 +109,6 @@ function GridCard({
           {coat}
         </div>
       )}
-
       {inbreed && (
         <div style={{ fontFamily: "var(--font-lato)", fontSize: 9, color: "var(--inbreed-text)", fontWeight: 700 }}>
           ⚠ Inbreeding
@@ -127,8 +120,8 @@ function GridCard({
   const cellStyle: React.CSSProperties = {
     gridColumn: col,
     gridRow: `${rowStart} / span ${rowSpan}`,
-    background: isUnknown ? "var(--cream-dark)" : s.bg,
-    border: `1px solid ${isUnknown ? "var(--border)" : s.border}`,
+    background: s.bg,
+    border: `1px solid ${s.border}`,
     borderRadius: 4,
     overflow: "hidden",
     textDecoration: "none",
@@ -138,7 +131,7 @@ function GridCard({
   if (horseId) {
     return (
       <Link href={`/registry/${horseId}`} style={cellStyle} data-dupe={dupeKey}
-        title={dupeKey ? `${node?.name} appears more than once in this pedigree — hover to see every copy.` : undefined}>
+        title={dupeKey ? `${node?.name} appears more than once — hover to highlight all copies` : undefined}>
         {inner}
       </Link>
     );
@@ -154,24 +147,16 @@ export default function PedigreeTree({
   const [zoom, setZoom] = useState(1);
   const [downloading, setDownloading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const gridRef  = useRef<HTMLDivElement>(null);
+  const gridRef   = useRef<HTMLDivElement>(null);
 
   const cap = availableDepth != null && availableDepth > 0 ? availableDepth : Infinity;
-  const maxDepth = bare ? (fixedDepth ?? 4) : Math.min(depthState, cap);
+  const maxDepth  = bare ? (fixedDepth ?? 4) : Math.min(depthState, cap);
   const totalRows = Math.pow(2, maxDepth);
 
   const clampZoom = (z: number) => Math.min(3, Math.max(0.08, z));
+  const calcFit   = (d: number) => clampZoom(CANVAS_H / (Math.pow(2, d) * ROW_H + 16));
 
-  function calcFitZoom(d: number) {
-    const rows = Math.pow(2, d);
-    return clampZoom(CANVAS_H / (rows * ROW_H + 16));
-  }
-
-  // Auto-fit on first render and on depth change
-  useEffect(() => {
-    setZoom(calcFitZoom(depthState));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [depthState]);
+  useEffect(() => { setZoom(calcFit(depthState)); }, [depthState]); // eslint-disable-line
 
   if (!node) return <p style={{ color: "var(--text-muted)", fontFamily: "var(--font-lato)" }}>No pedigree data available.</p>;
 
@@ -179,27 +164,25 @@ export default function PedigreeTree({
   const idMap = new Map(refs.map((h) => [h.name.toLowerCase(), h.id]));
 
   const cells: GridCell[] = [];
-  buildGrid(node, 1, 1, totalRows, "root", maxDepth, dupes, cells);
+  buildGrid(node, 1, 1, totalRows, maxDepth, dupes, cells);
 
-  const colTemplate = `${COL_ROOT}px repeat(${maxDepth}, ${COL_ANC}px)`;
+  // Fractional column widths — root gets 1.5× width of ancestor columns.
+  // Combined with the fill-width trick below, this stretches the grid to
+  // always occupy the full visible container at any zoom level.
+  const colTemplate = `1.5fr repeat(${maxDepth}, 1fr)`;
   const rowTemplate = `repeat(${totalRows}, ${ROW_H}px)`;
 
   /* ---- Bare mode (certificate PNG export) ---- */
   if (bare) {
-    // Tighter dimensions so the grid fits well inside a certificate canvas.
-    const bareRowH  = compact ? 28 : 36;
-    const bareRoot  = compact ? 140 : 175;
-    const bareAnc   = compact ? 110 : 138;
-    const bareColTpl = `${bareRoot}px repeat(${maxDepth}, ${bareAnc}px)`;
-    const bareRowTpl = `repeat(${totalRows}, ${bareRowH}px)`;
+    const bareRowH = compact ? 28 : 36;
     return (
       <div ref={gridRef} className="ped-export" style={{
         display: "grid",
-        gridTemplateColumns: bareColTpl,
-        gridTemplateRows: bareRowTpl,
+        gridTemplateColumns: colTemplate,
+        gridTemplateRows: `repeat(${totalRows}, ${bareRowH}px)`,
         gap: 2,
         padding: compact ? 4 : 6,
-        width: "max-content",
+        width: compact ? 900 : 1100,
         background: "#FBF8F4",
       }}>
         {cells.map((cell, i) => <GridCard key={i} cell={cell} idMap={idMap} />)}
@@ -207,7 +190,8 @@ export default function PedigreeTree({
     );
   }
 
-  /* ---- Ctrl/Cmd + scroll to zoom ---- */
+  /* ---- Interactive mode ---- */
+
   function onWheel(e: React.WheelEvent) {
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
@@ -215,28 +199,18 @@ export default function PedigreeTree({
     }
   }
 
-  /* ---- Drag to pan ---- */
   function onPanStart(e: React.MouseEvent) {
     if ((e.target as HTMLElement).closest("a")) return;
     const sc = scrollRef.current;
     if (!sc) return;
-    const sx = e.clientX, sy = e.clientY;
-    const sl = sc.scrollLeft, st = sc.scrollTop;
+    const sx = e.clientX, sy = e.clientY, sl = sc.scrollLeft, st = sc.scrollTop;
     sc.style.cursor = "grabbing";
-    const move = (ev: MouseEvent) => {
-      sc.scrollLeft = sl - (ev.clientX - sx);
-      sc.scrollTop  = st - (ev.clientY - sy);
-    };
-    const up = () => {
-      sc.style.cursor = "grab";
-      window.removeEventListener("mousemove", move);
-      window.removeEventListener("mouseup", up);
-    };
+    const move = (ev: MouseEvent) => { sc.scrollLeft = sl - (ev.clientX - sx); sc.scrollTop = st - (ev.clientY - sy); };
+    const up = () => { sc.style.cursor = "grab"; window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); };
     window.addEventListener("mousemove", move);
     window.addEventListener("mouseup", up);
   }
 
-  /* ---- Hover to highlight inbred ancestor copies ---- */
   function onHover(e: React.MouseEvent) {
     const card = (e.target as HTMLElement).closest<HTMLElement>("[data-dupe]");
     const sc = scrollRef.current;
@@ -251,9 +225,7 @@ export default function PedigreeTree({
     if (!gridRef.current) return;
     setDownloading(true);
     try {
-      const url = await toPng(gridRef.current, {
-        backgroundColor: "#FBF8F4", pixelRatio: 2, skipFonts: true,
-      });
+      const url = await toPng(gridRef.current, { backgroundColor: "#FBF8F4", pixelRatio: 2, skipFonts: true });
       const a = document.createElement("a");
       a.download = `${(title ?? "pedigree").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-pedigree.png`;
       a.href = url; a.click();
@@ -266,26 +238,24 @@ export default function PedigreeTree({
     background: "white", color: "var(--teal-dark)", cursor: "pointer",
     fontSize: 12, fontFamily: "var(--font-lato)",
   };
-  const zoomBtn: React.CSSProperties = {
-    ...toolBtn, padding: "5px 11px", fontWeight: 700, minWidth: 34, textAlign: "center" as const,
-  };
+
+  // Fill trick: when zoomed OUT (zoom < 1), scale the inner div UP so it
+  // occupies the full container after zoom is applied.
+  // When zoomed IN (zoom > 1), let it overflow naturally so scroll appears.
+  const fillW = zoom < 1 ? `${(100 / zoom).toFixed(2)}%` : "100%";
+  const fillH = zoom < 1 ? `${(CANVAS_H / zoom).toFixed(0)}px` : "auto";
 
   return (
     <div style={{ background: "var(--cream)" }}>
 
-      {/* ---- Toolbar ---- */}
-      <div style={{
-        marginBottom: 10, display: "flex", gap: 8, alignItems: "center",
-        fontFamily: "var(--font-lato)", fontSize: 13, flexWrap: "wrap",
-      }}>
+      {/* Toolbar */}
+      <div style={{ marginBottom: 10, display: "flex", gap: 8, alignItems: "center", fontFamily: "var(--font-lato)", fontSize: 13, flexWrap: "wrap" }}>
         <span style={{ color: "var(--text-muted)" }}>Generations:</span>
         {[3, 4, 5, 6, 7, 8, 9, 10].map((d) => {
           const beyond = d > cap;
           const active = maxDepth === d;
           return (
-            <button key={d}
-              onClick={() => { if (!beyond) setDepthState(d); }}
-              disabled={beyond}
+            <button key={d} onClick={() => { if (!beyond) setDepthState(d); }} disabled={beyond}
               title={beyond ? `Only ${cap} generation${cap !== 1 ? "s" : ""} of data available` : undefined}
               style={{
                 ...toolBtn,
@@ -298,16 +268,12 @@ export default function PedigreeTree({
             >{d}</button>
           );
         })}
-
         <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
-          <button onClick={() => setZoom((z) => clampZoom(z - 0.15))} style={zoomBtn} title="Zoom out">−</button>
-          <button onClick={() => setZoom(calcFitZoom(maxDepth))} style={{ ...toolBtn, minWidth: 52, textAlign: "center" }} title="Click to fit view">
-            {Math.round(zoom * 100)}%
-          </button>
-          <button onClick={() => setZoom((z) => clampZoom(z + 0.15))} style={zoomBtn} title="Zoom in">+</button>
+          <button onClick={() => setZoom((z) => clampZoom(z - 0.15))} style={{ ...toolBtn, padding: "5px 11px", fontWeight: 700 }} title="Zoom out">−</button>
+          <button onClick={() => setZoom(calcFit(maxDepth))} style={{ ...toolBtn, minWidth: 52, textAlign: "center" }} title="Click to fit view">{Math.round(zoom * 100)}%</button>
+          <button onClick={() => setZoom((z) => clampZoom(z + 0.15))} style={{ ...toolBtn, padding: "5px 11px", fontWeight: 700 }} title="Zoom in">+</button>
           {isAdmin && (
-            <button onClick={download} disabled={downloading}
-              style={{ ...toolBtn, opacity: downloading ? 0.6 : 1 }}>
+            <button onClick={download} disabled={downloading} style={{ ...toolBtn, opacity: downloading ? 0.6 : 1 }}>
               ↓ {downloading ? "Saving…" : "Download"}
             </button>
           )}
@@ -315,35 +281,21 @@ export default function PedigreeTree({
       </div>
 
       <p style={{ margin: "0 0 8px", fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-lato)" }}>
-        Drag to pan · ⌘/Ctrl + scroll to zoom · click % to fit view · hover an inbred ancestor to highlight all copies
+        Drag to pan · ⌘/Ctrl + scroll to zoom · click % to fit · hover an inbred ancestor to highlight all copies
       </p>
 
-      {/* ---- Pan / zoom canvas ---- */}
-      <div
-        ref={scrollRef}
-        onWheel={onWheel}
-        onMouseDown={onPanStart}
-        onMouseOver={onHover}
-        onMouseOut={onHover}
-        style={{
-          overflow: "auto",
-          height: CANVAS_H,
-          cursor: "grab",
-          border: "1px solid var(--border)",
-          borderRadius: 8,
-          background: "var(--cream-dark)",
-        }}
-      >
-        <div style={{ zoom, padding: 8, width: "max-content" }}>
-          <div
-            ref={gridRef}
-            style={{
-              display: "grid",
-              gridTemplateColumns: colTemplate,
-              gridTemplateRows: rowTemplate,
-              gap: 2,
-            }}
-          >
+      {/* Pan / zoom canvas */}
+      <div ref={scrollRef} onWheel={onWheel} onMouseDown={onPanStart} onMouseOver={onHover} onMouseOut={onHover}
+        style={{ overflow: "auto", height: CANVAS_H, cursor: "grab", border: "1px solid var(--border)", borderRadius: 8, background: "var(--cream-dark)" }}>
+        {/* Fill trick — see comment above */}
+        <div style={{ zoom, width: fillW, minHeight: fillH, padding: 8, boxSizing: "border-box" }}>
+          <div ref={gridRef} style={{
+            display: "grid",
+            gridTemplateColumns: colTemplate,
+            gridTemplateRows: rowTemplate,
+            gap: 2,
+            width: "100%",
+          }}>
             {cells.map((cell, i) => <GridCard key={i} cell={cell} idMap={idMap} />)}
           </div>
         </div>
