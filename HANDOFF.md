@@ -128,6 +128,7 @@ npx vercel --prod
    - Back button uses `router.back()` (context-aware, not hardcoded link)
    - Bulk move to character — operates only on filtered visible rows
    - Select-all respects current filter
+   - Performance: search input debounced 120ms, `React.memo` on ListView/GalleryView, `CooldownBadge` isolated interval, fixed-height badge zone prevents CLS
 
 2. **Preferred Services** (`/admin/diary`):
    - Price field changed from integer cents to free text string (`"Free"`, `"250k"`, `"Negotiable"`)
@@ -135,17 +136,17 @@ npx vercel --prod
    - Filter bar added: text search (name + notes) + service type dropdown, compound AND logic, "No matching services" empty state
 
 3. **Show Scoreboard** (`/resources/show-scoreboard`):
-   - Mobile layout: judge panel collapses behind toggle button on small screens
+   - Mobile layout: judge panel collapses behind toggle button on small screens (CSS grid-template-rows animation)
    - Responsive font sizes with `clamp()`
    - Leaderboard: full 7-col grid on desktop, compact 2-line card on mobile
    - All touch targets `min-height: 44px`
    - Queue: "done" now derived from scores array (not position index) — any un-scored rider is tappable
    - ↩ Redo button on scored riders — removes their score, returns them to active with fresh timer
+   - Performance: `forceTick` 100ms interval isolated to `LiveTimerDisplay` component so the rest of the tree doesn't re-render while timer runs
 
 4. **Pedigree tree fix** (`lib/pedigree.ts` + `components/PedigreeTree.tsx`):
    - Inbred ancestors (repeated in tree) now show their FULL pedigree on every occurrence
    - Previously they returned as childless leaf nodes
-   - Fix: inbred nodes still build children (passing unchanged `seen` to prevent true cycles), renderer no longer gates on `!node.inbreeding`
 
 5. **Suggested pairings depth fix** (`/admin/breeding/suggested-pairings`):
    - `pedigreeDepth` now uses `1 + Math.min(stallionDepth, mareDepth)` — honest balanced depth
@@ -153,6 +154,20 @@ npx vercel --prod
    - Filter uses balanced depth so lopsided pairings can't cheat the minimum
 
 6. **Resources page** — removed AI-sounding subtitle paragraph
+
+7. **Pedigree display — full redesign** (`components/PedigreeTree.tsx`):
+   - Replaced branching connector-line tree with **horizontal CSS grid layout** (subject left, ancestors expanding right)
+   - **Colors by gender**: Stallion → blue (`--sire-*`), Mare → pink (`--dam-*`), root → cream/gold, inbred → red, unknown → muted cream
+   - **Default 4 generations**; toggle 3–10; fullscreen button
+   - **Rows use `1fr`** so grid always fills the canvas block exactly (no bottom gap at gen 3–4)
+   - `naturalH = max(canvasH, totalRows × 28px)` — deeper gens grow with minimum row height, fit zoom shrinks them
+   - **Zoom/pan**: `transform: scale()` with explicit scroll-area sizing div (NOT CSS `zoom` — that breaks scrollWidth at small scales)
+   - Auto-fit zoom capped at 1.0 (never zooms in beyond 100%)
+   - Canvas height measured via `ResizeObserver` — auto-refits on fullscreen enter/exit
+   - `className="ped-export"` on bare mode div; `CertificateClient` targets `.ped-export` (not the old `.ped-root`)
+   - Inbred ancestor hover highlight uses `[data-dupe].dupe-active` CSS rule (added to `globals.css`)
+
+8. **`/pedigree-demo`** — static demo page (can be deleted once grid design is confirmed)
 
 ---
 
