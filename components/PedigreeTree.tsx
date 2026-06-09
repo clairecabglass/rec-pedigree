@@ -19,42 +19,45 @@ interface Props {
 
 interface HorseRef { id: string; name: string; }
 
-/* ---- Colors keyed by gender ---- */
-const STALLION  = { bg: "var(--sire-bg)",    border: "var(--sire-border)",    text: "var(--sire-text)",    muted: "#7A9BB0" };
-const MARE      = { bg: "var(--dam-bg)",      border: "var(--dam-border)",     text: "var(--dam-text)",     muted: "#AE8099" };
+/* ---- Colors keyed by PEDIGREE POSITION ----
+   In a pedigree, the upper horse of every pair is the sire (stallion → blue),
+   the lower horse is the dam (mare → pink). Position determines this, not the
+   recorded gender field (which may be missing or wrong). */
+const SIRE_CLR  = { bg: "var(--sire-bg)",    border: "var(--sire-border)",    text: "var(--sire-text)",    muted: "#7A9BB0" };
+const DAM_CLR   = { bg: "var(--dam-bg)",      border: "var(--dam-border)",     text: "var(--dam-text)",     muted: "#AE8099" };
 const ROOT_CLR  = { bg: "var(--cream)",       border: "var(--gold)",           text: "var(--teal-dark)",    muted: "var(--text-muted)" };
-const EMPTY_CLR = { bg: "var(--cream-dark)",  border: "var(--border)",         text: "var(--text-muted)",   muted: "var(--text-muted)" };
 const INBREED   = { bg: "var(--inbreed-bg)",  border: "var(--inbreed-border)", text: "var(--inbreed-text)", muted: "var(--inbreed-text)" };
 
-function cardColors(col: number, node: HorseNode | null, inbreed: boolean) {
+type Slot = "root" | "sire" | "dam";
+
+function cardColors(slot: Slot, inbreed: boolean) {
   if (inbreed) return INBREED;
-  if (col === 1) return ROOT_CLR;
-  if (!node || node.name.toLowerCase() === "unknown") return EMPTY_CLR;
-  if (node.gender === "Stallion") return STALLION;
-  if (node.gender === "Mare")     return MARE;
+  if (slot === "sire") return SIRE_CLR;
+  if (slot === "dam")  return DAM_CLR;
   return ROOT_CLR;
 }
 
 /* ---- Grid cell ---- */
-interface GridCell { col: number; rowStart: number; rowSpan: number; node: HorseNode | null; inbreed: boolean; }
+interface GridCell { col: number; rowStart: number; rowSpan: number; node: HorseNode | null; inbreed: boolean; slot: Slot; }
 
 function buildGrid(
   node: HorseNode | null, col: number, rowStart: number, rowSpan: number,
-  maxDepth: number, dupes: Set<string>, cells: GridCell[],
+  maxDepth: number, dupes: Set<string>, slot: Slot, cells: GridCell[],
 ) {
-  cells.push({ col, rowStart, rowSpan, node, inbreed: !!node && dupes.has(node.name.toLowerCase()) });
+  cells.push({ col, rowStart, rowSpan, node, slot, inbreed: !!node && dupes.has(node.name.toLowerCase()) });
   if (col >= maxDepth + 1) return;
   const half = rowSpan / 2;
-  buildGrid(node?.sire ?? null, col + 1, rowStart,        half, maxDepth, dupes, cells);
-  buildGrid(node?.dam  ?? null, col + 1, rowStart + half, half, maxDepth, dupes, cells);
+  // Upper child is always the sire slot, lower child always the dam slot.
+  buildGrid(node?.sire ?? null, col + 1, rowStart,        half, maxDepth, dupes, "sire", cells);
+  buildGrid(node?.dam  ?? null, col + 1, rowStart + half, half, maxDepth, dupes, "dam",  cells);
 }
 
 const NAME_SZ = [15, 13, 12, 11, 10,  9, 8, 8, 8, 8, 8];
 const META_SZ = [12, 11, 10,  9,  9,  8, 7, 7, 7, 7, 7];
 
-function GridCard({ cell, idMap }: { cell: GridCell; idMap: Map<string, string> }) {
-  const { col, rowStart, rowSpan, node, inbreed } = cell;
-  const s = cardColors(col, node, inbreed);
+function GridCard({ cell, idMap, rowUnitH }: { cell: GridCell; idMap: Map<string, string>; rowUnitH: number }) {
+  const { col, rowStart, rowSpan, node, inbreed, slot } = cell;
+  const s = cardColors(slot, inbreed);
   const nameSize = NAME_SZ[col - 1] ?? 8;
   const metaSize = META_SZ[col - 1] ?? 7;
   const isUnknown = !node || node.name.toLowerCase() === "unknown";
@@ -62,22 +65,29 @@ function GridCard({ cell, idMap }: { cell: GridCell; idMap: Map<string, string> 
   const horseId = node ? idMap.get(node.name.toLowerCase()) : null;
   const dupeKey = inbreed && node ? node.name.toLowerCase() : undefined;
 
+  // Available unzoomed cell height drives how many lines we can show without
+  // clipping. The name always shows; breed/coat appear only when there's room.
+  const cellH    = rowUnitH * rowSpan;
+  const showBreed = !isUnknown && !!node?.breed && cellH >= 30;
+  const showCoat  = !isUnknown && !!coat && cellH >= 46;
+  const showFlag  = inbreed && cellH >= 60;
+
   const inner = (
-    <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", padding: col === 1 ? "10px 14px" : "5px 8px", height: "100%", gap: 2, overflow: "hidden" }}>
+    <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", padding: col === 1 ? "10px 14px" : "4px 8px", height: "100%", gap: 1, overflow: "hidden" }}>
       <div style={{ fontFamily: "var(--font-playfair)", fontSize: nameSize, fontWeight: 700, color: s.text, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
         {node?.name ?? "Unknown"}
       </div>
-      {!isUnknown && node?.breed && (
-        <div style={{ fontFamily: "var(--font-lato)", fontSize: metaSize, color: s.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", lineHeight: 1.3 }}>
-          {node.gender ? `${node.gender} · ` : ""}{node.breed}
+      {showBreed && (
+        <div style={{ fontFamily: "var(--font-lato)", fontSize: metaSize, color: s.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", lineHeight: 1.25 }}>
+          {slot === "sire" ? "Stallion · " : slot === "dam" ? "Mare · " : node!.gender ? `${node!.gender} · ` : ""}{node!.breed}
         </div>
       )}
-      {!isUnknown && coat && (
-        <div style={{ fontFamily: "var(--font-lato)", fontSize: metaSize - 1, color: s.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", opacity: 0.85 }}>
+      {showCoat && (
+        <div style={{ fontFamily: "var(--font-lato)", fontSize: metaSize - 1, color: s.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", opacity: 0.85, lineHeight: 1.2 }}>
           {coat}
         </div>
       )}
-      {inbreed && <div style={{ fontFamily: "var(--font-lato)", fontSize: 9, color: "var(--inbreed-text)", fontWeight: 700 }}>⚠ Inbreeding</div>}
+      {showFlag && <div style={{ fontFamily: "var(--font-lato)", fontSize: 9, color: "var(--inbreed-text)", fontWeight: 700 }}>⚠ Inbreeding</div>}
     </div>
   );
 
@@ -168,7 +178,10 @@ export default function PedigreeTree({ node, dupes, allHorses, isAdmin, title, b
   const idMap = new Map(refs.map((h) => [h.name.toLowerCase(), h.id]));
 
   const cells: GridCell[] = [];
-  buildGrid(node, 1, 1, totalRows, maxDepth, dupes, cells);
+  buildGrid(node, 1, 1, totalRows, maxDepth, dupes, "root", cells);
+
+  // Unzoomed height of one row — drives per-cell text gating in GridCard.
+  const rowUnitH = naturalH / totalRows;
 
   // Root col slightly wider; ancestors equal.
   const colTemplate = `1.2fr repeat(${maxDepth}, 1fr)`;
@@ -185,7 +198,7 @@ export default function PedigreeTree({ node, dupes, allHorses, isAdmin, title, b
         gap: 2, padding: compact ? 4 : 6,
         width: compact ? 900 : 1100, background: "#FBF8F4",
       }}>
-        {cells.map((cell, i) => <GridCard key={i} cell={cell} idMap={idMap} />)}
+        {cells.map((cell, i) => <GridCard key={i} cell={cell} idMap={idMap} rowUnitH={bareRowH} />)}
       </div>
     );
   }
@@ -292,7 +305,7 @@ export default function PedigreeTree({ node, dupes, allHorses, isAdmin, title, b
           {/* Grid — natural size, scaled via transform */}
           <div style={{ position: "absolute", top: 0, left: 0, width: containerW, height: naturalH, transform: `scale(${zoom})`, transformOrigin: "top left" }}>
             <div ref={gridRef} style={{ display: "grid", gridTemplateColumns: colTemplate, gridTemplateRows: rowTemplate, gap: 2, width: "100%", height: "100%", padding: 4, boxSizing: "border-box" }}>
-              {cells.map((cell, i) => <GridCard key={i} cell={cell} idMap={idMap} />)}
+              {cells.map((cell, i) => <GridCard key={i} cell={cell} idMap={idMap} rowUnitH={rowUnitH} />)}
             </div>
           </div>
 
