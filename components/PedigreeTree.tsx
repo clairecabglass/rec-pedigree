@@ -106,7 +106,13 @@ function GridCard({ cell, idMap, rowUnitH }: { cell: GridCell; idMap: Map<string
 
 /* ---- Main component ---- */
 const DEFAULT_CANVAS_H = 580;
-const MIN_ROW_H = 28; // minimum px per row before zoom kicks in
+// Minimum px per row. Smaller for deep generations so the tall ancestor
+// cells don't balloon into big empty blocks. Gen 3–4 keep the roomy 28px.
+function minRowH(depth: number) {
+  if (depth >= 7) return 15;
+  if (depth >= 5) return 20;
+  return 28;
+}
 
 export default function PedigreeTree({ node, dupes, allHorses, isAdmin, title, bare, fixedDepth, compact, availableDepth }: Props) {
   const [depthState, setDepthState] = useState(4);
@@ -125,11 +131,11 @@ export default function PedigreeTree({ node, dupes, allHorses, isAdmin, title, b
 
   // naturalH: at least canvasH so gen 3–4 fill the block at zoom=1.
   // For deeper gens, grows with a minimum row height.
-  const naturalH = Math.max(canvasH, totalRows * MIN_ROW_H);
+  const naturalH = Math.max(canvasH, totalRows * minRowH(maxDepth));
 
   const clampZoom = (z: number) => Math.min(3, Math.max(0.08, z));
   const calcFit   = (d: number, h = canvasH) => {
-    const nh = Math.max(h, Math.pow(2, d) * MIN_ROW_H);
+    const nh = Math.max(h, Math.pow(2, d) * minRowH(d));
     return clampZoom(Math.min(1, h / nh));
   };
 
