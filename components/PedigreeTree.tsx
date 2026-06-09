@@ -25,7 +25,8 @@ interface HorseRef { id: string; name: string; }
    recorded gender field (which may be missing or wrong). */
 const SIRE_CLR  = { bg: "var(--sire-bg)",    border: "var(--sire-border)",    text: "var(--sire-text)",    muted: "#7A9BB0" };
 const DAM_CLR   = { bg: "var(--dam-bg)",      border: "var(--dam-border)",     text: "var(--dam-text)",     muted: "#AE8099" };
-const ROOT_CLR  = { bg: "var(--cream)",       border: "var(--gold)",           text: "var(--teal-dark)",    muted: "var(--text-muted)" };
+// Root = the subject horse — neutral slate-grey "selected horse" treatment.
+const ROOT_CLR  = { bg: "#E7E6E3",            border: "#9CA1A0",               text: "#39403F",             muted: "#6E7574" };
 const INBREED   = { bg: "var(--inbreed-bg)",  border: "var(--inbreed-border)", text: "var(--inbreed-text)", muted: "var(--inbreed-text)" };
 
 type Slot = "root" | "sire" | "dam";
@@ -96,7 +97,7 @@ function GridCard({ cell, idMap, rowUnitH }: { cell: GridCell; idMap: Map<string
     background: s.bg, border: `1px solid ${s.border}`, borderRadius: 4,
     overflow: "hidden", textDecoration: "none",
     minWidth: 0, minHeight: 0, // grid cells need this for text-overflow: ellipsis to work
-    ...(col === 1 ? { borderLeft: "4px solid var(--gold)" } : {}),
+    ...(col === 1 ? { borderLeft: "4px solid #7E8584" } : {}),
   };
 
   if (horseId) return <Link href={`/registry/${horseId}`} style={style} data-dupe={dupeKey} title={dupeKey ? `${node?.name} appears more than once — hover to highlight all copies` : undefined}>{inner}</Link>;
