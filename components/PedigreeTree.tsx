@@ -11,51 +11,40 @@ interface Props {
   allHorses: string; // JSON: {id, name}[]
   isAdmin?: boolean;
   title?: string;
-  bare?: boolean;      // no toolbar — used for certificate PNG export
+  bare?: boolean;
   fixedDepth?: number;
-  compact?: boolean;   // tighter rows (certificate)
+  compact?: boolean;
   availableDepth?: number;
 }
 
 interface HorseRef { id: string; name: string; }
 
-/* ---- Layout constants ---- */
-const ROW_H    = 44;   // px per row at zoom 1
-const CANVAS_H = 580;  // px — visible scroll-container height
+/* ---- Layout ---- */
+const ROW_H    = 44;   // px per row at scale 1
+const CANVAS_H = 580;  // visible scroll-container height
 
-/* ---- Color tokens — keyed by gender ---- */
-const STALLION = { bg: "var(--sire-bg)",  border: "var(--sire-border)", text: "var(--sire-text)", muted: "#7A9BB0" };
-const MARE     = { bg: "var(--dam-bg)",   border: "var(--dam-border)",  text: "var(--dam-text)",  muted: "#AE8099" };
-const ROOT_CLR = { bg: "var(--cream)",    border: "var(--gold)",        text: "var(--teal-dark)", muted: "var(--text-muted)" };
-const UNKNOWN_CLR = { bg: "var(--cream-dark)", border: "var(--border)", text: "var(--text-muted)", muted: "var(--text-muted)" };
-const INBREED  = { bg: "var(--inbreed-bg)", border: "var(--inbreed-border)", text: "var(--inbreed-text)", muted: "var(--inbreed-text)" };
+/* ---- Colors — keyed by gender ---- */
+const STALLION  = { bg: "var(--sire-bg)",    border: "var(--sire-border)",    text: "var(--sire-text)",    muted: "#7A9BB0" };
+const MARE      = { bg: "var(--dam-bg)",      border: "var(--dam-border)",     text: "var(--dam-text)",     muted: "#AE8099" };
+const ROOT_CLR  = { bg: "var(--cream)",       border: "var(--gold)",           text: "var(--teal-dark)",    muted: "var(--text-muted)" };
+const EMPTY_CLR = { bg: "var(--cream-dark)",  border: "var(--border)",         text: "var(--text-muted)",   muted: "var(--text-muted)" };
+const INBREED   = { bg: "var(--inbreed-bg)",  border: "var(--inbreed-border)", text: "var(--inbreed-text)", muted: "var(--inbreed-text)" };
 
-function cardColors(col: number, node: HorseNode | null, inbreed: boolean) {
+function colors(col: number, node: HorseNode | null, inbreed: boolean) {
   if (inbreed) return INBREED;
   if (col === 1) return ROOT_CLR;
-  if (!node || node.name.toLowerCase() === "unknown") return UNKNOWN_CLR;
+  if (!node || node.name.toLowerCase() === "unknown") return EMPTY_CLR;
   if (node.gender === "Stallion") return STALLION;
   if (node.gender === "Mare")     return MARE;
-  return ROOT_CLR; // gender not set — neutral
+  return ROOT_CLR;
 }
 
 /* ---- Grid cell ---- */
-interface GridCell {
-  col: number;
-  rowStart: number;
-  rowSpan: number;
-  node: HorseNode | null;
-  inbreed: boolean;
-}
+interface GridCell { col: number; rowStart: number; rowSpan: number; node: HorseNode | null; inbreed: boolean; }
 
 function buildGrid(
-  node: HorseNode | null,
-  col: number,
-  rowStart: number,
-  rowSpan: number,
-  maxDepth: number,
-  dupes: Set<string>,
-  cells: GridCell[],
+  node: HorseNode | null, col: number, rowStart: number, rowSpan: number,
+  maxDepth: number, dupes: Set<string>, cells: GridCell[],
 ) {
   const inbreed = !!node && dupes.has(node.name.toLowerCase());
   cells.push({ col, rowStart, rowSpan, node, inbreed });
@@ -65,14 +54,12 @@ function buildGrid(
   buildGrid(node?.dam  ?? null, col + 1, rowStart + half, half, maxDepth, dupes, cells);
 }
 
-/* ---- Font sizes by column depth (index = col - 1) ---- */
 const NAME_SZ = [15, 13, 12, 11, 10,  9, 8, 8, 8, 8, 8];
 const META_SZ = [12, 11, 10,  9,  9,  8, 7, 7, 7, 7, 7];
 
-/* ---- Single grid card ---- */
 function GridCard({ cell, idMap }: { cell: GridCell; idMap: Map<string, string> }) {
   const { col, rowStart, rowSpan, node, inbreed } = cell;
-  const s = cardColors(col, node, inbreed);
+  const s = colors(col, node, inbreed);
   const nameSize = NAME_SZ[col - 1] ?? 8;
   const metaSize = META_SZ[col - 1] ?? 7;
   const isUnknown = !node || node.name.toLowerCase() === "unknown";
@@ -83,79 +70,73 @@ function GridCard({ cell, idMap }: { cell: GridCell; idMap: Map<string, string> 
   const inner = (
     <div style={{
       display: "flex", flexDirection: "column", justifyContent: "center",
-      padding: col === 1 ? "10px 14px" : "4px 8px",
-      height: "100%", gap: 1, overflow: "hidden",
+      padding: col === 1 ? "10px 14px" : "5px 8px",
+      height: "100%", gap: 2, overflow: "hidden",
     }}>
       <div style={{
         fontFamily: "var(--font-playfair)", fontSize: nameSize, fontWeight: 700,
-        color: s.text, lineHeight: 1.2,
-        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        color: s.text, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
       }}>
         {node?.name ?? "Unknown"}
       </div>
-      {node?.breed && !isUnknown && (
-        <div style={{
-          fontFamily: "var(--font-lato)", fontSize: metaSize, color: s.muted,
-          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", lineHeight: 1.3,
-        }}>
+      {!isUnknown && node?.breed && (
+        <div style={{ fontFamily: "var(--font-lato)", fontSize: metaSize, color: s.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", lineHeight: 1.3 }}>
           {node.gender ? `${node.gender} · ` : ""}{node.breed}
         </div>
       )}
-      {coat && !isUnknown && (
-        <div style={{
-          fontFamily: "var(--font-lato)", fontSize: metaSize - 1, color: s.muted,
-          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", opacity: 0.85,
-        }}>
+      {!isUnknown && coat && (
+        <div style={{ fontFamily: "var(--font-lato)", fontSize: metaSize - 1, color: s.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", opacity: 0.85 }}>
           {coat}
         </div>
       )}
       {inbreed && (
-        <div style={{ fontFamily: "var(--font-lato)", fontSize: 9, color: "var(--inbreed-text)", fontWeight: 700 }}>
-          ⚠ Inbreeding
-        </div>
+        <div style={{ fontFamily: "var(--font-lato)", fontSize: 9, color: "var(--inbreed-text)", fontWeight: 700 }}>⚠ Inbreeding</div>
       )}
     </div>
   );
 
-  const cellStyle: React.CSSProperties = {
-    gridColumn: col,
-    gridRow: `${rowStart} / span ${rowSpan}`,
-    background: s.bg,
-    border: `1px solid ${s.border}`,
-    borderRadius: 4,
-    overflow: "hidden",
-    textDecoration: "none",
+  const style: React.CSSProperties = {
+    gridColumn: col, gridRow: `${rowStart} / span ${rowSpan}`,
+    background: s.bg, border: `1px solid ${s.border}`, borderRadius: 4,
+    overflow: "hidden", textDecoration: "none",
     ...(col === 1 ? { borderLeft: "4px solid var(--gold)" } : {}),
   };
 
   if (horseId) {
-    return (
-      <Link href={`/registry/${horseId}`} style={cellStyle} data-dupe={dupeKey}
-        title={dupeKey ? `${node?.name} appears more than once — hover to highlight all copies` : undefined}>
-        {inner}
-      </Link>
-    );
+    return <Link href={`/registry/${horseId}`} style={style} data-dupe={dupeKey} title={dupeKey ? `${node?.name} appears more than once — hover to highlight all copies` : undefined}>{inner}</Link>;
   }
-  return <div style={cellStyle} data-dupe={dupeKey}>{inner}</div>;
+  return <div style={style} data-dupe={dupeKey}>{inner}</div>;
 }
 
 /* ---- Main component ---- */
-export default function PedigreeTree({
-  node, dupes, allHorses, isAdmin, title, bare, fixedDepth, compact, availableDepth,
-}: Props) {
-  const [depthState, setDepthState] = useState(5);
-  const [zoom, setZoom] = useState(1);
+export default function PedigreeTree({ node, dupes, allHorses, isAdmin, title, bare, fixedDepth, compact, availableDepth }: Props) {
+  const [depthState, setDepthState] = useState(4);
+  const [zoom, setZoom]             = useState(1);
+  const [containerW, setContainerW] = useState(1380);
   const [downloading, setDownloading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const gridRef   = useRef<HTMLDivElement>(null);
 
-  const cap = availableDepth != null && availableDepth > 0 ? availableDepth : Infinity;
-  const maxDepth  = bare ? (fixedDepth ?? 4) : Math.min(depthState, cap);
+  const cap      = availableDepth != null && availableDepth > 0 ? availableDepth : Infinity;
+  const maxDepth = bare ? (fixedDepth ?? 4) : Math.min(depthState, cap);
   const totalRows = Math.pow(2, maxDepth);
+  const naturalH  = totalRows * ROW_H;
 
   const clampZoom = (z: number) => Math.min(3, Math.max(0.08, z));
-  const calcFit   = (d: number) => clampZoom(CANVAS_H / (Math.pow(2, d) * ROW_H + 16));
+  // Never zoom in beyond 1 on auto-fit — text doesn't need to get bigger
+  const calcFit   = (d: number) => clampZoom(Math.min(1, CANVAS_H / (Math.pow(2, d) * ROW_H + 16)));
 
+  // Measure scroll container width on mount + resize
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const obs = new ResizeObserver(() => setContainerW(el.clientWidth));
+    obs.observe(el);
+    setContainerW(el.clientWidth);
+    return () => obs.disconnect();
+  }, []);
+
+  // Auto-fit when depth changes
   useEffect(() => { setZoom(calcFit(depthState)); }, [depthState]); // eslint-disable-line
 
   if (!node) return <p style={{ color: "var(--text-muted)", fontFamily: "var(--font-lato)" }}>No pedigree data available.</p>;
@@ -166,13 +147,10 @@ export default function PedigreeTree({
   const cells: GridCell[] = [];
   buildGrid(node, 1, 1, totalRows, maxDepth, dupes, cells);
 
-  // Fractional column widths — root gets 1.5× width of ancestor columns.
-  // Combined with the fill-width trick below, this stretches the grid to
-  // always occupy the full visible container at any zoom level.
   const colTemplate = `1.5fr repeat(${maxDepth}, 1fr)`;
   const rowTemplate = `repeat(${totalRows}, ${ROW_H}px)`;
 
-  /* ---- Bare mode (certificate PNG export) ---- */
+  /* ---- Bare mode (certificate export) ---- */
   if (bare) {
     const bareRowH = compact ? 28 : 36;
     return (
@@ -180,8 +158,7 @@ export default function PedigreeTree({
         display: "grid",
         gridTemplateColumns: colTemplate,
         gridTemplateRows: `repeat(${totalRows}, ${bareRowH}px)`,
-        gap: 2,
-        padding: compact ? 4 : 6,
+        gap: 2, padding: compact ? 4 : 6,
         width: compact ? 900 : 1100,
         background: "#FBF8F4",
       }}>
@@ -191,6 +168,14 @@ export default function PedigreeTree({
   }
 
   /* ---- Interactive mode ---- */
+
+  // Scroll area is sized to the SCALED grid dimensions.
+  // Using transform: scale() (not CSS zoom) so the scroll container
+  // correctly tracks the scaled size and doesn't create phantom scroll space.
+  const scaledW = containerW * zoom;
+  const scaledH = naturalH * zoom;
+  const scrollAreaW = Math.max(scaledW, containerW); // never smaller than container (no h-scroll when zoomed out)
+  const scrollAreaH = Math.max(scaledH, CANVAS_H);   // never smaller than canvas height
 
   function onWheel(e: React.WheelEvent) {
     if (e.ctrlKey || e.metaKey) {
@@ -239,12 +224,6 @@ export default function PedigreeTree({
     fontSize: 12, fontFamily: "var(--font-lato)",
   };
 
-  // Fill trick: when zoomed OUT (zoom < 1), scale the inner div UP so it
-  // occupies the full container after zoom is applied.
-  // When zoomed IN (zoom > 1), let it overflow naturally so scroll appears.
-  const fillW = zoom < 1 ? `${(100 / zoom).toFixed(2)}%` : "100%";
-  const fillH = zoom < 1 ? `${(CANVAS_H / zoom).toFixed(0)}px` : "auto";
-
   return (
     <div style={{ background: "var(--cream)" }}>
 
@@ -269,9 +248,9 @@ export default function PedigreeTree({
           );
         })}
         <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
-          <button onClick={() => setZoom((z) => clampZoom(z - 0.15))} style={{ ...toolBtn, padding: "5px 11px", fontWeight: 700 }} title="Zoom out">−</button>
+          <button onClick={() => setZoom((z) => clampZoom(z - 0.15))} style={{ ...toolBtn, padding: "5px 11px", fontWeight: 700 }}>−</button>
           <button onClick={() => setZoom(calcFit(maxDepth))} style={{ ...toolBtn, minWidth: 52, textAlign: "center" }} title="Click to fit view">{Math.round(zoom * 100)}%</button>
-          <button onClick={() => setZoom((z) => clampZoom(z + 0.15))} style={{ ...toolBtn, padding: "5px 11px", fontWeight: 700 }} title="Zoom in">+</button>
+          <button onClick={() => setZoom((z) => clampZoom(z + 0.15))} style={{ ...toolBtn, padding: "5px 11px", fontWeight: 700 }}>+</button>
           {isAdmin && (
             <button onClick={download} disabled={downloading} style={{ ...toolBtn, opacity: downloading ? 0.6 : 1 }}>
               ↓ {downloading ? "Saving…" : "Download"}
@@ -284,20 +263,20 @@ export default function PedigreeTree({
         Drag to pan · ⌘/Ctrl + scroll to zoom · click % to fit · hover an inbred ancestor to highlight all copies
       </p>
 
-      {/* Pan / zoom canvas */}
+      {/* Scroll container */}
       <div ref={scrollRef} onWheel={onWheel} onMouseDown={onPanStart} onMouseOver={onHover} onMouseOut={onHover}
         style={{ overflow: "auto", height: CANVAS_H, cursor: "grab", border: "1px solid var(--border)", borderRadius: 8, background: "var(--cream-dark)" }}>
-        {/* Fill trick — see comment above */}
-        <div style={{ zoom, width: fillW, minHeight: fillH, padding: 8, boxSizing: "border-box" }}>
-          <div ref={gridRef} style={{
-            display: "grid",
-            gridTemplateColumns: colTemplate,
-            gridTemplateRows: rowTemplate,
-            gap: 2,
-            width: "100%",
-          }}>
-            {cells.map((cell, i) => <GridCard key={i} cell={cell} idMap={idMap} />)}
+
+        {/* Scroll area — sized to match the scaled grid so scroll bars appear at the right time */}
+        <div style={{ width: scrollAreaW, height: scrollAreaH, position: "relative", flexShrink: 0 }}>
+
+          {/* Grid — rendered at natural size, scaled via transform */}
+          <div style={{ position: "absolute", top: 0, left: 0, width: containerW, height: naturalH, transform: `scale(${zoom})`, transformOrigin: "top left" }}>
+            <div ref={gridRef} style={{ display: "grid", gridTemplateColumns: colTemplate, gridTemplateRows: rowTemplate, gap: 2, width: "100%", height: "100%", padding: 4, boxSizing: "border-box" }}>
+              {cells.map((cell, i) => <GridCard key={i} cell={cell} idMap={idMap} />)}
+            </div>
           </div>
+
         </div>
       </div>
     </div>
