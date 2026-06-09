@@ -2,148 +2,206 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { toPng } from "html-to-image";
+import { parseHorseCoat } from "@/lib/horseCoat";
 import type { HorseNode } from "@/lib/pedigree";
 
 interface Props {
   node: HorseNode | null;
   dupes: Set<string>;
   allHorses: string; // JSON: {id, name}[]
-  isAdmin?: boolean;  // download is admin-only
-  title?: string;     // used for the downloaded filename
-  bare?: boolean;     // no toolbar, transparent bg (for the certificate)
+  isAdmin?: boolean;
+  title?: string;
+  bare?: boolean;      // no toolbar — used for certificate PNG export
   fixedDepth?: number;
-  compact?: boolean;  // tighter rows (certificate)
-  /** Generations of ancestor data actually available for this horse. Toggle
-      values above this are disabled and the active button is clamped so the
-      highlighted number always equals what's rendered on screen. */
+  compact?: boolean;   // tighter rows (certificate)
   availableDepth?: number;
 }
 
 interface HorseRef { id: string; name: string; }
 
-function Card({
-  node, role, dupes, idMap, depth,
-}: {
-  node: HorseNode;
-  role: "root" | "sire" | "dam";
-  dupes: Set<string>;
-  idMap: Map<string, string>;
-  depth: number;
-}) {
-  const isInbreeding = dupes.has(node.name.toLowerCase());
-  const isUnknown = node.name.toLowerCase() === "unknown";
-  const horseId = idMap.get(node.name.toLowerCase());
+/* ---- Layout constants ---- */
+const ROW_H      = 44;   // px per row at zoom 1
+const COL_ROOT   = 200;  // px — root (subject) column
+const COL_ANC    = 155;  // px — each ancestor column
+const CANVAS_H   = 580;  // px — visible scroll-container height
 
-  const cls = [
-    "ped-card",
-    role,
-    isInbreeding ? "inbreeding" : "",
-    isUnknown && !isInbreeding ? "unknown" : "",
-    horseId ? "" : "no-link",
-  ].filter(Boolean).join(" ");
+/* ---- Color tokens ---- */
+type Side = "root" | "sire" | "dam";
 
-  const inner = (
-    <>
-      <div className="pc-name">{node.name}</div>
-      {node.breed && <div className="pc-breed">{node.breed}</div>}
-      {node.coat && depth < 2 && <div className="pc-coat">{node.coat}</div>}
-      {isInbreeding && <div className="pc-flag">⚠ Inbreeding</div>}
-    </>
-  );
+const SIDE: Record<Side, { bg: string; border: string; text: string; muted: string }> = {
+  root: { bg: "var(--cream)",    border: "var(--gold)",        text: "var(--teal-dark)",    muted: "var(--text-muted)" },
+  sire: { bg: "var(--sire-bg)",  border: "var(--sire-border)", text: "var(--sire-text)",    muted: "#7A9BB0" },
+  dam:  { bg: "var(--dam-bg)",   border: "var(--dam-border)",  text: "var(--dam-text)",     muted: "#AE8099" },
+};
+const INBREED = { bg: "var(--inbreed-bg)", border: "var(--inbreed-border)", text: "var(--inbreed-text)", muted: "var(--inbreed-text)" };
 
-  // data-dupe lets us highlight every copy of the same ancestor on hover, so
-  // it's clear WHICH cards are the matching pair (not the card beside it).
-  const dupeAttr = isInbreeding ? node.name.toLowerCase() : undefined;
-  const dupeTitle = isInbreeding
-    ? `${node.name} appears more than once in this pedigree — hover to see every copy.`
-    : undefined;
-
-  return horseId ? (
-    <Link href={`/registry/${horseId}`} className={cls} data-dupe={dupeAttr} title={dupeTitle}>{inner}</Link>
-  ) : (
-    <div className={cls} data-dupe={dupeAttr} title={dupeTitle}>{inner}</div>
-  );
+/* ---- Grid cell ---- */
+interface GridCell {
+  col: number;
+  rowStart: number;
+  rowSpan: number;
+  node: HorseNode | null;
+  side: Side;
+  inbreed: boolean;
 }
 
-function Node({
-  node, role, depth, maxDepth, dupes, idMap,
+function buildGrid(
+  node: HorseNode | null,
+  col: number,
+  rowStart: number,
+  rowSpan: number,
+  side: Side,
+  maxDepth: number,
+  dupes: Set<string>,
+  cells: GridCell[],
+) {
+  const inbreed = !!node && dupes.has(node.name.toLowerCase());
+  cells.push({ col, rowStart, rowSpan, node, side, inbreed });
+  if (col >= maxDepth + 1) return; // deepest column — no further recursion
+  const half = rowSpan / 2;
+  buildGrid(node?.sire ?? null, col + 1, rowStart,        half, col === 1 ? "sire" : side, maxDepth, dupes, cells);
+  buildGrid(node?.dam  ?? null, col + 1, rowStart + half, half, col === 1 ? "dam"  : side, maxDepth, dupes, cells);
+}
+
+/* ---- Font sizes by column (index = col - 1) ---- */
+const NAME_SZ = [15, 13, 12, 11, 10,  9,  8, 8, 8, 8, 8];
+const META_SZ = [12, 11, 10,  9,  9,  8,  7, 7, 7, 7, 7];
+
+/* ---- Single grid card ---- */
+function GridCard({
+  cell, idMap,
 }: {
-  node: HorseNode;
-  role: "root" | "sire" | "dam";
-  depth: number;
-  maxDepth: number;
-  dupes: Set<string>;
+  cell: GridCell;
   idMap: Map<string, string>;
 }) {
-  // Show parents for ALL nodes that have them — including inbred ones.
-  // Inbreeding is flagged visually on the Card but doesn't truncate the lineage.
-  const showParents = depth < maxDepth && (node.sire || node.dam);
-  const sire = node.sire ?? null;
-  const dam = node.dam ?? null;
-  const bothPresent = !!sire && !!dam;
+  const { col, rowStart, rowSpan, node, side, inbreed } = cell;
+  const s = inbreed ? INBREED : SIDE[side];
+  const nameSize = NAME_SZ[col - 1] ?? 8;
+  const metaSize = META_SZ[col - 1] ?? 7;
 
-  return (
-    <div className="ped-node">
-      <Card node={node} role={role} dupes={dupes} idMap={idMap} depth={depth} />
+  const coat = node?.coat ? (parseHorseCoat(node.coat).cleanName || null) : null;
+  const isUnknown = !node || node.name.toLowerCase() === "unknown";
+  const horseId = node ? idMap.get(node.name.toLowerCase()) : null;
+  const dupeKey = inbreed && node ? node.name.toLowerCase() : undefined;
 
-      {showParents && (
-        <div className="ped-parents">
-          {sire && (
-            <div className={`ped-branch sire ${bothPresent ? "has-sibling" : ""}`}>
-              <Node node={sire} role="sire" depth={depth + 1} maxDepth={maxDepth} dupes={dupes} idMap={idMap} />
-            </div>
-          )}
-          {dam && (
-            <div className={`ped-branch dam ${bothPresent ? "has-sibling" : ""}`}>
-              <Node node={dam} role="dam" depth={depth + 1} maxDepth={maxDepth} dupes={dupes} idMap={idMap} />
-            </div>
-          )}
+  const inner = (
+    <div style={{
+      display: "flex", flexDirection: "column", justifyContent: "center",
+      padding: col === 1 ? "10px 14px" : "4px 8px",
+      height: "100%", gap: 1, overflow: "hidden",
+    }}>
+      <div style={{
+        fontFamily: "var(--font-playfair)", fontSize: nameSize, fontWeight: 700,
+        color: isUnknown ? "var(--text-muted)" : s.text,
+        lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+      }}>
+        {node?.name ?? "Unknown"}
+      </div>
+
+      {node?.breed && (
+        <div style={{
+          fontFamily: "var(--font-lato)", fontSize: metaSize, color: s.muted,
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", lineHeight: 1.3,
+        }}>
+          {node.gender ? `${node.gender} · ` : ""}{node.breed}
+        </div>
+      )}
+
+      {coat && (
+        <div style={{
+          fontFamily: "var(--font-lato)", fontSize: metaSize - 1, color: s.muted,
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", opacity: 0.85,
+        }}>
+          {coat}
+        </div>
+      )}
+
+      {inbreed && (
+        <div style={{ fontFamily: "var(--font-lato)", fontSize: 9, color: "var(--inbreed-text)", fontWeight: 700 }}>
+          ⚠ Inbreeding
         </div>
       )}
     </div>
   );
+
+  const cellStyle: React.CSSProperties = {
+    gridColumn: col,
+    gridRow: `${rowStart} / span ${rowSpan}`,
+    background: isUnknown ? "var(--cream-dark)" : s.bg,
+    border: `1px solid ${isUnknown ? "var(--border)" : s.border}`,
+    borderRadius: 4,
+    overflow: "hidden",
+    textDecoration: "none",
+    ...(col === 1 ? { borderLeft: "4px solid var(--gold)" } : {}),
+  };
+
+  if (horseId) {
+    return (
+      <Link href={`/registry/${horseId}`} style={cellStyle} data-dupe={dupeKey}
+        title={dupeKey ? `${node?.name} appears more than once in this pedigree — hover to see every copy.` : undefined}>
+        {inner}
+      </Link>
+    );
+  }
+  return <div style={cellStyle} data-dupe={dupeKey}>{inner}</div>;
 }
 
-export default function PedigreeTree({ node, dupes, allHorses, isAdmin, title, bare, fixedDepth, compact, availableDepth }: Props) {
-  const [maxDepthState, setMaxDepth] = useState(5);
-  // Clamp the user-selected depth to what the dataset actually provides, so
-  // the active button highlight is always bound to the integer that's
-  // actually being rendered (not an aspirational value the data can't hit).
-  const cap = availableDepth != null && availableDepth > 0 ? availableDepth : Infinity;
-  const maxDepth = bare ? (fixedDepth ?? 5) : Math.min(maxDepthState, cap);
-  const [downloading, setDownloading] = useState(false);
-  const [isFs, setIsFs] = useState(false);
+/* ---- Main component ---- */
+export default function PedigreeTree({
+  node, dupes, allHorses, isAdmin, title, bare, fixedDepth, compact, availableDepth,
+}: Props) {
+  const [depthState, setDepthState] = useState(5);
   const [zoom, setZoom] = useState(1);
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const treeRef = useRef<HTMLDivElement>(null);
+  const [downloading, setDownloading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const gridRef  = useRef<HTMLDivElement>(null);
 
-  // Track fullscreen state so we can switch to the pan/zoom canvas layout.
+  const cap = availableDepth != null && availableDepth > 0 ? availableDepth : Infinity;
+  const maxDepth = bare ? (fixedDepth ?? 4) : Math.min(depthState, cap);
+  const totalRows = Math.pow(2, maxDepth);
+
+  const clampZoom = (z: number) => Math.min(3, Math.max(0.08, z));
+
+  function calcFitZoom(d: number) {
+    const rows = Math.pow(2, d);
+    return clampZoom(CANVAS_H / (rows * ROW_H + 16));
+  }
+
+  // Auto-fit on first render and on depth change
   useEffect(() => {
-    const onChange = () => {
-      const fs = document.fullscreenElement === wrapRef.current;
-      setIsFs(fs);
-      if (!fs) setZoom(1); // reset when leaving fullscreen
-    };
-    document.addEventListener("fullscreenchange", onChange);
-    return () => document.removeEventListener("fullscreenchange", onChange);
-  }, []);
+    setZoom(calcFitZoom(depthState));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [depthState]);
 
-  if (!node) return <p style={{ color: "var(--text-muted)" }}>No pedigree data available.</p>;
+  if (!node) return <p style={{ color: "var(--text-muted)", fontFamily: "var(--font-lato)" }}>No pedigree data available.</p>;
 
   const refs: HorseRef[] = JSON.parse(allHorses);
   const idMap = new Map(refs.map((h) => [h.name.toLowerCase(), h.id]));
 
-  const clampZoom = (z: number) => Math.min(2.5, Math.max(0.3, z));
+  const cells: GridCell[] = [];
+  buildGrid(node, 1, 1, totalRows, "root", maxDepth, dupes, cells);
 
-  async function goFullscreen() {
-    const el = wrapRef.current;
-    if (!el) return;
-    if (document.fullscreenElement) await document.exitFullscreen();
-    else await el.requestFullscreen?.();
+  const colTemplate = `${COL_ROOT}px repeat(${maxDepth}, ${COL_ANC}px)`;
+  const rowTemplate = `repeat(${totalRows}, ${ROW_H}px)`;
+
+  /* ---- Bare mode (certificate PNG export) ---- */
+  if (bare) {
+    return (
+      <div ref={gridRef} style={{
+        display: "grid",
+        gridTemplateColumns: colTemplate,
+        gridTemplateRows: rowTemplate,
+        gap: 2,
+        padding: compact ? 6 : 8,
+        width: "max-content",
+        background: "#FBF8F4",
+      }}>
+        {cells.map((cell, i) => <GridCard key={i} cell={cell} idMap={idMap} />)}
+      </div>
+    );
   }
 
-  // Ctrl/⌘ + wheel zooms; plain wheel scrolls normally.
+  /* ---- Ctrl/Cmd + scroll to zoom ---- */
   function onWheel(e: React.WheelEvent) {
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
@@ -151,18 +209,17 @@ export default function PedigreeTree({ node, dupes, allHorses, isAdmin, title, b
     }
   }
 
-  // Drag anywhere on empty canvas to pan (grab/grabbing cursor).
+  /* ---- Drag to pan ---- */
   function onPanStart(e: React.MouseEvent) {
-    // Don't hijack clicks on the cards themselves (they're links).
-    if ((e.target as HTMLElement).closest(".ped-card")) return;
+    if ((e.target as HTMLElement).closest("a")) return;
     const sc = scrollRef.current;
     if (!sc) return;
-    const startX = e.clientX, startY = e.clientY;
-    const startL = sc.scrollLeft, startT = sc.scrollTop;
+    const sx = e.clientX, sy = e.clientY;
+    const sl = sc.scrollLeft, st = sc.scrollTop;
     sc.style.cursor = "grabbing";
     const move = (ev: MouseEvent) => {
-      sc.scrollLeft = startL - (ev.clientX - startX);
-      sc.scrollTop = startT - (ev.clientY - startY);
+      sc.scrollLeft = sl - (ev.clientX - sx);
+      sc.scrollTop  = st - (ev.clientY - sy);
     };
     const up = () => {
       sc.style.cursor = "grab";
@@ -173,7 +230,7 @@ export default function PedigreeTree({ node, dupes, allHorses, isAdmin, title, b
     window.addEventListener("mouseup", up);
   }
 
-  // Hover a repeated ancestor → outline every other copy of it in the tree.
+  /* ---- Hover to highlight inbred ancestor copies ---- */
   function onHover(e: React.MouseEvent) {
     const card = (e.target as HTMLElement).closest<HTMLElement>("[data-dupe]");
     const sc = scrollRef.current;
@@ -181,106 +238,81 @@ export default function PedigreeTree({ node, dupes, allHorses, isAdmin, title, b
     sc.querySelectorAll(".dupe-active").forEach((el) => el.classList.remove("dupe-active"));
     if (!card) return;
     const name = card.getAttribute("data-dupe");
-    if (!name) return;
-    sc.querySelectorAll(`[data-dupe="${CSS.escape(name)}"]`).forEach((el) => el.classList.add("dupe-active"));
+    if (name) sc.querySelectorAll(`[data-dupe="${CSS.escape(name)}"]`).forEach((el) => el.classList.add("dupe-active"));
   }
 
   async function download() {
-    if (!treeRef.current) return;
+    if (!gridRef.current) return;
     setDownloading(true);
     try {
-      const dataUrl = await toPng(treeRef.current, {
-        backgroundColor: "#FBF8F4",
-        pixelRatio: 2,
-        style: { overflow: "visible" },
-        width: treeRef.current.scrollWidth + 32,
-        height: treeRef.current.scrollHeight + 32,
+      const url = await toPng(gridRef.current, {
+        backgroundColor: "#FBF8F4", pixelRatio: 2, skipFonts: true,
       });
       const a = document.createElement("a");
       a.download = `${(title ?? "pedigree").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-pedigree.png`;
-      a.href = dataUrl;
-      a.click();
-    } catch {
-      alert("Could not generate the image. Try a smaller generation count.");
-    } finally {
-      setDownloading(false);
-    }
+      a.href = url; a.click();
+    } catch { alert("Could not generate image. Try a smaller generation count."); }
+    finally { setDownloading(false); }
   }
 
   const toolBtn: React.CSSProperties = {
     padding: "5px 12px", border: "1px solid var(--border)", borderRadius: 4,
-    background: "var(--white)", color: "var(--teal-dark)", cursor: "pointer",
-    fontSize: 12, fontFamily: "var(--font-lato)", display: "inline-flex", alignItems: "center", gap: 5,
+    background: "white", color: "var(--teal-dark)", cursor: "pointer",
+    fontSize: 12, fontFamily: "var(--font-lato)",
+  };
+  const zoomBtn: React.CSSProperties = {
+    ...toolBtn, padding: "5px 11px", fontWeight: 700, minWidth: 34, textAlign: "center" as const,
   };
 
-  if (bare) {
-    return (
-      <div className={`ped-root${compact ? " cert" : ""}`} ref={treeRef} style={{ background: "transparent" }}>
-        <Node node={node} role="root" depth={0} maxDepth={maxDepth} dupes={dupes} idMap={idMap} />
-      </div>
-    );
-  }
-
-  const zoomBtn: React.CSSProperties = { ...toolBtn, padding: "5px 11px", fontWeight: 700, minWidth: 34, justifyContent: "center" };
-
   return (
-    <div
-      ref={wrapRef}
-      style={{
-        background: "var(--cream)",
-        ...(isFs ? { height: "100vh", display: "flex", flexDirection: "column", padding: 16 } : {}),
-      }}
-    >
-      <div style={{ marginBottom: 16, display: "flex", gap: 8, alignItems: "center", fontFamily: "var(--font-lato)", fontSize: 13, flexWrap: "wrap" }}>
+    <div style={{ background: "var(--cream)" }}>
+
+      {/* ---- Toolbar ---- */}
+      <div style={{
+        marginBottom: 10, display: "flex", gap: 8, alignItems: "center",
+        fontFamily: "var(--font-lato)", fontSize: 13, flexWrap: "wrap",
+      }}>
         <span style={{ color: "var(--text-muted)" }}>Generations:</span>
         {[3, 4, 5, 6, 7, 8, 9, 10].map((d) => {
-          const beyondData = d > cap;
-          const isActive = maxDepth === d;
+          const beyond = d > cap;
+          const active = maxDepth === d;
           return (
-          <button
-            key={d}
-            onClick={() => !beyondData && setMaxDepth(d)}
-            disabled={beyondData}
-            title={beyondData ? `Only ${cap} generation${cap !== 1 ? "s" : ""} of data available` : undefined}
-            style={{
-              padding: "5px 13px",
-              border: "1px solid var(--border)",
-              borderRadius: 4,
-              background: isActive ? "var(--teal)" : "var(--white)",
-              color: isActive ? "var(--white)" : beyondData ? "var(--border)" : "var(--text-muted)",
-              opacity: beyondData ? 0.5 : 1,
-              cursor: beyondData ? "not-allowed" : "pointer",
-              fontSize: 12,
-              fontWeight: isActive ? 700 : 400,
-              fontFamily: "var(--font-lato)",
-            }}
-          >
-            {d}
-          </button>
+            <button key={d}
+              onClick={() => { if (!beyond) setDepthState(d); }}
+              disabled={beyond}
+              title={beyond ? `Only ${cap} generation${cap !== 1 ? "s" : ""} of data available` : undefined}
+              style={{
+                ...toolBtn,
+                background: active ? "var(--teal)" : "white",
+                color: active ? "white" : beyond ? "var(--border)" : "var(--text-muted)",
+                fontWeight: active ? 700 : 400,
+                opacity: beyond ? 0.5 : 1,
+                cursor: beyond ? "not-allowed" : "pointer",
+              }}
+            >{d}</button>
           );
         })}
 
         <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
-          <button onClick={() => setZoom((z) => clampZoom(z - 0.2))} style={zoomBtn} title="Zoom out">−</button>
-          <button onClick={() => setZoom(1)} style={{ ...toolBtn, minWidth: 52, justifyContent: "center" }} title="Reset zoom">{Math.round(zoom * 100)}%</button>
-          <button onClick={() => setZoom((z) => clampZoom(z + 0.2))} style={zoomBtn} title="Zoom in">+</button>
-          <button onClick={goFullscreen} style={toolBtn} title="Fullscreen">
-            {isFs ? "✕ Exit" : "⛶ Fullscreen"}
+          <button onClick={() => setZoom((z) => clampZoom(z - 0.15))} style={zoomBtn} title="Zoom out">−</button>
+          <button onClick={() => setZoom(calcFitZoom(maxDepth))} style={{ ...toolBtn, minWidth: 52, textAlign: "center" }} title="Click to fit view">
+            {Math.round(zoom * 100)}%
           </button>
+          <button onClick={() => setZoom((z) => clampZoom(z + 0.15))} style={zoomBtn} title="Zoom in">+</button>
           {isAdmin && (
-            <button onClick={download} disabled={downloading} style={{ ...toolBtn, opacity: downloading ? 0.6 : 1 }} title="Download as image">
+            <button onClick={download} disabled={downloading}
+              style={{ ...toolBtn, opacity: downloading ? 0.6 : 1 }}>
               ↓ {downloading ? "Saving…" : "Download"}
             </button>
           )}
         </div>
       </div>
 
-      {isFs && (
-        <p style={{ margin: "0 0 10px", fontSize: 12, color: "var(--text-muted)", fontFamily: "var(--font-lato)" }}>
-          Drag to pan · ⌘/Ctrl + scroll to zoom · hover a repeated ancestor to highlight its copies
-        </p>
-      )}
+      <p style={{ margin: "0 0 8px", fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-lato)" }}>
+        Drag to pan · ⌘/Ctrl + scroll to zoom · click % to fit view · hover an inbred ancestor to highlight all copies
+      </p>
 
+      {/* ---- Pan / zoom canvas ---- */}
       <div
         ref={scrollRef}
         onWheel={onWheel}
@@ -289,14 +321,24 @@ export default function PedigreeTree({ node, dupes, allHorses, isAdmin, title, b
         onMouseOut={onHover}
         style={{
           overflow: "auto",
-          paddingBottom: 12,
+          height: CANVAS_H,
           cursor: "grab",
-          ...(isFs ? { flex: 1, minHeight: 0 } : {}),
+          border: "1px solid var(--border)",
+          borderRadius: 8,
+          background: "var(--cream-dark)",
         }}
       >
-        <div style={{ zoom, width: "max-content" }}>
-          <div className="ped-root" ref={treeRef}>
-            <Node node={node} role="root" depth={0} maxDepth={maxDepth} dupes={dupes} idMap={idMap} />
+        <div style={{ zoom, padding: 8, width: "max-content" }}>
+          <div
+            ref={gridRef}
+            style={{
+              display: "grid",
+              gridTemplateColumns: colTemplate,
+              gridTemplateRows: rowTemplate,
+              gap: 2,
+            }}
+          >
+            {cells.map((cell, i) => <GridCard key={i} cell={cell} idMap={idMap} />)}
           </div>
         </div>
       </div>
