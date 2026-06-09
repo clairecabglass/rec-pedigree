@@ -669,6 +669,15 @@ const Leaderboard = forwardRef<HTMLDivElement, LeaderboardProps>(function Leader
           ))}
         </div>
       )}
+
+      {/* Logo + stable credit — appears on the exported standings image */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 14, paddingTop: 10, borderTop: "1px solid var(--border)" }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/brand/logo-icon.png" alt="" crossOrigin="anonymous" style={{ height: 20, width: "auto", opacity: 0.9 }} />
+        <span style={{ fontFamily: "var(--font-lato)", fontSize: 10.5, color: "var(--text-muted)" }}>
+          Redfield Equestrian Centre · made on redfieldec.site
+        </span>
+      </div>
     </div>
   );
 });
