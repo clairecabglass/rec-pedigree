@@ -1,144 +1,169 @@
-# Redfield Equestrian Centre — Project Handoff
+# Claude Handoff — rec-pedigree
 
-A horse registry, pedigree, breeding-planning and certificate website for **Redfield
-Equestrian Centre** (a roleplay stud on the ReDM server "The Rift"). Built by Claire/Athena.
-
----
-
-## 1. Live site & access
-
-- **Live URL:** https://redfieldec.site (also https://rec-pedigree.vercel.app)
-- **Admin login:** click the **footer logo** (hidden entry) → username **`athena`** / password **`chefathena`**
-- Auto-deploys: **every `git push` to `main`** rebuilds & deploys on Vercel automatically.
+Paste this entire file at the start of a new Claude chat session.
 
 ---
 
-## 2. Accounts & services
+## Project in one line
+Private equestrian registry + admin toolset for a roleplay horse game called **The Rift**. Live at **https://redfieldec.site**. GitHub: **clairecabglass/rec-pedigree** (branch: `main`).
 
-| Service | Account / detail |
+## Working directory
+```
+/Users/claire/Claude/The Rift/rec-pedigree
+```
+
+## Stack
+- **Next.js App Router** (latest — has breaking API changes, always read `node_modules/next/dist/docs/` before writing Next.js code)
+- **Prisma + PostgreSQL** (Neon serverless) — migrations via `prisma migrate deploy` on Vercel
+- **Tailwind CSS** + CSS custom properties for all theme colors
+- **Lucide React** icons
+- **Vercel** deployment — deploy with `npx vercel --prod` from the project root
+
+## How to deploy
+```bash
+npx tsc --noEmit          # type check first
+git add <files>
+git commit -m "message"
+git push origin main
+npx vercel --prod
+```
+
+## How to add a schema field
+1. Edit `prisma/schema.prisma`
+2. `npx prisma db push` (applies to live Neon DB)
+3. Manually create `prisma/migrations/YYYYMMDDHHMMSS_name/migration.sql` using `IF NOT EXISTS`
+4. `npx prisma migrate resolve --applied <name>` (marks it applied so Vercel deploy doesn't re-run it)
+5. Commit everything
+
+---
+
+## Design rules (always follow these)
+
+- **Colors:** never hardcode hex — use CSS vars: `--teal`, `--teal-dark`, `--teal-light`, `--teal-muted`, `--cream`, `--cream-dark`, `--border`, `--white`, `--text`, `--text-muted`, `--gold`, `--sire-bg/text/border`, `--dam-bg/text/border`, `--inbreed-text/border`
+- **Fonts:** `var(--font-playfair)` headings, `var(--font-lato)` body/UI
+- **Cards:** white bg, `rounded-xl`/`rounded-2xl`, thin border
+- **No layout jump rule:** any toolbar that appears/disappears must live in a permanent `min-h-[56px]` container
+- **Coat strings:** always use `parseHorseCoat(str)` from `@/lib/horseCoat` — returns `{ cleanName, genotype }`. Never display raw strings like `"Black Tovero (BL_TOV)"` in labels
+- **No AI-sounding copy** anywhere on the site
+
+---
+
+## Key files to know
+
+| File | What it does |
 |---|---|
-| **GitHub** | repo `clairecabglass/rec-pedigree` (private). Local CLI authed as `clairecabglass` (also `bloopbleep123` as fallback). `gh` installed at `~/.local/bin/gh`. |
-| **Vercel** | project `claire-cabglass/rec-pedigree` (team `claire-cabglass`). GitHub connected for auto-deploy. Use `npx vercel@latest`. |
-| **Database** | **Neon Postgres** via Vercel integration. `DATABASE_URL` (pooled) + `DATABASE_URL_UNPOOLED` (direct) set in all Vercel envs. ⚠️ **Local dev `.env` and production share the SAME Neon DB.** |
-| **File storage** | **Cloudflare R2** bucket `redfield-photos`, public URL `https://pub-e3f47aa97487429fa393cbc0f4774603.r2.dev`. `R2_*` env vars in Vercel prod+dev + local `.env`. Photos & documents persist here. |
-| **Domain** | `redfieldec.site` on **Namecheap** (A `@`→`76.76.21.21`, CNAME `www`→`cname.vercel-dns.com`). Vercel auto-SSL. |
-
-Secrets (DB url, R2 keys, admin pw) live in `.env` (gitignored) and Vercel env vars — **not in git**.
-
----
-
-## 3. Tech stack
-
-- **Next.js 16** (App Router), **React 19**, TypeScript. Inline styles + a little Tailwind v4.
-- **Prisma 5** + PostgreSQL.
-- Auth: simple cookie (`rec_admin`) = `username:password` token vs `ADMIN_USERNAME`/`ADMIN_PASSWORD` env. `lib/auth.ts` → `isAdminLoggedIn()`, `checkCredentials()`.
-- Storage abstraction `lib/storage.ts` (local disk in dev / R2 in prod, auto by env).
-- Pedigree/genetics logic in `lib/pedigree.ts` and `lib/genetics.ts` (pure, usable client-side).
-- Image/PDF export: `html-to-image` + `jspdf`.
-- Fonts: Playfair Display (headings) + Lato (body). Brand: sage teal `#5E8080`, cream `#FBF8F4`, gold `#C4A96E`. Logos in `public/brand/`.
+| `prisma/schema.prisma` | Full DB schema |
+| `lib/pedigree.ts` | Recursive pedigree tree builder, inbreeding detection, Wright's F coefficient |
+| `lib/horseCoat.ts` | `parseHorseCoat()` — splits "Black Tovero (BL_TOV)" into cleanName + genotype |
+| `lib/genetics.ts` | Foal coat genetics predictor |
+| `lib/auth.ts` | `isAdminLoggedIn()` — simple cookie auth |
+| `components/PedigreeTree.tsx` | Interactive pedigree tree viewer (zoom, pan, fullscreen, PNG export) |
+| `components/HorseForm.tsx` | Shared horse create/edit form |
+| `app/admin/my-stable/MyStableClient.tsx` | My Stable dashboard — most complex client component |
+| `app/admin/breeding/suggested-pairings/SuggestedPairingsClient.tsx` | Pairing engine |
+| `app/resources/show-scoreboard/ShowScoreboardClient.tsx` | Live show scoreboard |
 
 ---
 
-## 4. Local development
+## Routes
 
-```bash
-cd "/Users/claire/Claude/The Rift/rec-pedigree"
-npm install
-npm run dev          # http://localhost:3000  (connects to the shared Neon DB!)
-npx tsc --noEmit     # typecheck before committing
-```
+### Public
+- `/` — homepage
+- `/registry` — searchable horse list
+- `/registry/[id]` — horse profile (photos, pedigree, results)
+- `/for-sale` — sale listings
+- `/resources` — tools hub
+- `/resources/course-planner` — drag-drop jump course builder
+- `/resources/foal-calculator` — coat genetics calculator
+- `/resources/show-scoreboard` — live event scoreboard
 
-To deploy: just `git push origin main` (ensure `gh auth switch --user clairecabglass` first).
-Schema changes: edit `prisma/schema.prisma`, then create a migration WITHOUT a shadow DB:
-```bash
-npx prisma migrate diff --from-schema-datasource prisma/schema.prisma \
-  --to-schema-datamodel prisma/schema.prisma --script > prisma/migrations/<ts>_name/migration.sql
-npx prisma migrate deploy && npx prisma generate
-```
-
-### Known gotchas
-- **Postgres `contains` is case-sensitive** — always use `mode: "insensitive"` on name searches.
-- **`{0 && <x>}` renders a literal "0"** in React — coerce filter flags to Boolean.
-- **CSS not updating in dev** → `rm -rf .next` and restart (Tailwind v4 caches aggressively).
-- **Server Components can't have `onClick`** — use CSS `:hover` (`.hover-card`) or a client component.
-- The **preview tool** (`mcp__Claude_Preview__*`) is flaky: screenshots sometimes show the wrong page, and it can't trigger file downloads. Verify via DOM `eval` and trust tsc.
-
----
-
-## 5. Data model (Prisma)
-
-- **Horse** — the core record. Genotype is embedded in the `coat` string in parens, e.g. `"Bay Overo (B_O)"`. Fields: name (unique), microchip, breed, gender, sireName, damName (by NAME, not FK), coat, ownership, dob, withFoal, height, discipline, regNumber, achievements, videoUrl, personality, genotype, eyeColor, baseStats, description, ownerName, ownerCharacter, stablePrefix, breedingFee, breedingPolicies, price, saleDescription, saleContact.
-- **Photo**, **Document** — per horse, files in R2.
-- **Result** — show results / achievements log per horse.
-- **Pregnancy** — breeding tracker (damId, sireName, dueDate, status, foalId).
-- **BreedingPlan** — saved wishlist pairings.
-- **SiteContent** — exists for a future CMS (no UI yet).
-
-**Ownership values:** `Home`, `For Sale`, `Sold`, `Outside` (not owned), `Void` (deleted), `Expected` (unborn foal placeholder).
+### Admin (behind `isAdminLoggedIn()`)
+- `/admin` — dashboard
+- `/admin/horses` — registry CRUD
+- `/admin/horses/new` — add horse
+- `/admin/horses/[id]` — edit horse
+- `/admin/horses/[id]/certificate` — PNG certificate export
+- `/admin/my-stable` — owned horses dashboard
+- `/admin/breeding` — breeding pedigree planner
+- `/admin/breeding/suggested-pairings` — AI pairing suggestions
+- `/admin/diary` — private notes + preferred services ledger
+- `/admin/import` — bulk import
+- `/admin/pedigree-import` — import pedigree placeholders
 
 ---
 
-## 6. Features built (all live)
+## Database models (short version)
 
-**Public**
-- Home (logo hero + stats), Registry (grid/table, filters: search/breed/gender/coat/generations/sort + toggles), horse profiles (studbook-style: photo slideshow/lightbox, fact blocks, owner block, sire/dam w/ breeds, breeding fee, sale banner, description, **show results**, interactive pedigree, offspring, documents), For Sale page.
-- **Registry shows only owned `[REC]`-tagged horses.** Admins get a "Show all owned (incl. non-[REC])" toggle.
-- **Pedigree tree** = recursive flex + CSS bracket connectors. Soft blue=sire / pink=dam / red=inbreeding. Unknown/Foundation ancestors are skipped entirely. Fullscreen (all) + Download PNG (admin). Depth toggle 3–7.
+**Horse** — core model. Important fields:
+- `ownership` — `"Home"` = actively owned (this is the filter for My Stable, NOT name prefixes)
+- `assignedCharacter` — `"Athena Redfield"` or `"Lucille"` (the two player character personas)
+- `lifeStage` — `null` = Adult, or `"Gestation"` | `"Weanling"` | `"Yearling"` | `"Youngster"`
+- `lastBredDateTime` — mare breeding cool-down start timestamp (7-day window)
+- `sireName` / `damName` — plain text, used to build pedigree trees recursively
+- `coat` — packed string like `"Black Tovero (BL_TOV)"` — always parse with `parseHorseCoat()`
+- `genotype` — genetics code string
 
-**Admin** (`/admin`, gated)
-- Dashboard, Add/Edit horse (with Photo/Document/Result managers), Import Excel, Edit Registry.
-- **Stable Tracker** (`/admin/stable-tracker`):
-  - Plan a pairing → predicted foal pedigree, **inbreeding count + COI %**, depth, **predicted foal coat genetics** (every possible coat WITH genotype code — see `lib/genetics.ts`).
-  - **"Find the best stallions for this mare"** — ranks all studs by lowest inbreeding → deepest pedigree.
-  - **Breeding wishlist** (save/list/delete pairings).
-  - **Pregnancies** (collapsible): register a pairing → auto-creates a foal page, **72-hour** auto due date with countdown, "Mark born" promotes the foal into the registry. Mare profile shows a "Currently in foal" banner → foal page.
-- **PDF Certificate** (`/admin/horses/[id]/certificate`): on-screen shows only the pedigree; export composites it onto the "PROVEN LINEAGE" template (`public/brand/certificate-bg.png`) with the horse name + reg #. Two downloads: **Certificate (PDF)** and **Pedigree only (PNG)**. 5 or 6 generations.
+**Other models:** Photo, Document, Result, BreedingPlan, Pregnancy, DiaryNote, PreferredService, SiteContent
 
 ---
 
-## 7. Key files
+## Domain knowledge
 
-```
-app/
-  page.tsx                         home (public counts = [REC]-owned)
-  registry/page.tsx + RegistryClient.tsx   registry list ([REC] filter + admin toggle)
-  registry/[id]/page.tsx           horse profile (admin sees Edit + Certificate buttons)
-  for-sale/page.tsx
-  admin/                           dashboard, login, horses CRUD, import, stable-tracker, certificate
-  api/                             auth, horses, photos, documents, results, pregnancies, breeding-plans, import
-components/
-  Nav, Icon, PedigreeTree (bare/compact modes), Slideshow, PhotoGallery,
-  PhotoManager, DocumentManager, ResultManager, HorseForm
-lib/
-  db, auth, storage, horseInput, pedigree (buildPedigreeTree, pedigreeDepth,
-  findDuplicates, commonAncestors, inbreedingCoefficient), genetics (predictFoal, etc.)
-prisma/  schema.prisma, migrations, seed.mjs, seed-data.json
-public/brand/  logo-icon.png, logo-full.png, certificate-bg.png, favicon
-```
+- **Horse name prefixes** like `[REC]`, `[TES]`, `[DSH]`, `[F.E]`, `[MLY]`, `[WRR]`, `[EMR]`, `[YRC]`, `[GH]` indicate stables/factions in the game. Display as-is, never strip them.
+- **Gestation is 72 real-world hours** (game server rule)
+- **Mare breeding cool-down is 7 real-world days** — constant `COOLDOWN_MS` in MyStableClient.tsx
+- **Two character personas:** "Athena Redfield" (primary) and "Lucille" — horses default to Athena
+- **Foal pedigree depth** uses `Math.min(sire, dam)` not max — so a lopsided pedigree doesn't inflate the number
 
 ---
 
-## 8. Coat genetics quick reference (`lib/genetics.ts`)
+## What was done in this session (so you don't redo it)
 
-Gene codes in coat parens: `base_dilutions_pattern`.
-- **base:** R (red/chestnut), B (bay), BL (black)
-- **dilutions:** CH CR CR2 Z M P G DW FLX
-- **patterns:** BK BR D FSP LP O RB RN SB SF SW TO TOV ZB
+1. **My Stable** (`/admin/my-stable`) — complete overhaul:
+   - List/Gallery view toggle (LayoutList / LayoutGrid icons)
+   - Compound filter bar: text search, breed dropdown, gender dropdown, foal/maturity stage dropdown, coat smart combobox (matches clean name AND genotype code, X clear button, filtered popover)
+   - `lifeStage` field added to Horse schema
+   - Mare breeding cool-down amber badge (⏱ "Cool-down: Xd Xh remaining"), ticks live, disappears when window lapses
+   - `lastBredDateTime` field added to Horse schema
+   - Back button uses `router.back()` (context-aware, not hardcoded link)
+   - Bulk move to character — operates only on filtered visible rows
+   - Select-all respects current filter
 
-Rules: base-colour combination table (red recessive; bay can throw red/black/bay); cream CR may-pass / CR2 always-passes (1 copy = single dilute, 2 = double like Cremello/Perlino); silver(Z) & flaxen(FLX) base-restricted (silver only black/bay, flaxen only red); pattern = one of the two parents' or none. `predictFoal()` enumerates all reachable foal coats with names + codes from the Coat Catalogue legend (hardcoded `BASE_COATS`). Source: `The Rift/Copy of Sire's Horse Coats for Rift_Redm By Azelas.xlsx`.
+2. **Preferred Services** (`/admin/diary`):
+   - Price field changed from integer cents to free text string (`"Free"`, `"250k"`, `"Negotiable"`)
+   - Link field added (URL to provider profile/shop/thread)
+   - Filter bar added: text search (name + notes) + service type dropdown, compound AND logic, "No matching services" empty state
+
+3. **Show Scoreboard** (`/resources/show-scoreboard`):
+   - Mobile layout: judge panel collapses behind toggle button on small screens
+   - Responsive font sizes with `clamp()`
+   - Leaderboard: full 7-col grid on desktop, compact 2-line card on mobile
+   - All touch targets `min-height: 44px`
+   - Queue: "done" now derived from scores array (not position index) — any un-scored rider is tappable
+   - ↩ Redo button on scored riders — removes their score, returns them to active with fresh timer
+
+4. **Pedigree tree fix** (`lib/pedigree.ts` + `components/PedigreeTree.tsx`):
+   - Inbred ancestors (repeated in tree) now show their FULL pedigree on every occurrence
+   - Previously they returned as childless leaf nodes
+   - Fix: inbred nodes still build children (passing unchanged `seen` to prevent true cycles), renderer no longer gates on `!node.inbreeding`
+
+5. **Suggested pairings depth fix** (`/admin/breeding/suggested-pairings`):
+   - `pedigreeDepth` now uses `1 + Math.min(stallionDepth, mareDepth)` — honest balanced depth
+   - When sides differ, reason string shows: `"4 gen balanced (♂ 6 · ♀ 3)"`
+   - Filter uses balanced depth so lopsided pairings can't cheat the minimum
+
+6. **Resources page** — removed AI-sounding subtitle paragraph
 
 ---
 
-## 9. Outstanding / next ideas
-
-- **Certificate fine-tuning:** user should download a real cert and report if name / reg# / pedigree need repositioning (positions in `CertificateClient.tsx`: name `top:15%`, reg `top:12.6% left:68%`, pedigree `AREA`).
-- Not yet built (offered): public **"At Stud" page** (studs + breeding fees), **"can this pairing make [colour]?"**, reverse pedigree (descendants), sales inquiry form, herd colour/breed **stats dashboard**, compare two horses, foaling-due reminders, dark mode, site-content CMS (model exists).
+## Things NOT to change without asking
+- Auth system — intentionally simple single-password
+- `ownership === "Home"` filter logic — source of truth for My Stable, not name prefixes
+- 72-hour gestation rule
+- 7-day breeding cool-down constant
+- The two character names "Athena Redfield" and "Lucille"
 
 ---
 
-## 10. Brand assets location
-
-`/Users/claire/Library/Mobile Documents/com~apple~CloudDocs/Claire/PC/The Rift/Brand & Papers/Brand/`
-(logos) and `/Users/claire/Library/Mobile Documents/com~apple~CloudDocs/Claude/The Rift/`
-(gene spreadsheet `Copy of Sire's Horse Coats...xlsx`, `Lineage.pdf` certificate template,
-`REC Pedigree.xlsx` original data).
+## Full project context
+See `PROJECT_BRIEF.md` in the repo root for the complete reference document (use when prompting other AIs like Gemini).
