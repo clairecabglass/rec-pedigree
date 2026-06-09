@@ -85,6 +85,7 @@ function GridCard({ cell, idMap }: { cell: GridCell; idMap: Map<string, string> 
     gridColumn: col, gridRow: `${rowStart} / span ${rowSpan}`,
     background: s.bg, border: `1px solid ${s.border}`, borderRadius: 4,
     overflow: "hidden", textDecoration: "none",
+    minWidth: 0, minHeight: 0, // grid cells need this for text-overflow: ellipsis to work
     ...(col === 1 ? { borderLeft: "4px solid var(--gold)" } : {}),
   };
 
@@ -121,11 +122,14 @@ export default function PedigreeTree({ node, dupes, allHorses, isAdmin, title, b
     return clampZoom(Math.min(1, h / nh));
   };
 
-  // Measure scroll container (width + height) on mount and resize
+  // Measure scroll container width on mount and window resize only.
+  // Fullscreen transitions are handled separately below.
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
     const obs = new ResizeObserver(() => {
+      // Skip during fullscreen transitions — handled by fullscreenchange
+      if (document.fullscreenElement) return;
       setContainerW(el.clientWidth);
       setCanvasH(el.clientHeight);
     });
@@ -135,15 +139,28 @@ export default function PedigreeTree({ node, dupes, allHorses, isAdmin, title, b
     return () => obs.disconnect();
   }, []);
 
-  // Re-fit when depth or canvas height changes (e.g. entering fullscreen)
-  useEffect(() => { setZoom(calcFit(depthState, canvasH)); }, [depthState, canvasH]); // eslint-disable-line
+  // Auto-fit when depth changes
+  useEffect(() => { setZoom(calcFit(depthState, canvasH)); }, [depthState]); // eslint-disable-line
 
-  // Fullscreen tracking
+  // Fullscreen: wait for the browser animation to finish (~250ms) before
+  // measuring and refitting — avoids jitter from cascading mid-animation renders.
   useEffect(() => {
-    const onChange = () => { setIsFs(document.fullscreenElement === wrapRef.current); };
+    const onChange = () => {
+      const fs = document.fullscreenElement === wrapRef.current;
+      setIsFs(fs);
+      setTimeout(() => {
+        const el = scrollRef.current;
+        if (!el) return;
+        const w = el.clientWidth;
+        const h = el.clientHeight;
+        setContainerW(w);
+        setCanvasH(h);
+        setZoom(calcFit(depthState, h));
+      }, 260);
+    };
     document.addEventListener("fullscreenchange", onChange);
     return () => document.removeEventListener("fullscreenchange", onChange);
-  }, []);
+  }, [depthState]); // eslint-disable-line
 
   if (!node) return <p style={{ color: "var(--text-muted)", fontFamily: "var(--font-lato)" }}>No pedigree data available.</p>;
 
