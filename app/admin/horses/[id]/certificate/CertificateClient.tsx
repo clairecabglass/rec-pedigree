@@ -29,7 +29,7 @@ export default function CertificateClient({
 
   // Fit the certificate's pedigree into its area.
   useLayoutEffect(() => {
-    const tree = certRef.current?.querySelector<HTMLElement>(".ped-root");
+    const tree = certRef.current?.querySelector<HTMLElement>(".ped-export");
     if (!tree) return;
     const w = tree.scrollWidth, h = tree.scrollHeight;
     const aw = CERT_W * AREA.width, ah = CERT_H * AREA.height;
@@ -49,7 +49,7 @@ export default function CertificateClient({
   }
 
   async function downloadPedigree() {
-    const el = pedRef.current?.querySelector<HTMLElement>(".ped-root");
+    const el = pedRef.current?.querySelector<HTMLElement>(".ped-export");
     if (!el) return;
     setBusy("ped");
     try {

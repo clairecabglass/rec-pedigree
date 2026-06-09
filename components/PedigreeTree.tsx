@@ -186,13 +186,19 @@ export default function PedigreeTree({
 
   /* ---- Bare mode (certificate PNG export) ---- */
   if (bare) {
+    // Tighter dimensions so the grid fits well inside a certificate canvas.
+    const bareRowH  = compact ? 28 : 36;
+    const bareRoot  = compact ? 140 : 175;
+    const bareAnc   = compact ? 110 : 138;
+    const bareColTpl = `${bareRoot}px repeat(${maxDepth}, ${bareAnc}px)`;
+    const bareRowTpl = `repeat(${totalRows}, ${bareRowH}px)`;
     return (
-      <div ref={gridRef} style={{
+      <div ref={gridRef} className="ped-export" style={{
         display: "grid",
-        gridTemplateColumns: colTemplate,
-        gridTemplateRows: rowTemplate,
+        gridTemplateColumns: bareColTpl,
+        gridTemplateRows: bareRowTpl,
         gap: 2,
-        padding: compact ? 6 : 8,
+        padding: compact ? 4 : 6,
         width: "max-content",
         background: "#FBF8F4",
       }}>
