@@ -92,7 +92,6 @@ export default function ShowScoreboardClient() {
   const [timer, setTimer] = useState<TimerState>({ running: false, startedAt: null, accumulated: 0 });
   const [livePenalties, setLivePenalties] = useState(0);
   const [liveDnf, setLiveDnf] = useState(false);
-  const [, forceTick] = useState(0);
 
   const [scores, setScores] = useState<Score[]>([]);
   const [exporting, setExporting] = useState(false);
@@ -103,13 +102,6 @@ export default function ShowScoreboardClient() {
 
   const rules = RULES[discipline];
   const activeRider = roster[activeIdx] ?? null;
-
-  /* ---- Tick ---- */
-  useEffect(() => {
-    if (!timer.running) return;
-    const id = setInterval(() => forceTick((t) => t + 1), 100);
-    return () => clearInterval(id);
-  }, [timer.running]);
 
   /* ---- Roster parser ---- */
   function parseRoster(raw: string) {
@@ -230,8 +222,6 @@ export default function ShowScoreboardClient() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [discipline, scores.length]);
 
-  const liveElapsed = readElapsed(timer);
-
   return (
     <main className="max-w-[1400px] mx-auto px-3 sm:px-6 py-6 sm:py-10">
       {/* ---- Header ---- */}
@@ -290,12 +280,20 @@ export default function ShowScoreboardClient() {
       <div className="flex flex-col lg:grid gap-5" style={{ gridTemplateColumns: organizerMode ? "320px 1fr" : "1fr" }}>
 
         {/* ============ Judge controller ============ */}
-        {organizerMode && (panelOpen || true) && (
+        {organizerMode && (
           <aside
-            className={panelOpen ? "block" : "hidden lg:block"}
             style={{
+              display: "grid",
+              gridTemplateRows: panelOpen ? "1fr" : "0fr",
+              transition: "grid-template-rows 0.25s cubic-bezier(0.4,0,0.2,1)",
+              alignSelf: "start",
+            }}
+          >
+          <div style={{
+              minHeight: 0, overflow: "hidden",
               background: "var(--white)", border: "1px solid var(--border)", borderRadius: 10,
-              padding: 16, alignSelf: "start",
+              padding: panelOpen ? 16 : "0 16px",
+              transition: "padding 0.25s cubic-bezier(0.4,0,0.2,1)",
             }}
           >
             {/* Sticky only on large screens — on mobile it would lock the panel off-screen */}
@@ -370,7 +368,7 @@ export default function ShowScoreboardClient() {
 
               <SectionLabel>Live Timer</SectionLabel>
               <div className="text-3xl font-bold mb-3" style={{ fontFamily: "var(--font-playfair)", color: timer.running ? "var(--teal-dark)" : "var(--text-muted)" }}>
-                {fmtTime(liveElapsed)}
+                <LiveTimerDisplay timer={timer} />
               </div>
               <div className="flex gap-1.5 mb-4">
                 <CtrlBtn onClick={startTimer} disabled={timer.running || !activeRider} primary>Start</CtrlBtn>
@@ -406,6 +404,7 @@ export default function ShowScoreboardClient() {
                 Submit Score &amp; Next Rider →
               </button>
             </div>
+          </div>
           </aside>
         )}
 
@@ -413,7 +412,7 @@ export default function ShowScoreboardClient() {
         <section className="min-w-0">
           <ActiveSpotlight
             rider={activeRider}
-            elapsedMs={liveElapsed}
+            timer={timer}
             running={timer.running}
             penalties={livePenalties}
             dnf={liveDnf}
@@ -455,6 +454,16 @@ export default function ShowScoreboardClient() {
 /* ============================================================================
    Subcomponents
 ============================================================================ */
+
+function LiveTimerDisplay({ timer }: { timer: TimerState }) {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    if (!timer.running) return;
+    const id = setInterval(() => tick((t) => t + 1), 100);
+    return () => clearInterval(id);
+  }, [timer.running]);
+  return <>{fmtTime(readElapsed(timer))}</>;
+}
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -517,8 +526,8 @@ function CtrlBtn({ children, onClick, disabled, primary, danger }: {
   );
 }
 
-function ActiveSpotlight({ rider, elapsedMs, running, penalties, dnf, penaltyLabel }: {
-  rider: Rider | null; elapsedMs: number; running: boolean;
+function ActiveSpotlight({ rider, timer, running, penalties, dnf, penaltyLabel }: {
+  rider: Rider | null; timer: TimerState; running: boolean;
   penalties: number; dnf: boolean; penaltyLabel: string;
 }) {
   return (
@@ -555,7 +564,7 @@ function ActiveSpotlight({ rider, elapsedMs, running, penalties, dnf, penaltyLab
             color: running ? "var(--gold-light)" : "var(--cream)",
             lineHeight: 1,
           }}>
-            {fmtTime(elapsedMs)}
+            <LiveTimerDisplay timer={timer} />
           </div>
           <div
             className={dnf || penalties > 0 ? "blink" : ""}
@@ -604,7 +613,7 @@ const Leaderboard = forwardRef<HTMLDivElement, LeaderboardProps>(function Leader
         const dy = prev - top;
         el.animate(
           [{ transform: `translateY(${dy}px)` }, { transform: "translateY(0)" }],
-          { duration: 320, easing: "cubic-bezier(.2,.7,.2,1)" },
+          { duration: 320, easing: "cubic-bezier(.2,.7,.2,1)", fill: "both" },
         );
       }
       next.set(id, top);
