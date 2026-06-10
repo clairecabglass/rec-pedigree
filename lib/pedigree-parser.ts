@@ -1,9 +1,14 @@
 import OpenAI from "openai";
 import { ParsedPedigreeData, HorseData } from "./types";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Lazy singleton — constructing OpenAI at module load throws "Missing
+// credentials" during builds where OPENAI_API_KEY isn't set (e.g. Vercel
+// preview deployments), failing page-data collection. Build it on first use.
+let _openai: OpenAI | null = null;
+function getOpenAI(): OpenAI {
+  if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  return _openai;
+}
 
 /**
  * Normalizes a genotype string:
@@ -82,7 +87,7 @@ export async function parsePedigreeImage(imageUrl: string): Promise<ParsedPedigr
 Now, analyze the image and provide the JSON output.`;
 
   try {
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAI().chat.completions.create({
       model: "gpt-4o", // Using gpt-4o for its vision capabilities
       messages: [
         {
