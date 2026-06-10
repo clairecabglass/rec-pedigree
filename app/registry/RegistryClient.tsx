@@ -1,6 +1,7 @@
 "use client";
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import Icon from "@/components/Icon";
 import { parseHorseCoat } from "@/lib/horseCoat";
 
@@ -201,8 +202,7 @@ export default function RegistryClient({ horses, breeds, isAdmin }: {
                 <div className="hover-card" style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden", height: "100%", cursor: "pointer" }}>
                   <div style={{ position: "relative", paddingTop: "78%", background: "linear-gradient(135deg, var(--teal-muted), var(--cream-dark))" }}>
                     {h.photo ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={h.photo} alt={h.name} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+                      <Image src={h.photo} alt={h.name} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" style={{ objectFit: "cover" }} />
                     ) : (
                       <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
                         <Icon name="horse" size={30} color="var(--teal-light)" />
@@ -242,10 +242,9 @@ export default function RegistryClient({ horses, breeds, isAdmin }: {
               {paged.map((h, i) => (
                 <tr key={h.id} style={{ borderBottom: "1px solid var(--border)", background: i % 2 === 0 ? "var(--white)" : "var(--cream)" }}>
                   <td style={{ padding: "6px 10px 6px 14px", width: 44 }}>
-                    <div style={{ width: 34, height: 34, borderRadius: 6, overflow: "hidden", background: "var(--teal-muted)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <div style={{ position: "relative", width: 34, height: 34, borderRadius: 6, overflow: "hidden", background: "var(--teal-muted)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                       {h.photo ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={h.photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        <Image src={h.photo} alt="" fill sizes="34px" style={{ objectFit: "cover" }} />
                       ) : <Icon name="horse" size={16} color="var(--teal-light)" />}
                     </div>
                   </td>

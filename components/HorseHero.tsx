@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import Image from "next/image";
 
 export interface HeroPhoto { id: string; url: string; caption: string | null; fill: boolean; }
 
@@ -57,15 +58,14 @@ export default function HorseHero({ photos: initial, name, isAdmin }: { photos: 
             (an intentional crop chosen by the admin). */}
         <div
           onClick={() => setLightbox(true)}
-          style={{ height: "min(70vh, 520px)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", background: "var(--cream-dark)", borderRadius: 8, border: "4px solid var(--gold)", boxShadow: "0 6px 20px rgba(0,0,0,0.12)", cursor: "zoom-in" }}
+          style={{ position: "relative", height: "min(70vh, 520px)", overflow: "hidden", background: "var(--cream-dark)", borderRadius: 8, border: "4px solid var(--gold)", boxShadow: "0 6px 20px rgba(0,0,0,0.12)", cursor: "zoom-in" }}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <Image
             src={current.url}
             alt={current.caption ?? name}
-            style={current.fill
-              ? { width: "100%", height: "100%", objectFit: "cover", display: "block" }
-              : { maxWidth: "100%", maxHeight: "100%", objectFit: "contain", display: "block" }}
+            fill
+            sizes="(max-width: 960px) 100vw, 920px"
+            style={{ objectFit: current.fill ? "cover" : "contain" }}
           />
         </div>
 
