@@ -25,7 +25,6 @@ export default function HorseHero({ photos: initial, name, isAdmin }: { photos: 
   }, [count, lightbox]); // eslint-disable-line
 
   const current = photos[index];
-  const fit: React.CSSProperties["objectFit"] = current.fill ? "cover" : "contain";
 
   async function toggleFill(e: React.MouseEvent) {
     e.stopPropagation();
@@ -52,15 +51,23 @@ export default function HorseHero({ photos: initial, name, isAdmin }: { photos: 
   return (
     <div style={{ textAlign: "center", marginBottom: 8 }}>
       <div style={{ position: "relative", display: "inline-block", maxWidth: 920, width: "100%" }}>
-        {/* object-fit follows the photo's saved "fill" preference: contain shows
-            the whole image (letterboxed), cover fills the block (crops edges). */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={current.url}
-          alt={current.caption ?? name}
+        {/* Fixed-height frame holds the border/background; the image sits inside.
+            Fit mode renders the image at its natural size (max 100%) so it's
+            never upscaled/pixelated; fill mode stretches it to cover the frame
+            (an intentional crop chosen by the admin). */}
+        <div
           onClick={() => setLightbox(true)}
-          style={{ width: "100%", height: "min(70vh, 520px)", objectFit: fit, background: "var(--cream-dark)", borderRadius: 8, border: "4px solid var(--gold)", boxShadow: "0 6px 20px rgba(0,0,0,0.12)", display: "block", cursor: "zoom-in" }}
-        />
+          style={{ height: "min(70vh, 520px)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", background: "var(--cream-dark)", borderRadius: 8, border: "4px solid var(--gold)", boxShadow: "0 6px 20px rgba(0,0,0,0.12)", cursor: "zoom-in" }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={current.url}
+            alt={current.caption ?? name}
+            style={current.fill
+              ? { width: "100%", height: "100%", objectFit: "cover", display: "block" }
+              : { maxWidth: "100%", maxHeight: "100%", objectFit: "contain", display: "block" }}
+          />
+        </div>
 
         {/* Admin: toggle fill vs fit for this photo */}
         {isAdmin && (
