@@ -261,8 +261,12 @@ body {
   to   { opacity: 1; }
 }
 
+/* Opacity-only entrance: a translate here would leave a lingering
+   transform (fill-mode: both), which makes <main> the containing block
+   for every position:fixed modal/lightbox inside it — pinning them to the
+   page instead of the viewport. Keep main transform-free. */
 main {
-  animation: fadeInUp 0.5s ease both;
+  animation: fadeIn 0.5s ease both;
 }
 
 /* Stagger the first few direct children of a page section so blocks
