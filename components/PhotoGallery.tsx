@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import Image from "next/image";
 
 export interface GalleryPhoto { id: string; url: string; caption: string | null; }
 
@@ -25,18 +26,17 @@ export default function PhotoGallery({ photos }: { photos: GalleryPhoto[] }) {
             key={p.id}
             onClick={() => setOpen(i)}
             style={{
+              position: "relative",
               border: "3px solid var(--gold-light)", borderRadius: 8, overflow: "hidden",
               padding: 0, cursor: "pointer", background: "var(--cream-dark)", aspectRatio: "4/3",
             }}
           >
-            {/* Plain <img>: photos live on Cloudflare R2 whose domain isn't whitelisted
-                for next/image, so the optimizer was returning broken icons. */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <Image
               src={p.url}
               alt={p.caption ?? "Horse photo"}
-              loading="lazy"
-              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+              fill
+              sizes="(max-width: 640px) 50vw, 33vw"
+              style={{ objectFit: "cover" }}
             />
           </button>
         ))}

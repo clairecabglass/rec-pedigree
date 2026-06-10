@@ -30,6 +30,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ph
     return NextResponse.json({ ok: true });
   }
 
+  if (typeof body.fill === "boolean") {
+    const updated = await prisma.photo.update({ where: { id: photoId }, data: { fill: body.fill } });
+    return NextResponse.json(updated);
+  }
+
   const updated = await prisma.photo.update({
     where: { id: photoId },
     data: { caption: body.caption },

@@ -19,7 +19,8 @@ export default function CertificateClient({
   horseId: string; name: string; regNumber: string;
   tree: HorseNode | null; dupes: string[]; allHorses: string;
 }) {
-  const [depth, setDepth] = useState(5);
+  // Certificates always show 4 generations.
+  const DEPTH = 4;
   const [busy, setBusy] = useState<"" | "cert" | "ped">("");
   const certRef = useRef<HTMLDivElement>(null);
   const pedRef = useRef<HTMLDivElement>(null);
@@ -29,12 +30,12 @@ export default function CertificateClient({
 
   // Fit the certificate's pedigree into its area.
   useLayoutEffect(() => {
-    const tree = certRef.current?.querySelector<HTMLElement>(".ped-root");
-    if (!tree) return;
-    const w = tree.scrollWidth, h = tree.scrollHeight;
+    const grid = certRef.current?.querySelector<HTMLElement>(".ped-export");
+    if (!grid) return;
+    const w = grid.scrollWidth, h = grid.scrollHeight;
     const aw = CERT_W * AREA.width, ah = CERT_H * AREA.height;
     setScale(Math.min(aw / w, ah / h, 1));
-  }, [depth, tree]);
+  }, [tree]);
 
   async function downloadCertificate() {
     if (!certRef.current) return;
@@ -44,12 +45,12 @@ export default function CertificateClient({
       const pdf = new jsPDF({ orientation: "landscape", unit: "px", format: [CERT_W, CERT_H] });
       pdf.addImage(dataUrl, "PNG", 0, 0, CERT_W, CERT_H);
       pdf.save(`${slug(name)}-certificate.pdf`);
-    } catch { alert("Could not generate the certificate. Try 5 generations."); }
+    } catch { alert("Could not generate the certificate. Please try again."); }
     setBusy("");
   }
 
   async function downloadPedigree() {
-    const el = pedRef.current?.querySelector<HTMLElement>(".ped-root");
+    const el = pedRef.current?.querySelector<HTMLElement>(".ped-export");
     if (!el) return;
     setBusy("ped");
     try {
@@ -76,10 +77,7 @@ export default function CertificateClient({
       <p style={{ color: "var(--text-muted)", fontFamily: "var(--font-lato)", fontSize: 14, marginBottom: 20 }}>{name}</p>
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", marginBottom: 24 }}>
-        <span style={{ fontFamily: "var(--font-lato)", fontSize: 13, color: "var(--text-muted)" }}>Generations:</span>
-        {[5, 6].map((d) => (
-          <button key={d} onClick={() => setDepth(d)} style={{ padding: "6px 16px", border: "1px solid var(--border)", borderRadius: 6, background: depth === d ? "var(--teal)" : "var(--white)", color: depth === d ? "white" : "var(--text-muted)", cursor: "pointer", fontFamily: "var(--font-lato)", fontWeight: depth === d ? 700 : 400 }}>{d}</button>
-        ))}
+        <span style={{ fontFamily: "var(--font-lato)", fontSize: 13, color: "var(--text-muted)" }}>4-generation pedigree</span>
         <div style={{ marginLeft: "auto", display: "flex", gap: 10, flexWrap: "wrap" }}>
           <button onClick={downloadCertificate} disabled={!!busy} style={btn(busy === "cert")}>{busy === "cert" ? "Generating…" : "↓ Download certificate (PDF)"}</button>
           <button onClick={downloadPedigree} disabled={!!busy} style={{ ...btn(busy === "ped"), background: "var(--white)", color: "var(--teal-dark)", border: "1px solid var(--teal)" }}>{busy === "ped" ? "Generating…" : "↓ Pedigree only (PNG)"}</button>
@@ -88,7 +86,7 @@ export default function CertificateClient({
 
       {/* On-screen preview: just the pedigree (no certificate background) */}
       <div style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 10, padding: 24, overflowX: "auto" }} ref={pedRef}>
-        <PedigreeTree node={tree} dupes={dupeSet} allHorses={allHorses} bare fixedDepth={depth} />
+        <PedigreeTree node={tree} dupes={dupeSet} allHorses={allHorses} bare fixedDepth={DEPTH} />
       </div>
 
       {/* Hidden full certificate — rendered off-screen, used only for the export */}
@@ -109,7 +107,7 @@ export default function CertificateClient({
           {/* Pedigree, scaled to fit, centered in the area */}
           <div style={{ position: "absolute", left: `${AREA.left * 100}%`, top: `${AREA.top * 100}%`, width: `${AREA.width * 100}%`, height: `${AREA.height * 100}%`, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <div style={{ transform: `scale(${scale})`, transformOrigin: "center" }}>
-              <PedigreeTree node={tree} dupes={dupeSet} allHorses={allHorses} bare compact fixedDepth={depth} />
+              <PedigreeTree node={tree} dupes={dupeSet} allHorses={allHorses} bare compact fixedDepth={DEPTH} />
             </div>
           </div>
         </div>

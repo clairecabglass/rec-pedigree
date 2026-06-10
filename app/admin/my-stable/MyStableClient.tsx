@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, memo } from "react";
 import { parseHorseCoat } from "@/lib/horseCoat";
 import { LayoutList, LayoutGrid, Search, X } from "lucide-react";
 
@@ -52,7 +52,13 @@ export default function MyStableClient({ horses }: { horses: StableHorse[] }) {
   /* ---------- View + filter state ---------- */
   const [view, setView] = useState<ViewMode>("list");
   const [character, setCharacter] = useState<Character | "all">("all");
-  const [search, setSearch] = useState("");
+  const [inputVal, setInputVal] = useState("");  // drives <input> immediately
+  const [search, setSearch] = useState("");       // drives filter — debounced
+
+  useEffect(() => {
+    const id = setTimeout(() => setSearch(inputVal), 120);
+    return () => clearTimeout(id);
+  }, [inputVal]);
   const [breedFilter, setBreedFilter] = useState<string>("");
   const [genderFilter, setGenderFilter] = useState<string>("");
   const [maturityFilter, setMaturityFilter] = useState<MaturityFilter>("all");
@@ -126,7 +132,7 @@ export default function MyStableClient({ horses }: { horses: StableHorse[] }) {
   }
   function clearSelection() { setSelected(new Set()); }
   function clearFilters() {
-    setSearch(""); setBreedFilter(""); setGenderFilter("");
+    setInputVal(""); setSearch(""); setBreedFilter(""); setGenderFilter("");
     setMaturityFilter("all"); setCoatQuery(""); setCoatValue("");
   }
 
@@ -213,7 +219,7 @@ export default function MyStableClient({ horses }: { horses: StableHorse[] }) {
           <div className="relative">
             <Search size={14} color="var(--text-muted)" style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
             <input
-              type="search" value={search} onChange={(e) => setSearch(e.target.value)}
+              type="search" value={inputVal} onChange={(e) => setInputVal(e.target.value)}
               placeholder="Search horse name or ID..."
               className="w-full text-sm rounded-md border"
               style={{ borderColor: "var(--border)", background: "var(--white)", fontFamily: "var(--font-lato)", padding: "8px 10px 8px 32px", color: "var(--text)" }}
@@ -542,7 +548,7 @@ function EmptyState({ filtersActive, onReset }: { filtersActive: boolean; onRese
 }
 
 /* ============================ List View ============================ */
-function ListView({ horses, selected, pendingId, onToggle, onSetCharacter }: {
+const ListView = memo(function ListView({ horses, selected, pendingId, onToggle, onSetCharacter }: {
   horses: StableHorse[]; selected: Set<string>; pendingId: string | null;
   onToggle: (id: string) => void; onSetCharacter: (id: string, next: Character) => void;
 }) {
@@ -567,8 +573,8 @@ function ListView({ horses, selected, pendingId, onToggle, onSetCharacter }: {
                   <input type="checkbox" aria-label={`Select ${h.name}`} checked={isSel} onChange={() => onToggle(h.id)} />
                 </td>
                 <td style={{ padding: "8px 12px", fontWeight: 600 }}>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <Link href={`/registry/${h.id}`} style={{ color: "var(--teal-dark)", textDecoration: "none" }}>{h.name}</Link>
+                  <Link href={`/registry/${h.id}`} style={{ color: "var(--teal-dark)", textDecoration: "none" }}>{h.name}</Link>
+                  <div style={{ minHeight: 20, display: "flex", alignItems: "center", marginTop: 2 }}>
                     <CooldownBadge gender={h.gender} lastBredDateTime={h.lastBredDateTime} />
                   </div>
                 </td>
@@ -599,10 +605,10 @@ function ListView({ horses, selected, pendingId, onToggle, onSetCharacter }: {
       </table>
     </div>
   );
-}
+});
 
 /* ============================ Gallery View ============================ */
-function GalleryView({ horses, selected, pendingId, onToggle, onSetCharacter }: {
+const GalleryView = memo(function GalleryView({ horses, selected, pendingId, onToggle, onSetCharacter }: {
   horses: StableHorse[]; selected: Set<string>; pendingId: string | null;
   onToggle: (id: string) => void; onSetCharacter: (id: string, next: Character) => void;
 }) {
@@ -652,7 +658,7 @@ function GalleryView({ horses, selected, pendingId, onToggle, onSetCharacter }: 
       })}
     </div>
   );
-}
+});
 
 function Pill({ children, kind = "muted" }: { children: React.ReactNode; kind?: "muted" | "sire" | "dam" | "stage" }) {
   const palettes = {

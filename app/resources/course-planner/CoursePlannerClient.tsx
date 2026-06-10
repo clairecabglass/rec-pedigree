@@ -1210,8 +1210,23 @@ function ExportModal({
               )}
             </SummaryCard>
           </div>
+
+          <ExportCredit />
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Small logo + stable credit shown on exported images. */
+function ExportCredit() {
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 18, paddingTop: 12, borderTop: "1px solid var(--border)" }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/brand/logo-icon.png" alt="" crossOrigin="anonymous" style={{ height: 22, width: "auto", opacity: 0.9 }} />
+      <span style={{ fontFamily: "var(--font-lato)", fontSize: 11, color: "var(--text-muted)" }}>
+        Redfield Equestrian Centre · made on redfieldec.site
+      </span>
     </div>
   );
 }
