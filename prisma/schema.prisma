@@ -80,6 +80,7 @@ model Photo {
   caption   String?
   order     Int      @default(0)
   isPrimary Boolean  @default(false)
+  fill      Boolean  @default(false) // true = cover (fill block, may crop); false = contain (show whole image)
   createdAt DateTime @default(now())
 
   @@index([horseId])

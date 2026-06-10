@@ -129,7 +129,8 @@ export default async function HorsePage({ params }: { params: Promise<{ id: stri
       {hero ? (
         <HorseHero
           name={horse.name}
-          photos={horse.photos.map((p) => ({ id: p.id, url: p.url, caption: p.caption }))}
+          isAdmin={admin}
+          photos={horse.photos.map((p) => ({ id: p.id, url: p.url, caption: p.caption, fill: p.fill }))}
         />
       ) : (
         <div style={{ maxWidth: 920, margin: "0 auto 8px", aspectRatio: "16/8", background: "linear-gradient(135deg, var(--teal-muted), var(--cream-dark))", borderRadius: 8, border: "4px solid var(--gold-light)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>

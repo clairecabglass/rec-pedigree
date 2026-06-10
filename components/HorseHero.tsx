@@ -1,18 +1,13 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 
-export interface HeroPhoto { id: string; url: string; caption: string | null; }
+export interface HeroPhoto { id: string; url: string; caption: string | null; fill: boolean; }
 
-function goFullscreen(el: HTMLElement | null) {
-  // Browsers render a fullscreened <img> fitted (contain) on a black backdrop.
-  el?.requestFullscreen?.().catch(() => {});
-}
-
-export default function HorseHero({ photos, name }: { photos: HeroPhoto[]; name: string }) {
+export default function HorseHero({ photos: initial, name, isAdmin }: { photos: HeroPhoto[]; name: string; isAdmin?: boolean }) {
+  const [photos, setPhotos] = useState(initial);
   const [index, setIndex] = useState(0);
   const [lightbox, setLightbox] = useState(false);
-  const heroImgRef = useRef<HTMLImageElement>(null);
-  const lightboxImgRef = useRef<HTMLImageElement>(null);
+  const [saving, setSaving] = useState(false);
   const count = photos.length;
 
   const go = (dir: 1 | -1) => setIndex((i) => (i + dir + count) % count);
@@ -30,25 +25,60 @@ export default function HorseHero({ photos, name }: { photos: HeroPhoto[]; name:
   }, [count, lightbox]); // eslint-disable-line
 
   const current = photos[index];
+  const fit: React.CSSProperties["objectFit"] = current.fill ? "cover" : "contain";
+
+  async function toggleFill(e: React.MouseEvent) {
+    e.stopPropagation();
+    const next = !current.fill;
+    setSaving(true);
+    // Optimistic update
+    setPhotos((ps) => ps.map((p, i) => (i === index ? { ...p, fill: next } : p)));
+    try {
+      const res = await fetch(`/api/photos/${current.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fill: next }),
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      // Revert on failure
+      setPhotos((ps) => ps.map((p, i) => (i === index ? { ...p, fill: !next } : p)));
+      alert("Could not save the image fit.");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <div style={{ textAlign: "center", marginBottom: 8 }}>
       <div style={{ position: "relative", display: "inline-block", maxWidth: 920, width: "100%" }}>
-        {/* object-fit: contain shows the whole image (no crop/zoom) regardless
-            of aspect ratio. Fixed height keeps the carousel from jumping when
-            switching between landscape photos and portrait images like a
-            certificate; the letterbox area uses a soft neutral background. */}
+        {/* object-fit follows the photo's saved "fill" preference: contain shows
+            the whole image (letterboxed), cover fills the block (crops edges). */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          ref={heroImgRef}
           src={current.url}
           alt={current.caption ?? name}
           onClick={() => setLightbox(true)}
-          style={{ width: "100%", height: "min(70vh, 520px)", objectFit: "contain", background: "var(--cream-dark)", borderRadius: 8, border: "4px solid var(--gold)", boxShadow: "0 6px 20px rgba(0,0,0,0.12)", display: "block", cursor: "zoom-in" }}
+          style={{ width: "100%", height: "min(70vh, 520px)", objectFit: fit, background: "var(--cream-dark)", borderRadius: 8, border: "4px solid var(--gold)", boxShadow: "0 6px 20px rgba(0,0,0,0.12)", display: "block", cursor: "zoom-in" }}
         />
 
-        {/* Fullscreen this image */}
-        <button onClick={() => goFullscreen(heroImgRef.current)} style={fsButton()} aria-label="View fullscreen" title="View fullscreen">⛶</button>
+        {/* Admin: toggle fill vs fit for this photo */}
+        {isAdmin && (
+          <button
+            onClick={toggleFill}
+            disabled={saving}
+            style={{
+              position: "absolute", top: 12, left: 12,
+              display: "inline-flex", alignItems: "center", gap: 6,
+              background: "rgba(20,28,27,0.6)", color: "white", border: "none",
+              borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: 700,
+              fontFamily: "var(--font-lato)", cursor: saving ? "wait" : "pointer", zIndex: 2,
+            }}
+            title={current.fill ? "Currently filling the block — click to show the whole image" : "Currently showing the whole image — click to fill the block"}
+          >
+            {current.fill ? "⤡ Fit whole image" : "⤢ Fill block"}
+          </button>
+        )}
 
         {count > 1 && (
           <>
@@ -80,7 +110,6 @@ export default function HorseHero({ photos, name }: { photos: HeroPhoto[]; name:
           )}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            ref={lightboxImgRef}
             src={current.url}
             alt={current.caption ?? name}
             onClick={(e) => e.stopPropagation()}
@@ -89,7 +118,6 @@ export default function HorseHero({ photos, name }: { photos: HeroPhoto[]; name:
           {count > 1 && (
             <button onClick={(e) => { e.stopPropagation(); go(1); }} style={lightboxArrow("right")} aria-label="Next">›</button>
           )}
-          <button onClick={(e) => { e.stopPropagation(); goFullscreen(lightboxImgRef.current); }} style={{ position: "fixed", top: 20, right: 70, background: "none", border: "none", color: "white", fontSize: 26, cursor: "pointer", lineHeight: 1 }} aria-label="View fullscreen" title="View fullscreen">⛶</button>
           <button onClick={() => setLightbox(false)} style={{ position: "fixed", top: 20, right: 24, background: "none", border: "none", color: "white", fontSize: 30, cursor: "pointer", lineHeight: 1 }} aria-label="Close">✕</button>
           {count > 1 && (
             <div style={{ position: "fixed", bottom: 20, left: 0, right: 0, textAlign: "center", color: "rgba(255,255,255,0.8)", fontSize: 13, fontFamily: "var(--font-lato)" }}>
@@ -100,15 +128,6 @@ export default function HorseHero({ photos, name }: { photos: HeroPhoto[]; name:
       )}
     </div>
   );
-}
-
-function fsButton(): React.CSSProperties {
-  return {
-    position: "absolute", top: 12, right: 12,
-    width: 34, height: 34, borderRadius: 8, border: "none",
-    background: "rgba(20,28,27,0.55)", color: "white", fontSize: 17,
-    cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1, zIndex: 2,
-  };
 }
 
 function heroArrow(side: "left" | "right"): React.CSSProperties {
