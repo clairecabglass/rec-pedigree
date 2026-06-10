@@ -9,6 +9,7 @@ import AdminHorseDeleteButton from "@/components/AdminHorseDeleteButton";
 import { parseHorseCoat } from "@/lib/horseCoat";
 import Icon from "@/components/Icon";
 import PhotoGallery from "@/components/PhotoGallery";
+import HorseHero from "@/components/HorseHero";
 import { buildPedigreeTree, findDuplicates, pedigreeDepth } from "@/lib/pedigree";
 import type { HorseMap } from "@/lib/pedigree";
 import { isAdminLoggedIn } from "@/lib/auth";
@@ -126,19 +127,10 @@ export default async function HorsePage({ params }: { params: Promise<{ id: stri
 
       {/* ===== Hero image ===== */}
       {hero ? (
-        <div style={{ textAlign: "center", marginBottom: 8 }}>
-          <a href={hero.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", maxWidth: 920, width: "100%" }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={hero.url}
-              alt={horse.name}
-              style={{ width: "100%", height: "auto", maxHeight: 520, objectFit: "cover", borderRadius: 8, border: "4px solid var(--gold)", boxShadow: "0 6px 20px rgba(0,0,0,0.12)", display: "block" }}
-            />
-          </a>
-          <div style={{ fontSize: 11, letterSpacing: "0.12em", color: "var(--text-muted)", textTransform: "uppercase", fontFamily: "var(--font-lato)", marginTop: 8 }}>
-            Click to view full image
-          </div>
-        </div>
+        <HorseHero
+          name={horse.name}
+          photos={horse.photos.map((p) => ({ id: p.id, url: p.url, caption: p.caption }))}
+        />
       ) : (
         <div style={{ maxWidth: 920, margin: "0 auto 8px", aspectRatio: "16/8", background: "linear-gradient(135deg, var(--teal-muted), var(--cream-dark))", borderRadius: 8, border: "4px solid var(--gold-light)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
           <Icon name="photo" size={46} color="var(--teal-light)" strokeWidth={1.3} />
