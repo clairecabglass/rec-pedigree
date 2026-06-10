@@ -27,12 +27,16 @@ export default function HorseHero({ photos, name }: { photos: HeroPhoto[]; name:
   return (
     <div style={{ textAlign: "center", marginBottom: 8 }}>
       <div style={{ position: "relative", display: "inline-block", maxWidth: 920, width: "100%" }}>
+        {/* object-fit: contain shows the whole image (no crop/zoom) regardless
+            of aspect ratio. Fixed height keeps the carousel from jumping when
+            switching between landscape photos and portrait images like a
+            certificate; the letterbox area uses a soft neutral background. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={current.url}
           alt={current.caption ?? name}
           onClick={() => setLightbox(true)}
-          style={{ width: "100%", height: "auto", maxHeight: 520, objectFit: "cover", borderRadius: 8, border: "4px solid var(--gold)", boxShadow: "0 6px 20px rgba(0,0,0,0.12)", display: "block", cursor: "zoom-in" }}
+          style={{ width: "100%", height: "min(70vh, 520px)", objectFit: "contain", background: "var(--cream-dark)", borderRadius: 8, border: "4px solid var(--gold)", boxShadow: "0 6px 20px rgba(0,0,0,0.12)", display: "block", cursor: "zoom-in" }}
         />
 
         {count > 1 && (
