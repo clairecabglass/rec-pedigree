@@ -22,6 +22,7 @@ It is not a real-world horse registry. It is a personal admin tool and public-fa
 | Icons | **Lucide React** |
 | Deployment | **Vercel** (auto-deploys on push to `main`) |
 | Image export | **html-to-image** (`toPng`) |
+| Photo/file storage | **Cloudflare R2** (S3 API via `lib/storage.ts`); served over the bucket's public URL set in `R2_PUBLIC_URL` |
 | Auth | Simple custom cookie-based admin session (`isAdminLoggedIn()`) |
 
 ---
@@ -55,7 +56,7 @@ The core model. Key fields:
 - `isImportedPlaceholder` — true if created as a pedigree placeholder (no full data yet)
 
 ### Other models
-- **Photo** — horse images (url + key for storage, isPrimary, order, caption)
+- **Photo** — horse images (url + key for storage, isPrimary, order, caption, `fill` boolean — true = fill block/cover, false = fit whole image/contain)
 - **Document** — attached PDFs or files per horse
 - **Result** — show results/achievements per horse (event, date, placement, notes)
 - **BreedingPlan** — saved wishlist pairing (mare + stallion, notes)
@@ -102,18 +103,29 @@ The core model. Key fields:
 
 ### Horse Registry
 - Full CRUD for horse records
-- Individual profile pages with photo gallery (slideshow), documents, show results
-- Registration certificate export as PNG
+- Individual profile pages with hero photo gallery, documents, show results
+- Registration certificate export (always 4 generations)
 - Public registry is searchable and filterable
 
-### Pedigree System (`lib/pedigree.ts`)
+### Photos & Hero Gallery (`components/HorseHero.tsx`, `components/PhotoManager.tsx`)
+- Hero image is a **carousel**: ‹ › arrows + keyboard arrows cycle through all photos, position counter (e.g. `2 / 5`)
+- Click hero → fullscreen **lightbox** (also has prev/next arrows); always shows the whole image
+- **Per-photo fill/fit toggle (admin only):** small "⤢ Fill block / ⤡ Fit whole image" button on the hero. Fill = `object-fit: cover` (crops edges, no letterbox gaps); Fit = `contain` (whole image). Saved to `Photo.fill`, applies for all viewers
+- Hero default is `contain` on a fixed height (`min(70vh, 520px)`) so portrait images (e.g. certificates) aren't zoomed/cropped and the carousel doesn't jump between aspect ratios
+- **Upload compression (`PhotoManager.shrinkImage`):** images are downscaled (longest edge ≤ 2000px) and re-encoded to JPEG in the browser before upload — Vercel serverless caps request bodies at ~4.5 MB, so full-size camera photos would 413 otherwise. GIFs/small files pass through untouched
+
+### Pedigree System (`lib/pedigree.ts` + `components/PedigreeTree.tsx`)
 - Recursive tree builder from `sireName`/`damName` string references
-- Detects inbreeding (same ancestor in multiple branches) — shows ⚠ badge
+- Detects inbreeding (same ancestor in multiple branches) — shows ⚠ badge; hover highlights all copies of a repeated ancestor
 - **Fixed:** Inbred ancestors now show their FULL lineage on all occurrences (previously dead-leafed)
-- Wright's inbreeding coefficient (F) calculator
-- `findDuplicates`, `commonAncestors`, `pedigreeDepth` utilities
-- Interactive tree viewer: zoom, pan, drag, fullscreen, generation selector (3–10), PNG download
-- Hover to highlight all copies of a repeated ancestor
+- Wright's inbreeding coefficient (F) calculator; `findDuplicates`, `commonAncestors`, `pedigreeDepth` utilities
+- **Display is a horizontal CSS-grid layout** (subject on the left, ancestors expanding right — NOT a connector-line tree):
+  - **Colors by pedigree position, not the gender field:** upper horse of each pair = sire slot = blue (`--sire-*`), lower = dam slot = pink (`--dam-*`). The subject (root) block is a sage green-grey "selected horse" treatment; inbred = red; unknown = muted cream
+  - Default **4 generations**; selector 3–10; fullscreen button
+  - Rows use `1fr` so the grid fills the canvas; row height scales down with depth (28px ≤ gen 4, 20px gen 5–6, 15px gen 7+) so deep gens stay compact
+  - Zoom/pan via `transform: scale()` + an explicit scroll-area sizing div (NOT CSS `zoom`, which breaks scrollWidth); auto-fit zoom capped at 1.0; canvas measured via `ResizeObserver`
+  - Per-cell text gating: name always shows; breed/coat appear only when the cell is tall enough (avoids vertical clipping in cramped deep cells)
+  - `bare`/`compact` modes feed the certificate export (grid div has `className="ped-export"`)
 
 ### My Stable (`/admin/my-stable`)
 - Filters to `ownership === "Home"` horses only
@@ -156,14 +168,15 @@ The core model. Key fields:
 - **Queue:** Any un-scored rider is clickable to jump to; scored riders show ↩ Redo button (removes score, returns them to active)
 - **Mobile friendly:** Judge panel collapses behind a toggle; responsive font sizes; leaderboard shows compact 2-line card on mobile
 - Spectator board: active rider spotlight with live timer, FLIP-animated leaderboard
-- Export final standings as PNG
+- Export final standings as PNG — carries a small logo + "Redfield Equestrian Centre · made on redfieldec.site" credit footer
+- Live timer tick is isolated in a `LiveTimerDisplay` component so the 100ms updates don't re-render the whole board
 - XC mode has optimum time + time deviation display
 
 ### Course Planner (`/resources/course-planner`)
 - Drag-and-drop arena builder
 - Place jumps, water, ditches, combinations
 - Catmull-Rom spline track between obstacles
-- Export master plan
+- Export master plan (PNG) — carries the same logo + "Redfield Equestrian Centre · made on redfieldec.site" credit footer
 
 ### Foal Calculator (`/resources/foal-calculator`)
 - Select sire coat + dam coat → see all possible foal coat outcomes with probabilities
@@ -185,6 +198,12 @@ All under `/api/`. Auth-checked with `isAdminLoggedIn()`. Key routes:
 - `POST /api/horses/bulk-character` — bulk assign character
 - `DELETE /api/horses/bulk-delete`
 - `POST /api/diary/services`, `PATCH /api/diary/services/[id]`, `DELETE /api/diary/services/[id]`
+- `POST /api/horses/[id]/photos` — upload (multipart); `PATCH /api/photos/[photoId]` — caption, order, makePrimary, or `{ fill }`; `DELETE /api/photos/[photoId]`
+
+### Gotchas / things that have bitten us
+- **`position: fixed` modals/lightboxes** must not sit under an ancestor with a lingering `transform`. `<main>` animates with **opacity only** (`fadeIn`) for this reason — a `translateY` there made `<main>` the containing block and pinned every overlay to the page middle instead of the viewport.
+- **Vercel request body cap (~4.5 MB):** anything uploaded through an API route must be shrunk client-side first (see photo compression). Large files 413.
+- **R2 images broke once** because the bucket's public dev URL stopped resolving — images live on R2, served via `R2_PUBLIC_URL`. If images go blank site-wide, check that env/bucket public access first (it's not a code bug).
 
 ### Schema Migrations
 Vercel runs `prisma migrate deploy` on every deploy. When adding fields:
