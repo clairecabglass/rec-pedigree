@@ -106,11 +106,19 @@ export default function HorseForm({ initial, mode }: { initial?: HorseData; mode
         <Text k="microchip" label="Microchip / Reg #" ph="REC-0000000000" />
         <div>
           <label style={labelStyle}>Breed</label>
-          <select value={data.breed ?? ""} onChange={(e) => set("breed", e.target.value)} style={fieldStyle}>
-            <option value="">— Select —</option>
-            {BREEDS.map((b) => <option key={b} value={b}>{b}</option>)}
-            <option value="Unknown">Unknown</option>
-          </select>
+          {/* Typeable: known breeds autocomplete, but any new breed is accepted. */}
+          <input
+            list="breed-options"
+            value={data.breed ?? ""}
+            onChange={(e) => set("breed", e.target.value)}
+            placeholder="Type or pick a breed…"
+            style={fieldStyle}
+            autoComplete="off"
+          />
+          <datalist id="breed-options">
+            {BREEDS.map((b) => <option key={b} value={b} />)}
+            <option value="Unknown" />
+          </datalist>
         </div>
         <div>
           <label style={labelStyle}>Gender</label>
