@@ -3,7 +3,7 @@ const STRING_FIELDS = [
   "ownership", "notes", "height", "discipline", "regNumber", "achievements",
   "videoUrl", "personality", "genotype", "eyeColor", "baseStats", "description",
   "ownerName", "ownerCharacter", "stablePrefix", "breedingFee", "breedingPolicies",
-  "price", "saleDescription", "saleContact",
+  "price", "saleDescription", "saleContact", "lifeStage",
 ] as const;
 
 // Pull only editable Horse fields out of an arbitrary request body.

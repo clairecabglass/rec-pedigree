@@ -3,16 +3,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useMemo, useRef, useEffect, memo } from "react";
 import { parseHorseCoat } from "@/lib/horseCoat";
-import { LayoutList, LayoutGrid, Search, X } from "lucide-react";
+import { LayoutList, LayoutGrid, Search, X, Baby } from "lucide-react";
 
 const CHARACTERS = ["Athena Redfield", "Lucille"] as const;
 type Character = (typeof CHARACTERS)[number];
 
 const FOAL_STAGES = ["Gestation", "Weanling", "Yearling", "Youngster"] as const;
-
-// Server cool-down window in milliseconds (7 real-world days).
-// Change this constant if the server rules change.
-const COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
+// Non-adult life stages isolated by Nursery View (young stock + gestation).
+const NURSERY_STAGES: readonly string[] = FOAL_STAGES;
 
 interface StableHorse {
   id: string;
@@ -22,36 +20,41 @@ interface StableHorse {
   coat: string | null;
   assignedCharacter: string | null;
   lifeStage: string | null;
-  lastBredDateTime: string | null; // ISO string — set when mare was bred
   updatedAt: string;
 }
 
-/** Returns a human-readable countdown string if the mare is still in cool-down, otherwise null. */
-function breedingCooldownRemaining(lastBredISO: string | null): string | null {
-  if (!lastBredISO) return null;
-  const elapsed = Date.now() - new Date(lastBredISO).getTime();
-  const remaining = COOLDOWN_MS - elapsed;
-  if (remaining <= 0) return null;
-
-  const totalMinutes = Math.ceil(remaining / 60_000);
-  const days    = Math.floor(totalMinutes / 1440);
-  const hours   = Math.floor((totalMinutes % 1440) / 60);
-  const minutes = totalMinutes % 60;
-
-  if (days > 0)  return `Cool-down: ${days}d ${hours}h remaining`;
-  if (hours > 0) return `Cool-down: ${hours}h ${minutes}m remaining`;
-  return `Cool-down: ${minutes}m remaining`;
+interface Pregnancy {
+  id: string;
+  damId: string;
+  foalId: string | null;
+  coverDate: string | null; // ISO
+  dueDate: string | null;   // ISO — 72h gestation target
 }
 
 type ViewMode = "list" | "gallery";
 type MaturityFilter = "all" | "adults" | "foals";
 
-export default function MyStableClient({ horses }: { horses: StableHorse[] }) {
+export default function MyStableClient({ horses, pregnancies }: { horses: StableHorse[]; pregnancies: Pregnancy[] }) {
   const router = useRouter();
+
+  /* ---------- Active pregnancy lookup (by mare id) ---------- */
+  const pregByDam = useMemo(() => {
+    const m = new Map<string, Pregnancy>();
+    for (const p of pregnancies) {
+      // If a mare somehow has more than one, keep the soonest-due.
+      const existing = m.get(p.damId);
+      if (!existing) { m.set(p.damId, p); continue; }
+      const a = p.dueDate ? new Date(p.dueDate).getTime() : Infinity;
+      const b = existing.dueDate ? new Date(existing.dueDate).getTime() : Infinity;
+      if (a < b) m.set(p.damId, p);
+    }
+    return m;
+  }, [pregnancies]);
 
   /* ---------- View + filter state ---------- */
   const [view, setView] = useState<ViewMode>("list");
   const [character, setCharacter] = useState<Character | "all">("all");
+  const [nurseryView, setNurseryView] = useState(false);
   const [inputVal, setInputVal] = useState("");  // drives <input> immediately
   const [search, setSearch] = useState("");       // drives filter — debounced
 
@@ -64,6 +67,9 @@ export default function MyStableClient({ horses }: { horses: StableHorse[] }) {
   const [maturityFilter, setMaturityFilter] = useState<MaturityFilter>("all");
   const [coatQuery, setCoatQuery] = useState("");      // raw combobox text
   const [coatValue, setCoatValue] = useState("");      // committed coat filter (raw string from DB)
+
+  /* ---------- Complete-birth modal ---------- */
+  const [birthPreg, setBirthPreg] = useState<Pregnancy | null>(null);
 
   /* ---------- Selection / bulk ---------- */
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -96,7 +102,13 @@ export default function MyStableClient({ horses }: { horses: StableHorse[] }) {
       if (character !== "all" && h.assignedCharacter !== character) return false;
       if (breedFilter && h.breed !== breedFilter) return false;
       if (genderFilter && h.gender !== genderFilter) return false;
-      if (maturityFilter === "foals") {
+      if (nurseryView) {
+        // Nursery View: pregnant mares (active pregnancy or Gestation stage)
+        // + developing young stock; mature adults (lifeStage null) are hidden.
+        const isPregnant = pregByDam.has(h.id) || h.lifeStage === "Gestation";
+        const isYoungStock = !!h.lifeStage && NURSERY_STAGES.includes(h.lifeStage);
+        if (!isPregnant && !isYoungStock) return false;
+      } else if (maturityFilter === "foals") {
         if (!h.lifeStage || !(FOAL_STAGES as readonly string[]).includes(h.lifeStage)) return false;
       } else if (maturityFilter === "adults") {
         if (h.lifeStage && (FOAL_STAGES as readonly string[]).includes(h.lifeStage)) return false;
@@ -107,7 +119,7 @@ export default function MyStableClient({ horses }: { horses: StableHorse[] }) {
       }
       return true;
     });
-  }, [horses, character, breedFilter, genderFilter, maturityFilter, coatValue, search]);
+  }, [horses, character, breedFilter, genderFilter, maturityFilter, coatValue, search, nurseryView, pregByDam]);
 
   const visibleIds = useMemo(() => visible.map((h) => h.id), [visible]);
   const allChecked = visible.length > 0 && visible.every((h) => selected.has(h.id));
@@ -133,7 +145,7 @@ export default function MyStableClient({ horses }: { horses: StableHorse[] }) {
   function clearSelection() { setSelected(new Set()); }
   function clearFilters() {
     setInputVal(""); setSearch(""); setBreedFilter(""); setGenderFilter("");
-    setMaturityFilter("all"); setCoatQuery(""); setCoatValue("");
+    setMaturityFilter("all"); setCoatQuery(""); setCoatValue(""); setNurseryView(false);
   }
 
   const counts = useMemo(() => {
@@ -172,7 +184,7 @@ export default function MyStableClient({ horses }: { horses: StableHorse[] }) {
     router.refresh();
   }
 
-  const filtersActive = !!(search || breedFilter || genderFilter || maturityFilter !== "all" || coatValue);
+  const filtersActive = !!(search || breedFilter || genderFilter || maturityFilter !== "all" || coatValue || nurseryView);
   const totalLabel = `${visible.length} of ${horses.length} Home horse${horses.length !== 1 ? "s" : ""}`;
 
   return (
@@ -209,6 +221,39 @@ export default function MyStableClient({ horses }: { horses: StableHorse[] }) {
             }}>{t.label}</button>
           );
         })}
+      </div>
+
+      {/* ===== Nursery View toggle (fixed-height slot — no canvas jump) ===== */}
+      <div className="min-h-[56px] flex items-center gap-3 flex-wrap">
+        <button
+          type="button"
+          role="switch"
+          aria-checked={nurseryView}
+          onClick={() => setNurseryView((v) => !v)}
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 8,
+            background: nurseryView ? "var(--teal)" : "var(--cream)",
+            color: nurseryView ? "white" : "var(--teal-dark)",
+            border: `1px solid ${nurseryView ? "var(--teal)" : "var(--border)"}`,
+            borderRadius: 999, padding: "8px 16px", fontSize: 13, fontWeight: 700,
+            fontFamily: "var(--font-lato)", cursor: "pointer",
+            boxShadow: nurseryView ? "0 0 0 3px rgba(94,128,128,0.18)" : "none",
+            transition: "background 0.15s, color 0.15s, box-shadow 0.15s",
+          }}
+        >
+          <Baby size={15} strokeWidth={2.2} />
+          Nursery View
+          {nurseryView && (
+            <span style={{ background: "rgba(255,255,255,0.22)", borderRadius: 999, padding: "1px 8px", fontSize: 11 }}>
+              {visible.length}
+            </span>
+          )}
+        </button>
+        <span className="text-xs" style={{ color: "var(--text-muted)", fontFamily: "var(--font-lato)" }}>
+          {nurseryView
+            ? "Showing pregnant mares & young stock only"
+            : "Isolate pregnant mares & young stock"}
+        </span>
       </div>
 
       {/* ===== Filter control bar ===== */}
@@ -311,9 +356,18 @@ export default function MyStableClient({ horses }: { horses: StableHorse[] }) {
       {visible.length === 0 ? (
         <EmptyState filtersActive={filtersActive} onReset={clearFilters} />
       ) : view === "list" ? (
-        <ListView horses={visible} selected={selected} pendingId={pendingId} onToggle={toggleOne} onSetCharacter={setHorseCharacter} />
+        <ListView horses={visible} selected={selected} pendingId={pendingId} onToggle={toggleOne} onSetCharacter={setHorseCharacter} pregByDam={pregByDam} onCompleteBirth={setBirthPreg} />
       ) : (
-        <GalleryView horses={visible} selected={selected} pendingId={pendingId} onToggle={toggleOne} onSetCharacter={setHorseCharacter} />
+        <GalleryView horses={visible} selected={selected} pendingId={pendingId} onToggle={toggleOne} onSetCharacter={setHorseCharacter} pregByDam={pregByDam} onCompleteBirth={setBirthPreg} />
+      )}
+
+      {/* ===== Complete Birth modal ===== */}
+      {birthPreg && (
+        <CompleteBirthModal
+          pregnancy={birthPreg}
+          onClose={() => setBirthPreg(null)}
+          onComplete={() => { setBirthPreg(null); router.refresh(); }}
+        />
       )}
 
       {/* ===== Bulk-move modal ===== */}
@@ -548,9 +602,10 @@ function EmptyState({ filtersActive, onReset }: { filtersActive: boolean; onRese
 }
 
 /* ============================ List View ============================ */
-const ListView = memo(function ListView({ horses, selected, pendingId, onToggle, onSetCharacter }: {
+const ListView = memo(function ListView({ horses, selected, pendingId, onToggle, onSetCharacter, pregByDam, onCompleteBirth }: {
   horses: StableHorse[]; selected: Set<string>; pendingId: string | null;
   onToggle: (id: string) => void; onSetCharacter: (id: string, next: Character) => void;
+  pregByDam: Map<string, Pregnancy>; onCompleteBirth: (p: Pregnancy) => void;
 }) {
   return (
     <div style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 8, overflowX: "auto" }}>
@@ -574,9 +629,11 @@ const ListView = memo(function ListView({ horses, selected, pendingId, onToggle,
                 </td>
                 <td style={{ padding: "8px 12px", fontWeight: 600 }}>
                   <Link href={`/registry/${h.id}`} style={{ color: "var(--teal-dark)", textDecoration: "none" }}>{h.name}</Link>
-                  <div style={{ minHeight: 20, display: "flex", alignItems: "center", marginTop: 2 }}>
-                    <CooldownBadge gender={h.gender} lastBredDateTime={h.lastBredDateTime} />
-                  </div>
+                  {pregByDam.get(h.id) && (
+                    <div style={{ marginTop: 4 }}>
+                      <PregnancyBadge pregnancy={pregByDam.get(h.id)!} onCompleteBirth={onCompleteBirth} />
+                    </div>
+                  )}
                 </td>
                 <td style={{ padding: "8px 12px", color: "var(--text-muted)" }}>{h.breed ?? "—"}</td>
                 <td style={{ padding: "8px 12px", color: "var(--text-muted)" }}>{h.gender ?? "—"}</td>
@@ -608,9 +665,10 @@ const ListView = memo(function ListView({ horses, selected, pendingId, onToggle,
 });
 
 /* ============================ Gallery View ============================ */
-const GalleryView = memo(function GalleryView({ horses, selected, pendingId, onToggle, onSetCharacter }: {
+const GalleryView = memo(function GalleryView({ horses, selected, pendingId, onToggle, onSetCharacter, pregByDam, onCompleteBirth }: {
   horses: StableHorse[]; selected: Set<string>; pendingId: string | null;
   onToggle: (id: string) => void; onSetCharacter: (id: string, next: Character) => void;
+  pregByDam: Map<string, Pregnancy>; onCompleteBirth: (p: Pregnancy) => void;
 }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -632,7 +690,11 @@ const GalleryView = memo(function GalleryView({ horses, selected, pendingId, onT
                   style={{ fontFamily: "var(--font-playfair)", fontSize: 17, color: "var(--teal-dark)", fontWeight: 700, lineHeight: 1.2 }}>
                   {h.name}
                 </Link>
-                <CooldownBadge gender={h.gender} lastBredDateTime={h.lastBredDateTime} />
+                {pregByDam.get(h.id) && (
+                  <div style={{ marginTop: 2 }}>
+                    <PregnancyBadge pregnancy={pregByDam.get(h.id)!} onCompleteBirth={onCompleteBirth} />
+                  </div>
+                )}
               </div>
             </div>
 
@@ -676,36 +738,208 @@ function Pill({ children, kind = "muted" }: { children: React.ReactNode; kind?: 
   );
 }
 
-/** Amber timer badge shown on mares still within their breeding cool-down window. */
-function CooldownBadge({ gender, lastBredDateTime }: { gender: string | null; lastBredDateTime: string | null }) {
-  // Re-render every 60 seconds so the countdown ticks without a page refresh.
+/** Live 72-hour gestation countdown for a mare with an active pregnancy.
+ *  Once the due date passes it becomes a gold "Complete Birth" button. */
+function PregnancyBadge({ pregnancy, onCompleteBirth }: { pregnancy: Pregnancy; onCompleteBirth: (p: Pregnancy) => void }) {
+  // Tick every second so the countdown stays live (isolated re-render).
   const [, setTick] = useState(0);
   useEffect(() => {
-    if (!lastBredDateTime || gender !== "Mare") return;
-    const interval = setInterval(() => setTick((t) => t + 1), 60_000);
-    return () => clearInterval(interval);
-  }, [lastBredDateTime, gender]);
+    const id = setInterval(() => setTick((t) => t + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
 
-  if (gender !== "Mare") return null;
-  const label = breedingCooldownRemaining(lastBredDateTime);
-  if (!label) return null;
+  const due = pregnancy.dueDate ? new Date(pregnancy.dueDate).getTime() : null;
+  const cover = pregnancy.coverDate ? new Date(pregnancy.coverDate).getTime() : null;
+  const now = Date.now();
+  const remaining = due != null ? due - now : null;
+
+  // Ready to foal — gold action button.
+  if (remaining != null && remaining <= 0) {
+    return (
+      <button
+        type="button"
+        onClick={() => onCompleteBirth(pregnancy)}
+        style={{
+          display: "inline-flex", alignItems: "center", gap: 5,
+          fontSize: 11, fontWeight: 800, fontFamily: "var(--font-lato)",
+          background: "var(--gold)", color: "var(--teal-dark)",
+          border: "1px solid var(--gold)", borderRadius: 999,
+          padding: "3px 11px", cursor: "pointer", whiteSpace: "nowrap",
+          boxShadow: "0 1px 4px rgba(196,169,110,0.5)",
+        }}
+      >
+        <Baby size={12} strokeWidth={2.4} /> Complete Birth
+      </button>
+    );
+  }
+
+  // Progress through the 72h window (only when we know both ends).
+  const pct = remaining != null && cover != null && due != null && due > cover
+    ? Math.min(100, Math.max(0, ((now - cover) / (due - cover)) * 100))
+    : null;
+
+  const label = remaining != null ? `Due in ${fmtRemaining(remaining)}` : "Expecting";
 
   return (
-    <span
-      style={{
+    <span style={{ display: "inline-flex", flexDirection: "column", gap: 3, maxWidth: 180 }}>
+      <span style={{
         display: "inline-flex", alignItems: "center", gap: 4,
         fontSize: 10, fontWeight: 700, fontFamily: "var(--font-lato)",
-        background: "#fffbeb", color: "#92400e",
-        border: "1px solid #fde68a", borderRadius: 999,
-        padding: "2px 7px", whiteSpace: "nowrap",
-      }}
-    >
-      {/* clock icon — inline SVG keeps the bundle zero-dep */}
-      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-      </svg>
-      {label}
+        background: "var(--teal-muted)", color: "var(--teal-dark)",
+        border: "1px solid var(--teal-light)", borderRadius: 999,
+        padding: "2px 8px", whiteSpace: "nowrap",
+      }}>
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+        </svg>
+        {label}
+      </span>
+      {pct != null && (
+        <span style={{ height: 4, borderRadius: 999, background: "var(--cream-dark)", overflow: "hidden" }}>
+          <span style={{ display: "block", height: "100%", width: `${pct}%`, background: "var(--teal)", transition: "width 1s linear" }} />
+        </span>
+      )}
     </span>
+  );
+}
+
+/** "12h 04m" / "4m 12s" style remaining-time formatter. */
+function fmtRemaining(ms: number): string {
+  const totalSec = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  if (h > 0) return `${h}h ${String(m).padStart(2, "0")}m`;
+  if (m > 0) return `${m}m ${String(s).padStart(2, "0")}s`;
+  return `${s}s`;
+}
+
+/** Streamlined "Complete Birth" drawer — confirm the placeholder foal's
+ *  name + genetics, then transition it Gestation → Weanling in one save. */
+function CompleteBirthModal({ pregnancy, onClose, onComplete }: {
+  pregnancy: Pregnancy; onClose: () => void; onComplete: () => void;
+}) {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [name, setName] = useState("");
+  const [coat, setCoat] = useState("");
+  const [genotype, setGenotype] = useState("");
+  const noFoal = !pregnancy.foalId;
+
+  useEffect(() => {
+    if (!pregnancy.foalId) { setLoading(false); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/horses/${pregnancy.foalId}`);
+        if (!res.ok) throw new Error();
+        const foal = await res.json();
+        if (cancelled) return;
+        setName(foal.name ?? "");
+        setCoat(foal.coat ?? "");
+        setGenotype(foal.genotype ?? "");
+      } catch {
+        if (!cancelled) setError("Could not load the foal record.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [pregnancy.foalId]);
+
+  async function save() {
+    setSaving(true);
+    setError("");
+    try {
+      // 1. Promote the placeholder foal: confirm name/genetics, Gestation → Weanling.
+      if (pregnancy.foalId) {
+        const res = await fetch(`/api/horses/${pregnancy.foalId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: name.trim() || undefined,
+            coat: coat.trim(),
+            genotype: genotype.trim(),
+            lifeStage: "Weanling",
+            ownership: "Home",
+          }),
+        });
+        if (!res.ok) throw new Error("foal");
+      }
+      // 2. Close out the pregnancy (assigns reg number + dob, marks born).
+      const pres = await fetch(`/api/pregnancies/${pregnancy.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ markBorn: true }),
+      });
+      if (!pres.ok) throw new Error("pregnancy");
+      onComplete();
+    } catch {
+      setError("Something went wrong saving the birth. Please try again.");
+      setSaving(false);
+    }
+  }
+
+  const field: React.CSSProperties = {
+    width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid var(--border)",
+    fontFamily: "var(--font-lato)", fontSize: 14, color: "var(--text)", background: "var(--white)",
+  };
+  const labelStyle: React.CSSProperties = {
+    fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 700,
+    color: "var(--text-muted)", fontFamily: "var(--font-lato)", marginBottom: 4, display: "block",
+  };
+
+  return (
+    <div onClick={() => !saving && onClose()}
+      style={{ position: "fixed", inset: 0, background: "rgba(20,28,27,0.55)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
+      role="dialog" aria-modal="true">
+      <div onClick={(e) => e.stopPropagation()}
+        style={{ background: "var(--white)", borderRadius: 12, padding: 28, maxWidth: 460, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+        <h2 style={{ fontFamily: "var(--font-playfair)", fontSize: 22, color: "var(--teal-dark)", marginBottom: 6 }}>
+          Complete Birth
+        </h2>
+        <p style={{ fontSize: 13, color: "var(--text-muted)", fontFamily: "var(--font-lato)", marginBottom: 18 }}>
+          Confirm the foal&apos;s details. Saving registers it and moves it from Gestation to Weanling in your stable.
+        </p>
+
+        {loading ? (
+          <p style={{ fontFamily: "var(--font-lato)", color: "var(--text-muted)", fontSize: 14 }}>Loading foal…</p>
+        ) : noFoal ? (
+          <p style={{ fontFamily: "var(--font-lato)", color: "var(--text)", fontSize: 14, marginBottom: 18 }}>
+            No placeholder foal is linked to this pregnancy. You can still mark it born.
+          </p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 18 }}>
+            <div>
+              <label style={labelStyle}>Registered name</label>
+              <input style={field} value={name} onChange={(e) => setName(e.target.value)} placeholder="Foal's official name" />
+            </div>
+            <div>
+              <label style={labelStyle}>Coat</label>
+              <input style={field} value={coat} onChange={(e) => setCoat(e.target.value)} placeholder="e.g. Black Tovero (BL_TOV)" />
+            </div>
+            <div>
+              <label style={labelStyle}>Genotype</label>
+              <input style={field} value={genotype} onChange={(e) => setGenotype(e.target.value)} placeholder="Genetics code" />
+            </div>
+          </div>
+        )}
+
+        {error && <p style={{ color: "var(--inbreed-text)", fontSize: 13, fontFamily: "var(--font-lato)", marginBottom: 12 }}>{error}</p>}
+
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+          <button type="button" onClick={onClose} disabled={saving}
+            style={{ background: "var(--white)", border: "1px solid var(--border)", color: "var(--text-muted)", padding: "9px 16px", borderRadius: 8, fontSize: 13, cursor: saving ? "not-allowed" : "pointer", fontFamily: "var(--font-lato)" }}>
+            Cancel
+          </button>
+          <button type="button" onClick={save} disabled={saving || loading}
+            style={{ background: "var(--gold)", color: "var(--teal-dark)", border: "none", padding: "9px 18px", borderRadius: 8, fontSize: 13, fontWeight: 800, cursor: saving || loading ? "wait" : "pointer", fontFamily: "var(--font-lato)", display: "inline-flex", alignItems: "center", gap: 6 }}>
+            <Baby size={14} strokeWidth={2.4} /> {saving ? "Saving…" : "Complete Birth"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

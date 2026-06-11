@@ -20,14 +20,26 @@ export default async function MyStablePage() {
       coat: true,
       assignedCharacter: true,
       lifeStage: true,
-      lastBredDateTime: true,
       updatedAt: true,
     },
   });
 
-  return <MyStableClient horses={horses.map((h) => ({
-    ...h,
-    lastBredDateTime: h.lastBredDateTime ? h.lastBredDateTime.toISOString() : null,
-    updatedAt: h.updatedAt.toISOString(),
-  }))} />;
+  // Active pregnancies — drive Nursery View + the live gestation countdown.
+  const pregnancies = await prisma.pregnancy.findMany({
+    where: { status: "expecting" },
+    select: { id: true, damId: true, coverDate: true, dueDate: true, foalId: true },
+  });
+
+  return (
+    <MyStableClient
+      horses={horses.map((h) => ({ ...h, updatedAt: h.updatedAt.toISOString() }))}
+      pregnancies={pregnancies.map((p) => ({
+        id: p.id,
+        damId: p.damId,
+        foalId: p.foalId,
+        coverDate: p.coverDate ? p.coverDate.toISOString() : null,
+        dueDate: p.dueDate ? p.dueDate.toISOString() : null,
+      }))}
+    />
+  );
 }
