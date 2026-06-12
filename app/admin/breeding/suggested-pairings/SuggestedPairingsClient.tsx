@@ -83,6 +83,25 @@ export default function SuggestedPairingsClient({
   const toggleTarget = (code: string) =>
     setTargetGenotypes((prev) => prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]);
 
+  // Save a pair to the breeding wishlist so it can be mass-bred later.
+  const [savedKeys, setSavedKeys] = useState<Set<string>>(new Set());
+  const [savingKey, setSavingKey] = useState<string | null>(null);
+  async function savePair(p: { mare: { id: string; name: string }; stallion: { id: string; name: string } }) {
+    const key = `${p.mare.id}-${p.stallion.id}`;
+    if (savedKeys.has(key)) return;
+    setSavingKey(key);
+    try {
+      const res = await fetch("/api/breeding-plans", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ damId: p.mare.id, damName: p.mare.name, sireId: p.stallion.id, sireName: p.stallion.name }),
+      });
+      if (res.ok) setSavedKeys((s) => new Set(s).add(key));
+      else alert("Could not save this pair to the wishlist.");
+    } finally {
+      setSavingKey(null);
+    }
+  }
+
 
   // Memoized data
   const mares = useMemo(() => horses.filter(h => h.gender === "Mare"), [horses]);
@@ -377,7 +396,27 @@ export default function SuggestedPairingsClient({
                         <li>Interesting coat potential: {p.foalGenetics.coats.map(c => c.base).join(", ")}</li>
                       )}
                     </ul>
-                    <div style={{ marginTop: 15, display: "flex", justifyContent: "flex-end" }}>
+                    <div style={{ marginTop: 15, display: "flex", justifyContent: "flex-end", gap: 10, flexWrap: "wrap" }}>
+                      {(() => {
+                        const key = `${p.mare.id}-${p.stallion.id}`;
+                        const saved = savedKeys.has(key);
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => savePair(p)}
+                            disabled={saved || savingKey === key}
+                            style={{
+                              ...secondaryButtonStyle,
+                              cursor: saved ? "default" : "pointer",
+                              background: saved ? "var(--teal-muted)" : "var(--white)",
+                              color: saved ? "var(--teal-dark)" : "var(--teal-dark)",
+                              borderColor: saved ? "var(--teal-light)" : "var(--border)",
+                            }}
+                          >
+                            {saved ? "✓ Saved to wishlist" : savingKey === key ? "Saving…" : "☆ Save pair"}
+                          </button>
+                        );
+                      })()}
                       <Link href={`/admin/breeding?mareId=${p.mare.id}&stallionId=${p.stallion.id}`} style={secondaryButtonStyle}>
                          View Foal Pedigree
                       </Link>

@@ -125,6 +125,24 @@ export default function BreedingClient({ horses, pregnancies, plans }: { horses:
     router.refresh();
   }
 
+  // Mass-breed every saved wishlist pair: a foal placeholder + 72h pregnancy each.
+  const [massBusy, setMassBusy] = useState(false);
+  async function massBreed() {
+    const breedable = plans.filter((p) => p.damId || p.damName);
+    if (breedable.length === 0) return;
+    if (!confirm(`Breed all ${breedable.length} saved pair${breedable.length !== 1 ? "s" : ""}? This creates ${breedable.length} foal placeholder${breedable.length !== 1 ? "s" : ""}, each with a 72-hour pregnancy, and clears them from the wishlist.`)) return;
+    setMassBusy(true);
+    const res = await fetch("/api/pregnancies/batch", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ planIds: breedable.map((p) => p.id) }),
+    });
+    setMassBusy(false);
+    if (!res.ok) { alert("Mass breed failed."); return; }
+    const data = await res.json();
+    if (data.skipped?.length) alert(`Bred ${data.bred}. Skipped ${data.skipped.length} (mare not found).`);
+    router.refresh();
+  }
+
   async function markBorn(id: string) {
     if (!confirm("Mark this foal as born? It will be added to the registry — you can then fill in its details.")) return;
     await fetch(`/api/pregnancies/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ markBorn: true }) });
@@ -281,13 +299,27 @@ export default function BreedingClient({ horses, pregnancies, plans }: { horses:
       {/* ===== Breeding wishlist ===== */}
       {plans.length > 0 && (
         <div style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 10, padding: 24, marginBottom: 28 }}>
-          <h2
-            onClick={() => setWishlistOpen((o) => !o)}
-            style={{ fontFamily: "var(--font-playfair)", fontSize: 22, color: "var(--teal-dark)", marginBottom: wishlistOpen ? 16 : 0, cursor: "pointer", display: "flex", alignItems: "center", gap: 10, userSelect: "none" }}
-          >
-            <span style={{ fontSize: 15, color: "var(--text-muted)", transform: wishlistOpen ? "rotate(90deg)" : "none", transition: "transform 0.15s", display: "inline-block" }}>▸</span>
-            Breeding Wishlist ({plans.length})
-          </h2>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: wishlistOpen ? 16 : 0, flexWrap: "wrap" }}>
+            <h2
+              onClick={() => setWishlistOpen((o) => !o)}
+              style={{ fontFamily: "var(--font-playfair)", fontSize: 22, color: "var(--teal-dark)", cursor: "pointer", display: "flex", alignItems: "center", gap: 10, userSelect: "none", margin: 0 }}
+            >
+              <span style={{ fontSize: 15, color: "var(--text-muted)", transform: wishlistOpen ? "rotate(90deg)" : "none", transition: "transform 0.15s", display: "inline-block" }}>▸</span>
+              Breeding Wishlist ({plans.length})
+            </h2>
+            <button
+              onClick={massBreed}
+              disabled={massBusy || plans.length === 0}
+              title="Breed every saved pair at once — creates a foal + 72h pregnancy for each"
+              style={{
+                background: "var(--gold)", color: "var(--teal-dark)", border: "none", borderRadius: 8,
+                padding: "9px 18px", fontSize: 13, fontWeight: 800, fontFamily: "var(--font-lato)",
+                cursor: massBusy ? "wait" : "pointer", opacity: massBusy ? 0.7 : 1, whiteSpace: "nowrap",
+              }}
+            >
+              {massBusy ? "Breeding…" : `⚡ Mass Breed (${plans.length})`}
+            </button>
+          </div>
           {wishlistOpen && (
             <div className="grid sm:grid-cols-2 gap-3">
               {plans.map((pl) => {
