@@ -13,6 +13,7 @@ export function sanitizeHorseInput(body: Record<string, unknown>) {
     if (f in body) data[f] = body[f] === "" ? null : body[f];
   }
   if ("withFoal" in body) data.withFoal = Boolean(body.withFoal);
+  if ("availableForBreeding" in body) data.availableForBreeding = Boolean(body.availableForBreeding);
   if ("dob" in body) data.dob = body.dob ? new Date(body.dob as string) : null;
   return data;
 }

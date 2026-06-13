@@ -11,7 +11,7 @@ export const metadata = {
 
 export default async function BroodmaresPage() {
   const horses = await prisma.horse.findMany({
-    where: { ownership: "Home", gender: "Mare" },
+    where: { ownership: "Home", gender: "Mare", availableForBreeding: true },
     orderBy: { name: "asc" },
     select: {
       id: true, name: true, breed: true, coat: true, breedingFee: true, breedingPolicies: true,

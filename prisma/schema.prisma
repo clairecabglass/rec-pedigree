@@ -50,8 +50,9 @@ model Horse {
   lastBredDateTime DateTime?
 
   // Breeding
-  breedingFee      String?
-  breedingPolicies String?
+  breedingFee          String?  // price per cover
+  breedingPolicies     String?
+  availableForBreeding Boolean  @default(false) // listed on public Studs/Broodmares pages
 
   // For Sale details
   price           String?

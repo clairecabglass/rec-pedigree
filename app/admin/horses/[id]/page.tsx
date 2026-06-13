@@ -49,6 +49,7 @@ export default async function EditHorsePage({ params }: { params: Promise<{ id: 
     stablePrefix: undef(horse.stablePrefix),
     breedingFee: undef(horse.breedingFee),
     breedingPolicies: undef(horse.breedingPolicies),
+    availableForBreeding: horse.availableForBreeding,
     price: undef(horse.price),
     saleDescription: undef(horse.saleDescription),
     saleContact: undef(horse.saleContact),

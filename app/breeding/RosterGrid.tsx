@@ -40,7 +40,7 @@ export default function RosterGrid({ horses, emptyLabel }: { horses: RosterHorse
                 </div>
                 {h.breedingFee && (
                   <div style={{ marginTop: 10, fontSize: 13, fontFamily: "var(--font-lato)", color: "var(--teal-dark)" }}>
-                    <span style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-muted)", fontWeight: 700 }}>Fee</span>
+                    <span style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-muted)", fontWeight: 700 }}>Per cover</span>
                     <div style={{ fontWeight: 700 }}>{h.breedingFee}</div>
                   </div>
                 )}

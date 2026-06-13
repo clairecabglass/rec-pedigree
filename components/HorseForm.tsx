@@ -30,6 +30,7 @@ interface HorseData {
   stablePrefix?: string;
   breedingFee?: string;
   breedingPolicies?: string;
+  availableForBreeding?: boolean;
   price?: string;
   saleDescription?: string;
   saleContact?: string;
@@ -173,7 +174,13 @@ export default function HorseForm({ initial, mode }: { initial?: HorseData; mode
 
       {/* Breeding */}
       <Section title="Breeding">
-        <Text k="breedingFee" label="Breeding Fee" ph="e.g. $2000" />
+        <Text k="breedingFee" label="Price per Cover" ph="e.g. $2000" />
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <input type="checkbox" id="availableForBreeding" checked={data.availableForBreeding ?? false} onChange={(e) => set("availableForBreeding", e.target.checked)} style={{ width: 16, height: 16 }} />
+          <label htmlFor="availableForBreeding" style={{ ...labelStyle, marginBottom: 0, textTransform: "none", letterSpacing: 0, fontSize: 13 }}>
+            Available for breeding — list on public Studs / Broodmares page
+          </label>
+        </div>
         <Area k="breedingPolicies" label="Breeding Policies" rows={2} ph="e.g. One free rebreed if first foal returned…" />
       </Section>
 

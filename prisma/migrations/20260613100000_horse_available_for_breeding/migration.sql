@@ -1,0 +1,1 @@
+ALTER TABLE "Horse" ADD COLUMN IF NOT EXISTS "availableForBreeding" BOOLEAN NOT NULL DEFAULT false;
