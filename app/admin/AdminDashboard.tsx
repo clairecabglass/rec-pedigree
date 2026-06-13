@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import Icon from "@/components/Icon";
 
 interface Recent {
@@ -9,11 +9,38 @@ interface Recent {
   ownership: string | null; updatedAt: string;
 }
 
-export default function AdminDashboard({ stats, recent }: {
-  stats: { total: number; forSale: number; withFoal: number };
+interface Todo { id: string; text: string; done: boolean; }
+
+export default function AdminDashboard({ stats, recent, initialTodos }: {
+  stats: { total: number; forSale: number; withFoal: number; pregnant: number };
   recent: Recent[];
+  initialTodos: Todo[];
 }) {
   const router = useRouter();
+
+  /* ---- To-do list (persisted as JSON via /api/admin/todos) ---- */
+  const [todos, setTodos] = useState<Todo[]>(initialTodos);
+  const [todoInput, setTodoInput] = useState("");
+  const firstTodoRender = useRef(true);
+  useEffect(() => {
+    if (firstTodoRender.current) { firstTodoRender.current = false; return; }
+    const t = setTimeout(() => {
+      fetch("/api/admin/todos", {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: todos }),
+      });
+    }, 400);
+    return () => clearTimeout(t);
+  }, [todos]);
+
+  function addTodo() {
+    const text = todoInput.trim();
+    if (!text) return;
+    setTodos((t) => [...t, { id: Math.random().toString(36).slice(2), text, done: false }]);
+    setTodoInput("");
+  }
+  function toggleTodo(id: string) { setTodos((t) => t.map((x) => x.id === id ? { ...x, done: !x.done } : x)); }
+  function removeTodo(id: string) { setTodos((t) => t.filter((x) => x.id !== id)); }
 
   /* ---- Bulk-select state ---- */
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -76,9 +103,10 @@ export default function AdminDashboard({ stats, recent }: {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         {[
           { label: "Total Horses", value: stats.total },
+          { label: "Pregnant", value: stats.pregnant },
           { label: "For Sale", value: stats.forSale },
           { label: "With Foal", value: stats.withFoal },
         ].map((s) => (
@@ -87,6 +115,53 @@ export default function AdminDashboard({ stats, recent }: {
             <div style={{ fontSize: 11, letterSpacing: "0.1em", color: "var(--text-muted)", fontFamily: "var(--font-lato)", textTransform: "uppercase" }}>{s.label}</div>
           </div>
         ))}
+      </div>
+
+      {/* To-do list + backup */}
+      <div className="grid md:grid-cols-3 gap-4 mb-8">
+        <div style={{ ...cardStyle, gridColumn: "span 2" }}>
+          <h2 style={{ fontFamily: "var(--font-playfair)", fontSize: 20, color: "var(--teal-dark)", marginBottom: 12 }}>To-Do</h2>
+          <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+            <input
+              value={todoInput}
+              onChange={(e) => setTodoInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") addTodo(); }}
+              placeholder="Add a task and press Enter…"
+              style={{ flex: 1, border: "1px solid var(--border)", borderRadius: 6, padding: "9px 12px", fontSize: 13, fontFamily: "var(--font-lato)", background: "var(--white)", color: "var(--text)" }}
+            />
+            <button onClick={addTodo} style={{ background: "var(--teal)", color: "white", border: "none", borderRadius: 6, padding: "9px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-lato)" }}>Add</button>
+          </div>
+          {todos.length === 0 ? (
+            <p style={{ fontSize: 13, color: "var(--text-muted)", fontFamily: "var(--font-lato)" }}>Nothing on the list — add a task above.</p>
+          ) : (
+            <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+              {todos.map((t) => (
+                <li key={t.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", borderRadius: 6, background: "var(--cream)", border: "1px solid var(--border)" }}>
+                  <input type="checkbox" checked={t.done} onChange={() => toggleTodo(t.id)} style={{ width: 15, height: 15, accentColor: "var(--teal)", flexShrink: 0 }} />
+                  <span style={{ flex: 1, fontSize: 13, fontFamily: "var(--font-lato)", color: t.done ? "var(--text-muted)" : "var(--text)", textDecoration: t.done ? "line-through" : "none" }}>{t.text}</span>
+                  <button onClick={() => removeTodo(t.id)} aria-label="Delete task" style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: 16, lineHeight: 1, padding: 2 }}>×</button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div style={cardStyle}>
+          <h2 style={{ fontFamily: "var(--font-playfair)", fontSize: 20, color: "var(--teal-dark)", marginBottom: 6 }}>Backup My Stable</h2>
+          <p style={{ fontSize: 12, color: "var(--text-muted)", fontFamily: "var(--font-lato)", marginBottom: 14 }}>
+            Download a full copy of your registry.
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <a href="/api/admin/export?format=json" download
+              style={{ textAlign: "center", background: "var(--teal)", color: "white", borderRadius: 6, padding: "9px 14px", fontSize: 13, fontWeight: 700, textDecoration: "none", fontFamily: "var(--font-lato)" }}>
+              ↓ Download JSON
+            </a>
+            <a href="/api/admin/export?format=csv" download
+              style={{ textAlign: "center", background: "var(--white)", color: "var(--teal-dark)", border: "1px solid var(--teal)", borderRadius: 6, padding: "9px 14px", fontSize: 13, fontWeight: 700, textDecoration: "none", fontFamily: "var(--font-lato)" }}>
+              ↓ Download CSV
+            </a>
+          </div>
+        </div>
       </div>
 
       {/* Actions */}

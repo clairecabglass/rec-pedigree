@@ -19,9 +19,16 @@ const RESOURCES_LINKS = [
   { href: "/resources/show-scoreboard", label: "Show Scoreboard" },
 ];
 
+const BREEDING_LINKS = [
+  { href: "/breeding", label: "Policies" },
+  { href: "/breeding/studs", label: "Studs" },
+  { href: "/breeding/broodmares", label: "Broodmares" },
+];
+
 export default function Nav() {
   const path = usePathname();
   const [resourcesOpen, setResourcesOpen] = useState(false);
+  const [breedingOpen, setBreedingOpen] = useState(false);
 
   const isActive = (href: string) =>
     path === href || (href !== "/" && path.startsWith(href));
@@ -40,6 +47,7 @@ export default function Nav() {
   });
 
   const resourcesActive = RESOURCES_LINKS.some((r) => isActive(r.href));
+  const breedingActive = path === "/breeding" || path.startsWith("/breeding/");
 
   return (
     <header style={{ background: "var(--white)", borderBottom: "1px solid var(--border)" }}>
@@ -68,6 +76,59 @@ export default function Nav() {
               {l.label}
             </Link>
           ))}
+
+          {/* Breeding — hover dropdown */}
+          <div
+            className="relative inline-flex items-center"
+            onMouseEnter={() => setBreedingOpen(true)}
+            onMouseLeave={() => setBreedingOpen(false)}
+          >
+            <button
+              type="button"
+              onClick={() => setBreedingOpen((o) => !o)}
+              onFocus={() => setBreedingOpen(true)}
+              className="inline-flex items-center gap-1 cursor-pointer"
+              style={{
+                background: "transparent", borderTop: "none", borderLeft: "none", borderRight: "none",
+                borderBottom: breedingActive ? "2px solid var(--teal)" : "2px solid transparent",
+                paddingTop: 0, paddingLeft: 0, paddingRight: 0, paddingBottom: 2, margin: 0,
+                fontSize: 14, lineHeight: 1, letterSpacing: "0.05em", fontFamily: "var(--font-lato)",
+                color: breedingActive ? "var(--teal-dark)" : "var(--text-muted)",
+                whiteSpace: "nowrap", textDecoration: "none", transition: "color 0.15s",
+              }}
+              aria-haspopup="true"
+              aria-expanded={breedingOpen}
+            >
+              <span className="leading-none">Breeding</span>
+              <ChevronDown size={14} aria-hidden style={{ transform: breedingOpen ? "rotate(180deg)" : "none", transition: "transform 0.15s", flexShrink: 0 }} />
+            </button>
+            <div style={{ position: "absolute", top: "100%", left: 0, right: 0, height: 10 }} />
+            {breedingOpen && (
+              <div
+                style={{ position: "absolute", top: "calc(100% + 10px)", right: 0, minWidth: 200, background: "var(--white)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.10)", padding: 6, zIndex: 50 }}
+                role="menu"
+              >
+                {BREEDING_LINKS.map((r) => (
+                  <Link
+                    key={r.href}
+                    href={r.href}
+                    role="menuitem"
+                    onClick={() => setBreedingOpen(false)}
+                    style={{
+                      display: "block", padding: "9px 12px", borderRadius: 6, fontSize: 13, fontFamily: "var(--font-lato)",
+                      color: isActive(r.href) ? "var(--teal-dark)" : "var(--text)",
+                      background: isActive(r.href) ? "var(--teal-muted)" : "transparent",
+                      textDecoration: "none", fontWeight: isActive(r.href) ? 700 : 500, transition: "background 0.12s",
+                    }}
+                    onMouseEnter={(e) => { if (!isActive(r.href)) e.currentTarget.style.background = "var(--cream)"; }}
+                    onMouseLeave={(e) => { if (!isActive(r.href)) e.currentTarget.style.background = "transparent"; }}
+                  >
+                    {r.label}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Resources — hover dropdown */}
           <div
