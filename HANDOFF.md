@@ -72,6 +72,7 @@ npx vercel --prod
 - `/registry` — searchable horse list
 - `/registry/[id]` — horse profile (photos, pedigree, results)
 - `/for-sale` — sale listings
+- `/breeding` — breeding policies (admin-editable inline); `/breeding/studs` + `/breeding/broodmares` — public rosters of horses flagged `availableForBreeding`
 - `/resources` — tools hub
 - `/resources/course-planner` — drag-drop jump course builder
 - `/resources/foal-calculator` — coat genetics calculator
@@ -98,12 +99,17 @@ npx vercel --prod
 - `ownership` — `"Home"` = actively owned (this is the filter for My Stable, NOT name prefixes)
 - `assignedCharacter` — `"Athena Redfield"` or `"Lucille"` (the two player character personas)
 - `lifeStage` — `null` = Adult, or `"Gestation"` | `"Weanling"` | `"Yearling"` | `"Youngster"`
-- `lastBredDateTime` — mare breeding cool-down start timestamp (7-day window)
 - `sireName` / `damName` — plain text, used to build pedigree trees recursively
 - `coat` — packed string like `"Black Tovero (BL_TOV)"` — always parse with `parseHorseCoat()`
 - `genotype` — genetics code string
+- `breedingFee` — free-text "price per cover"; `breedingPolicies` — free text
+- `availableForBreeding` — boolean; when true the horse is listed on the public `/breeding/studs` (stallions) or `/breeding/broodmares` (mares) page
+- NOTE: there is NO mare cool-down — the old `lastBredDateTime` field/logic was removed
 
-**Other models:** Photo, Document, Result, BreedingPlan, Pregnancy, DiaryNote, PreferredService, SiteContent
+**Photo** — `fill` boolean: true = `object-fit: cover` (fill block), false = `contain` (whole image)
+
+**Other models:** Document, Result, BreedingPlan, Pregnancy, DiaryNote, PreferredService, SiteContent (unused)
+- `DiaryNote` is a generic key/value store. Keys in use: `"general"` (admin diary), `"admin_todos"` (JSON array — admin dashboard to-do list), `"breeding_policies"` (public breeding policies text)
 
 ---
 
@@ -111,7 +117,7 @@ npx vercel --prod
 
 - **Horse name prefixes** like `[REC]`, `[TES]`, `[DSH]`, `[F.E]`, `[MLY]`, `[WRR]`, `[EMR]`, `[YRC]`, `[GH]` indicate stables/factions in the game. Display as-is, never strip them.
 - **Gestation is 72 real-world hours** (game server rule)
-- **Mare breeding cool-down is 7 real-world days** — constant `COOLDOWN_MS` in MyStableClient.tsx
+- **There is NO mare breeding cool-down** (a previous spec claimed a 7-day rule; it was removed entirely)
 - **Two character personas:** "Athena Redfield" (primary) and "Lucille" — horses default to Athena
 - **Foal pedigree depth** uses `Math.min(sire, dam)` not max — so a lopsided pedigree doesn't inflate the number
 
@@ -171,12 +177,37 @@ npx vercel --prod
 
 ---
 
+## What was done in the LATEST session (most recent first)
+
+- **Pedigree grid polish:** colors now by **pedigree POSITION** not gender (upper of each pair = sire = blue, lower = dam = pink); subject/root = sage green-grey (`#E4E7E1`); per-cell text gating so names don't clip; row height scales down with depth (28px ≤gen4, 20px gen5–6, 15px gen7+); fixed fullscreen jitter + `min-width:0` for ellipsis. Certificate fixed at **4 generations**.
+- **Photo system:**
+  - Hero is a **carousel** (`components/HorseHero.tsx`) — arrows + counter + click-to-lightbox; per-photo **fill/fit toggle** (admin, saved to `Photo.fill`).
+  - **Image optimization:** registry cards, gallery thumbnails, hero use **`next/image`**; R2 host whitelisted in `next.config.ts` `images.remotePatterns` (fixes pixelation = browser downscaling, not source/hosting).
+  - **Upload compression** in `PhotoManager` — downscale ≤2000px + JPEG re-encode before upload (Vercel ~4.5 MB body cap → 413 otherwise).
+- **Global fix:** `<main>` animates **opacity only** (no transform) so `position:fixed` modals/lightboxes center on the viewport, not the page middle.
+- **Exports:** course planner + scoreboard PNGs carry a logo + "Redfield Equestrian Centre · made on redfieldec.site" credit.
+- **My Stable:** removed cool-down entirely; added **Nursery View** toggle (pregnant mares + young stock); live **72h gestation countdown** badge → gold **Complete Birth** modal (confirm foal name/coat/genotype, Gestation→Weanling, `PUT` foal + `PATCH markBorn`).
+- **Breeding mass-flow:** Suggested Pairings has **☆ Save pair** → wishlist; Breeding page has **⚡ Mass Breed (N)** → `POST /api/pregnancies/batch` (foal + 72h pregnancy per saved pair).
+- **HorseForm:** breed is a typeable **datalist** (any new breed allowed); **Price per Cover** + **Available for breeding** toggle.
+- **Admin dashboard:** **Pregnant** stat card; persistent **To-Do list** (`/api/admin/todos`); **Backup My Stable** JSON/CSV (`/api/admin/export`).
+- **Public Breeding section** (new nav dropdown): `/breeding` (admin-editable policies), `/breeding/studs`, `/breeding/broodmares` — only horses with `availableForBreeding` show.
+- **Build fix:** `lib/pedigree-parser` lazy-inits the OpenAI client (was throwing at build when `OPENAI_API_KEY` absent, e.g. Vercel preview).
+- New schema fields this session: `Photo.fill`, `Horse.availableForBreeding` (both migrated + resolved). `lifeStage` added to `sanitizeHorseInput`.
+
+---
+
 ## Things NOT to change without asking
 - Auth system — intentionally simple single-password
 - `ownership === "Home"` filter logic — source of truth for My Stable, not name prefixes
 - 72-hour gestation rule
-- 7-day breeding cool-down constant
 - The two character names "Athena Redfield" and "Lucille"
+- Pedigree coloring is by POSITION (top=sire/blue, bottom=dam/pink), not the gender field
+
+## Gotchas (have bitten us)
+- **`position:fixed` + ancestor `transform`:** any lingering transform on an ancestor makes it the containing block → modals pin to the page, not the viewport. Keep `<main>` transform-free.
+- **Vercel ~4.5 MB request body cap:** anything uploaded through an API route must be shrunk client-side first.
+- **Images** live on R2 served via `R2_PUBLIC_URL`; if they go blank site-wide, check the bucket's public access/env first — not a code bug.
+- **Build needs no secrets:** never construct API clients (OpenAI etc.) at module top level — lazy-init inside handlers.
 
 ---
 
