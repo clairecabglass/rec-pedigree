@@ -10,6 +10,7 @@ import { parseHorseCoat } from "@/lib/horseCoat";
 import Icon from "@/components/Icon";
 import PhotoGallery from "@/components/PhotoGallery";
 import HorseHero from "@/components/HorseHero";
+import BreedingHistory from "./BreedingHistory";
 import { buildPedigreeTree, findDuplicates, pedigreeDepth } from "@/lib/pedigree";
 import type { HorseMap } from "@/lib/pedigree";
 import { isAdminLoggedIn } from "@/lib/auth";
@@ -33,6 +34,23 @@ export default async function HorsePage({ params }: { params: Promise<{ id: stri
   if (!horse) notFound();
 
   const results = await prisma.result.findMany({ where: { horseId: id }, orderBy: { date: "desc" } });
+
+  // Breeding history: pregnancies where this horse was the dam, or named as sire
+  const breedingHistory = await prisma.pregnancy.findMany({
+    where: {
+      OR: [
+        { damId: horse.id },
+        { sireName: { equals: horse.name, mode: "insensitive" } },
+      ],
+    },
+    orderBy: { coverDate: "desc" },
+  });
+  // Resolve foal names for history entries that have a foalId
+  const foalIds = breedingHistory.map((p) => p.foalId).filter(Boolean) as string[];
+  const foalRecords = foalIds.length
+    ? await prisma.horse.findMany({ where: { id: { in: foalIds } }, select: { id: true, name: true } })
+    : [];
+  const foalById = new Map(foalRecords.map((f) => [f.id, f]));
 
   const allHorses = await prisma.horse.findMany({
     select: {
@@ -68,6 +86,13 @@ export default async function HorsePage({ params }: { params: Promise<{ id: stri
 
   const sire = horse.sireName ? horseMap.get(horse.sireName.toLowerCase()) : undefined;
   const dam = horse.damName ? horseMap.get(horse.damName.toLowerCase()) : undefined;
+
+  // For stallion history entries, resolve dam name from damId
+  const damIds = breedingHistory.map((p) => p.damId).filter(Boolean) as string[];
+  const damRecords = damIds.length
+    ? await prisma.horse.findMany({ where: { id: { in: damIds } }, select: { id: true, name: true } })
+    : [];
+  const damById = new Map(damRecords.map((d) => [d.id, d]));
 
   const allHorsesJson = JSON.stringify(allHorses.map((h) => ({ id: h.id, name: h.name })));
   const hero = horse.photos[0];
@@ -309,7 +334,7 @@ export default async function HorsePage({ params }: { params: Promise<{ id: stri
 
       {/* ===== Documents ===== */}
       {horse.documents.length > 0 && (
-        <div style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 10, padding: 24 }}>
+        <div style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 10, padding: 24, marginBottom: 28 }}>
           {sectionTitle("Documents")}
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {horse.documents.map((d) => (
@@ -322,6 +347,24 @@ export default async function HorsePage({ params }: { params: Promise<{ id: stri
             ))}
           </div>
         </div>
+      )}
+
+      {/* ===== Breeding history ===== */}
+      {breedingHistory.length > 0 && (
+        <BreedingHistory
+          horseName={horse.name}
+          entries={breedingHistory.map((p) => ({
+            id: p.id,
+            sireName: p.sireName,
+            damId: p.damId,
+            damName: damById.get(p.damId)?.name ?? null,
+            foalId: p.foalId ? foalById.get(p.foalId)?.id ?? null : null,
+            foalName: p.foalId ? foalById.get(p.foalId)?.name ?? null : null,
+            coverDate: p.coverDate ? p.coverDate.toISOString() : null,
+            status: p.status,
+            notes: p.notes,
+          }))}
+        />
       )}
     </div>
   );

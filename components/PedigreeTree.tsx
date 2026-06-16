@@ -73,8 +73,10 @@ function GridCard({ cell, idMap, rowUnitH }: { cell: GridCell; idMap: Map<string
   const showCoat  = !isUnknown && !!coat && cellH >= 46;
   const showFlag  = inbreed && cellH >= 60;
 
+  // Shrink vertical padding on tiny cells so the name isn't clipped
+  const vPad = col === 1 ? 10 : cellH < 18 ? 1 : cellH < 28 ? 2 : 4;
   const inner = (
-    <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", padding: col === 1 ? "10px 14px" : "4px 8px", height: "100%", gap: 1, overflow: "hidden" }}>
+    <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", padding: col === 1 ? `10px 14px` : `${vPad}px 8px`, height: "100%", gap: 1, overflow: "hidden" }}>
       <div style={{ fontFamily: "var(--font-playfair)", fontSize: nameSize, fontWeight: 700, color: s.text, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
         {node?.name ?? "Unknown"}
       </div>
