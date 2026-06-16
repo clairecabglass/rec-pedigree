@@ -78,20 +78,25 @@ export function buildPedigreeTree(
 }
 
 // How many generations of known ancestors exist above this horse.
+// Pass a shared `memo` map when computing depth for many horses (e.g. the
+// registry page) so ancestor sub-trees are only traversed once.
 export function pedigreeDepth(
   name: string,
   allHorses: HorseMap,
-  seen = new Set<string>()
+  seen = new Set<string>(),
+  memo = new Map<string, number>()
 ): number {
   const horse = allHorses.get(name.toLowerCase());
   if (!horse) return 0;
   const key = horse.name.toLowerCase();
   if (seen.has(key)) return 0;
+  if (memo.has(key)) return memo.get(key)!;
   const next = new Set(seen);
   next.add(key);
   let depth = 0;
-  if (horse.sireName && !isPlaceholderAncestor(horse.sireName)) depth = Math.max(depth, 1 + pedigreeDepth(horse.sireName, allHorses, next));
-  if (horse.damName && !isPlaceholderAncestor(horse.damName)) depth = Math.max(depth, 1 + pedigreeDepth(horse.damName, allHorses, next));
+  if (horse.sireName && !isPlaceholderAncestor(horse.sireName)) depth = Math.max(depth, 1 + pedigreeDepth(horse.sireName, allHorses, next, memo));
+  if (horse.damName && !isPlaceholderAncestor(horse.damName)) depth = Math.max(depth, 1 + pedigreeDepth(horse.damName, allHorses, next, memo));
+  memo.set(key, depth);
   return depth;
 }
 

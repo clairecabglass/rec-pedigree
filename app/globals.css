@@ -303,6 +303,33 @@ textarea:focus {
   box-shadow: 0 0 0 3px rgba(138, 171, 168, 0.25);
 }
 
+/* ============================================================
+   Mobile — base tap targets & text sizing
+   ============================================================ */
+
+/* Comfortable tap targets on mobile without affecting desktop layout */
+@media (max-width: 640px) {
+  /* Prevent text from being microscopic on phones */
+  body { font-size: 16px; }
+
+  /* Full-width selects and inputs in filter bars on small screens */
+  select, input[type="text"], input[type="search"] {
+    min-height: 44px;
+    font-size: 16px; /* prevents iOS zoom-on-focus */
+  }
+
+  /* Horse profile two-col grid → stack on mobile */
+  .profile-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Registry cards: 2-col feels tight on very small phones — stay 2-col
+     but give a bit more breathing room */
+  .registry-card-name {
+    font-size: 13px !important;
+  }
+}
+
 /* Respect users who prefer no motion. */
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }

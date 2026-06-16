@@ -40,12 +40,15 @@ export default async function RegistryPage() {
     },
   });
 
+  // Share one memo across all depth calculations so shared ancestors are only
+  // traversed once — prevents O(n * tree_size) recursion on large registries.
+  const depthMemo = new Map<string, number>();
   const flat = horses.map((h) => ({
     id: h.id, name: h.name, breed: h.breed, gender: h.gender, coat: h.coat,
     ownership: h.ownership, sireName: h.sireName, damName: h.damName,
     dob: h.dob ? h.dob.toISOString() : null, withFoal: h.withFoal,
     photo: h.photos[0]?.url ?? null,
-    generations: pedigreeDepth(h.name, map),
+    generations: pedigreeDepth(h.name, map, new Set(), depthMemo),
   }));
 
   const breeds = [...new Set(horses.map((h) => h.breed).filter(Boolean))].sort() as string[];

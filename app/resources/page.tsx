@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Dna, Grid3x3, Trophy, Sparkles, ArrowRight, type LucideIcon } from "lucide-react";
+import { Dna, Grid3x3, Trophy, ArrowRight, type LucideIcon } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Resources · Redfield Equestrian Centre",
@@ -40,14 +40,6 @@ const CARDS: ResourceCard[] = [
       "Run live-updating equestrian show brackets. Toggle judge controller panels to calculate real-time times, faults, and export final result graphics.",
     cta: "Launch Scoreboard",
     Icon: Trophy,
-  },
-  {
-    href: "/resources/foal-names",
-    title: "Foal Name Generator",
-    description:
-      "Generate blended foal name ideas from sire and dam names. Combines word halves and phonetic chunks to suggest roleplay-ready names.",
-    cta: "Generate Names",
-    Icon: Sparkles,
   },
 ];
 
