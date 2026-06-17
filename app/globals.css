@@ -38,43 +38,45 @@
    automatically flips without any component-level changes.
    ============================================================ */
 [data-theme="dark"] {
-  /* Near-black neutral background — no color cast so cards pop clearly */
-  --cream:        #141414;
-  --cream-dark:   #0C0C0C;
+  /* Warm charcoal — dark grey-brown base, cream text, gold accents */
 
-  /* Cards / surfaces — dark teal-grey, clearly visible above the bg */
-  --white:        #1D2B27;
+  /* Page background — very dark warm charcoal */
+  --cream:        #1A1714;
+  --cream-dark:   #131110;
 
-  /* Brand teal */
-  --teal:         #5E8A8A;
-  --teal-dark:    #8ECAC4;
-  --teal-light:   #2A4848;
-  --teal-muted:   #162424;
+  /* Cards / nav — warm dark surface, clearly above the bg */
+  --white:        #262119;
 
-  /* Accent */
-  --gold:         #C4A96E;
-  --gold-light:   #2A2010;
+  /* Brand teal — kept as accent, slightly brightened */
+  --teal:         #5E9090;
+  --teal-dark:    #7EC8BE;
+  --teal-light:   #2A4040;
+  --teal-muted:   #162020;
 
-  /* Text — high contrast white on dark */
-  --text:         #EDF2F0;
-  --text-muted:   #728888;
+  /* Gold — primary accent in dark mode, pops on warm charcoal */
+  --gold:         #D4B878;
+  --gold-light:   #2E2414;
 
-  /* Borders — clearly visible */
-  --border:       #2C3C38;
+  /* Text — warm cream, easy on the eyes */
+  --text:         #EDE6DC;
+  --text-muted:   #8A7E6E;
 
-  /* Pedigree — keep sire/dam distinction */
-  --sire-bg:      #162434;
-  --sire-border:  #1E3850;
-  --sire-text:    #78B8DC;
-  --dam-bg:       #28141E;
-  --dam-border:   #3E2038;
-  --dam-text:     #D090B0;
-  --unknown-bg:   #1E1C0E;
-  --unknown-border: #2E2C18;
-  --inbreed-bg:   #261212;
-  --inbreed-border: #4A1E1E;
-  --inbreed-text: #E07878;
-  --ped-line:     #243232;
+  /* Borders — warm brown-grey, clearly visible */
+  --border:       #3A3028;
+
+  /* Pedigree — keep sire blue / dam rose distinction */
+  --sire-bg:      #18222E;
+  --sire-border:  #243648;
+  --sire-text:    #82C0DC;
+  --dam-bg:       #2A1820;
+  --dam-border:   #402436;
+  --dam-text:     #D898B4;
+  --unknown-bg:   #221E14;
+  --unknown-border: #342E1E;
+  --inbreed-bg:   #281414;
+  --inbreed-border: #4C2020;
+  --inbreed-text: #E08080;
+  --ped-line:     #2E2820;
 
   --background: var(--cream);
   --foreground: var(--text);
