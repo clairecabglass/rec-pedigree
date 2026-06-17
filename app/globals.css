@@ -38,32 +38,43 @@
    automatically flips without any component-level changes.
    ============================================================ */
 [data-theme="dark"] {
-  --cream:        #1C2828;
-  --cream-dark:   #162020;
-  --teal:         #6E9898;
-  --teal-dark:    #9ABCBC;
-  --teal-light:   #3E6060;
-  --teal-muted:   #1E3030;
-  --gold:         #C4A96E;
-  --gold-light:   #3A3018;
-  --text:         #DCE8E6;
-  --text-muted:   #5E8080;
-  --border:       #2C3E3E;
-  --white:        #22302E;
+  /* Near-black neutral background — no color cast so cards pop clearly */
+  --cream:        #141414;
+  --cream-dark:   #0C0C0C;
 
-  /* Pedigree palette */
-  --sire-bg:      #1A2C38;
-  --sire-border:  #284050;
-  --sire-text:    #7AB0D0;
-  --dam-bg:       #2C1C28;
-  --dam-border:   #3C2640;
-  --dam-text:     #C090A8;
-  --unknown-bg:   #282618;
-  --unknown-border: #38341C;
-  --inbreed-bg:   #2C1818;
-  --inbreed-border: #542828;
-  --inbreed-text: #D07878;
-  --ped-line:     #2A3C3C;
+  /* Cards / surfaces — dark teal-grey, clearly visible above the bg */
+  --white:        #1D2B27;
+
+  /* Brand teal */
+  --teal:         #5E8A8A;
+  --teal-dark:    #8ECAC4;
+  --teal-light:   #2A4848;
+  --teal-muted:   #162424;
+
+  /* Accent */
+  --gold:         #C4A96E;
+  --gold-light:   #2A2010;
+
+  /* Text — high contrast white on dark */
+  --text:         #EDF2F0;
+  --text-muted:   #728888;
+
+  /* Borders — clearly visible */
+  --border:       #2C3C38;
+
+  /* Pedigree — keep sire/dam distinction */
+  --sire-bg:      #162434;
+  --sire-border:  #1E3850;
+  --sire-text:    #78B8DC;
+  --dam-bg:       #28141E;
+  --dam-border:   #3E2038;
+  --dam-text:     #D090B0;
+  --unknown-bg:   #1E1C0E;
+  --unknown-border: #2E2C18;
+  --inbreed-bg:   #261212;
+  --inbreed-border: #4A1E1E;
+  --inbreed-text: #E07878;
+  --ped-line:     #243232;
 
   --background: var(--cream);
   --foreground: var(--text);
