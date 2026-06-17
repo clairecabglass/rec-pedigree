@@ -32,6 +32,45 @@
   --foreground: var(--text);
 }
 
+/* ============================================================
+   Dark mode — toggled via data-theme="dark" on <html>
+   All colours use the same CSS vars so every component
+   automatically flips without any component-level changes.
+   ============================================================ */
+[data-theme="dark"] {
+  --cream:        #1C2828;
+  --cream-dark:   #162020;
+  --teal:         #6E9898;
+  --teal-dark:    #9ABCBC;
+  --teal-light:   #3E6060;
+  --teal-muted:   #1E3030;
+  --gold:         #C4A96E;
+  --gold-light:   #3A3018;
+  --text:         #DCE8E6;
+  --text-muted:   #5E8080;
+  --border:       #2C3E3E;
+  --white:        #22302E;
+
+  /* Pedigree palette */
+  --sire-bg:      #1A2C38;
+  --sire-border:  #284050;
+  --sire-text:    #7AB0D0;
+  --dam-bg:       #2C1C28;
+  --dam-border:   #3C2640;
+  --dam-text:     #C090A8;
+  --unknown-bg:   #282618;
+  --unknown-border: #38341C;
+  --inbreed-bg:   #2C1818;
+  --inbreed-border: #542828;
+  --inbreed-text: #D07878;
+  --ped-line:     #2A3C3C;
+
+  --background: var(--cream);
+  --foreground: var(--text);
+
+  color-scheme: dark;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

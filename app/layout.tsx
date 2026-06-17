@@ -27,6 +27,17 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`${playfair.variable} ${lato.variable} h-full`}>
+      <head>
+        {/* Runs synchronously before React hydrates — reads localStorage and
+            sets data-theme so the page renders in the right theme immediately,
+            with no flash of the wrong mode. */}
+        <script dangerouslySetInnerHTML={{ __html: `
+          try {
+            var t = localStorage.getItem('theme');
+            if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+          } catch(e) {}
+        ` }} />
+      </head>
       <body className="min-h-full flex flex-col" style={{ background: "var(--cream)", color: "var(--text)", fontFamily: "var(--font-lato), Georgia, serif" }}>
         <Nav />
         <main className="flex-1">
