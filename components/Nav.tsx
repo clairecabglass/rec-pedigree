@@ -4,7 +4,6 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { ChevronDown, Menu, X } from "lucide-react";
-import ThemeToggle from "./ThemeToggle";
 
 const flatLinks = [
   { href: "/", label: "Home" },
@@ -208,11 +207,6 @@ export default function Nav() {
           </div>
         </nav>
 
-        {/* Theme toggle — desktop only (mobile gets it in the drawer) */}
-        <div className="hidden md:block">
-          <ThemeToggle />
-        </div>
-
         {/* Hamburger — mobile only */}
         <button
           type="button"
@@ -232,11 +226,6 @@ export default function Nav() {
           background: "var(--white)", zIndex: 39,
           overflowY: "auto", borderTop: "1px solid var(--border)",
         }}>
-          {/* Theme toggle row */}
-          <div style={{ padding: "14px 24px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontFamily: "var(--font-lato)", fontSize: 14, color: "var(--text-muted)" }}>Appearance</span>
-            <ThemeToggle />
-          </div>
           {flatLinks.map((l) => <MobileLink key={l.href} href={l.href} label={l.label} />)}
           <MobileGroup label="Breeding" links={BREEDING_LINKS} active={breedingActive}
             open={mobileBreedingOpen} onToggle={() => setMobileBreedingOpen((o) => !o)} />
