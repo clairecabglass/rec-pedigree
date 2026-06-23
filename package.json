@@ -17,6 +17,7 @@
     "@aws-sdk/s3-request-presigner": "^3.1061.0",
     "@prisma/client": "^5.22.0",
     "@types/bcryptjs": "^2.4.6",
+    "@vercel/analytics": "^2.0.1",
     "bcryptjs": "^3.0.3",
     "html-to-image": "^1.11.13",
     "iron-session": "^8.0.4",

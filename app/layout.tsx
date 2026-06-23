@@ -3,6 +3,7 @@ import { Playfair_Display, Lato } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
 import Nav from "@/components/Nav";
+import { Analytics } from "@vercel/analytics/next";
 
 const playfair = Playfair_Display({
   variable: "--font-playfair",
@@ -46,6 +47,7 @@ export default function RootLayout({
             © Redfield Equestrian Centre &mdash; The Rift, ReDM
           </p>
         </footer>
+        <Analytics />
       </body>
     </html>
   );
