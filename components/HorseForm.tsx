@@ -1,5 +1,5 @@
 "use client";
-import { useState, createContext, useContext } from "react";
+import { useState, createContext, useContext, useRef } from "react";
 import { useRouter } from "next/navigation";
 
 interface HorseData {
@@ -31,9 +31,53 @@ interface HorseData {
   breedingFee?: string;
   breedingPolicies?: string;
   availableForBreeding?: boolean;
+  isCustomHorse?: boolean;
+  hasCustomCoat?: boolean;
   price?: string;
   saleDescription?: string;
   saleContact?: string;
+}
+
+type RiftTrailsHorse = {
+  name: string;
+  sex: string;
+  breed: string;
+  base: string;
+  genes: string;
+  personality: string;
+  status: string;
+  discipline: string;
+  height: string;
+  notes: string;
+  eye: string;
+  sire: string;
+  dam: string;
+  photo?: string;
+  gallery?: string;
+};
+
+function statusToOwnership(status: string): string {
+  if (status === "For Sale") return "For Sale";
+  if (status === "Active") return "Home";
+  return "Outside";
+}
+
+function riftToHorseData(h: RiftTrailsHorse, ownership?: string): HorseData {
+  return {
+    name: h.name,
+    gender: h.sex === "Mare" || h.sex === "Stallion" || h.sex === "Gelding" ? h.sex : undefined,
+    breed: h.breed || undefined,
+    coat: h.base || undefined,
+    genotype: h.genes || undefined,
+    personality: h.personality || undefined,
+    discipline: h.discipline || undefined,
+    height: h.height || undefined,
+    regNumber: h.notes || undefined,
+    eyeColor: h.eye || undefined,
+    sireName: h.sire || undefined,
+    damName: h.dam || undefined,
+    ownership: ownership ?? statusToOwnership(h.status),
+  };
 }
 
 const BREEDS = ["American Paint Horse", "American Quarter Horse", "Andalusian", "Anglo-Arabian", "Arabian", "Belgian", "Clydesdale", "Colorado Ranger", "Connemara", "Criollo", "Friesian", "Hanoverian", "Holsteiner", "Irish Cob", "KWPN", "Kladruber", "Klabruber", "Lipizzaner", "Lusitano", "Menorquin", "Mustang", "Norfolk Roadster", "Nokota", "Oldenburg", "Paso Fino", "Percheron", "Selle Francais", "Shire", "Sugarbush Harlequin", "Suffolk Punch", "Thoroughbred", "Trotteur Francais", "Turkoman", "Warlander"];
@@ -61,14 +105,48 @@ const labelStyle: React.CSSProperties = {
 
 export default function HorseForm({ initial, mode }: { initial?: HorseData; mode: "create" | "edit" }) {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // New horses default to "Home" so they're immediately usable in the breeding
   // tools. Switch to "Outside" when adding a pedigree-only reference horse.
   const [data, setData] = useState<HorseData>(initial ?? { name: "", ownership: "Home" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Rift Trails import state
+  const [pendingAncestors, setPendingAncestors] = useState<RiftTrailsHorse[]>([]);
+  const [pendingPhoto, setPendingPhoto] = useState("");
+  const [savedHorseId, setSavedHorseId] = useState("");
+  const [importStep, setImportStep] = useState<"form" | "post-save">("form");
+  const [importLoading, setImportLoading] = useState(false);
+  const [importResult, setImportResult] = useState<{ imported: number; skipped: string[] } | null>(null);
+
   const set = (key: keyof HorseData, value: string | boolean) =>
     setData((d) => ({ ...d, [key]: value }));
+
+  function handleJsonUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const json = JSON.parse(ev.target?.result as string);
+        if (!json.horses?.length) { alert("No horse data found in this file."); return; }
+        const root: RiftTrailsHorse = json.horses[0];
+        const ancestors: RiftTrailsHorse[] = json.horses.slice(1).filter((h: RiftTrailsHorse) => h.name?.trim());
+        // Keep the ownership the user already picked (or the status from the file)
+        setData((prev) => ({ ...riftToHorseData(root), ownership: prev.ownership ?? statusToOwnership(root.status) }));
+        setPendingAncestors(ancestors);
+        const photo = root.photo?.startsWith("data:image") ? root.photo
+          : root.gallery?.startsWith("data:image") ? root.gallery : "";
+        setPendingPhoto(photo);
+      } catch {
+        alert("Could not parse this file. Make sure it's a valid Rift Trails export.");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -83,11 +161,45 @@ export default function HorseForm({ initial, mode }: { initial?: HorseData; mode
     if (!res.ok) {
       const j = await res.json();
       setError(j.error ?? "Something went wrong.");
+      return;
+    }
+    const horse = await res.json();
+
+    // Upload photo from JSON import if present
+    if (pendingPhoto && horse.id) {
+      try {
+        const blob = await (await fetch(pendingPhoto)).blob();
+        const fd = new FormData();
+        fd.append("files", blob, "photo.jpg");
+        await fetch(`/api/horses/${horse.id}/photos`, { method: "POST", body: fd });
+      } catch { /* non-fatal — photo upload failure shouldn't block */ }
+    }
+
+    if (mode === "create" && pendingAncestors.length > 0) {
+      setSavedHorseId(horse.id);
+      setImportStep("post-save");
     } else {
-      const horse = await res.json();
       router.push(`/registry/${horse.id}`);
       router.refresh();
     }
+  }
+
+  async function importAncestors() {
+    setImportLoading(true);
+    let imported = 0;
+    const skipped: string[] = [];
+    for (const ancestor of pendingAncestors) {
+      const payload = { ...riftToHorseData(ancestor, "Outside"), isImportedPlaceholder: true };
+      const res = await fetch("/api/horses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) imported++;
+      else skipped.push(ancestor.name);
+    }
+    setImportLoading(false);
+    setImportResult({ imported, skipped });
   }
 
   async function deleteHorse() {
@@ -98,9 +210,102 @@ export default function HorseForm({ initial, mode }: { initial?: HorseData; mode
     router.refresh();
   }
 
+  // Post-save screen: offer ancestor import
+  if (importStep === "post-save") {
+    return (
+      <div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+          <span style={{ fontSize: 20, color: "var(--teal)" }}>✓</span>
+          <span style={{ fontFamily: "var(--font-playfair)", fontSize: 18, color: "var(--teal-dark)" }}>
+            {data.name} added!
+          </span>
+        </div>
+
+        {importResult ? (
+          <div>
+            <p style={{ fontFamily: "var(--font-lato)", fontSize: 14, marginBottom: 16, color: "var(--text)" }}>
+              Imported <strong>{importResult.imported}</strong> ancestor{importResult.imported !== 1 ? "s" : ""}.
+              {importResult.skipped.length > 0 && (
+                <> {importResult.skipped.length} skipped (already exist): <em>{importResult.skipped.join(", ")}</em></>
+              )}
+            </p>
+            <button
+              onClick={() => { router.push(`/registry/${savedHorseId}`); router.refresh(); }}
+              style={{ background: "var(--teal)", color: "var(--white)", border: "none", borderRadius: 6, padding: "11px 28px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-lato)" }}
+            >
+              View Horse Profile →
+            </button>
+          </div>
+        ) : (
+          <div>
+            <p style={{ fontFamily: "var(--font-lato)", fontSize: 14, marginBottom: 4, color: "var(--text)" }}>
+              This file contains <strong>{pendingAncestors.length} pedigree ancestor{pendingAncestors.length !== 1 ? "s" : ""}</strong>.
+              Import them as <em>Outside / Reference</em> records so the pedigree tree resolves fully?
+            </p>
+            <p style={{ fontFamily: "var(--font-lato)", fontSize: 12, color: "var(--text-muted)", marginBottom: 14 }}>
+              Horses that already exist in your registry will be skipped automatically.
+            </p>
+            <ul style={{ fontFamily: "var(--font-lato)", fontSize: 12, color: "var(--text-muted)", marginBottom: 20, paddingLeft: 18, maxHeight: 180, overflowY: "auto", lineHeight: 1.8 }}>
+              {pendingAncestors.map((a) => (
+                <li key={a.name}>
+                  <strong>{a.name}</strong>
+                  {a.sex ? ` · ${a.sex}` : ""}
+                  {a.breed ? ` · ${a.breed}` : ""}
+                  {a.base ? ` · ${a.base}` : ""}
+                </li>
+              ))}
+            </ul>
+            <div style={{ display: "flex", gap: 12 }}>
+              <button
+                onClick={importAncestors}
+                disabled={importLoading}
+                style={{ background: "var(--teal)", color: "var(--white)", border: "none", borderRadius: 6, padding: "11px 28px", fontSize: 14, fontWeight: 700, cursor: importLoading ? "not-allowed" : "pointer", fontFamily: "var(--font-lato)", opacity: importLoading ? 0.7 : 1 }}
+              >
+                {importLoading ? "Importing…" : `Import ${pendingAncestors.length} Ancestors`}
+              </button>
+              <button
+                onClick={() => { router.push(`/registry/${savedHorseId}`); router.refresh(); }}
+                style={{ background: "none", border: "1px solid var(--border)", color: "var(--text-muted)", borderRadius: 6, padding: "11px 20px", fontSize: 13, cursor: "pointer", fontFamily: "var(--font-lato)" }}
+              >
+                Skip, view profile
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <FormCtx.Provider value={{ data, set }}>
     <form onSubmit={submit}>
+      {/* Rift Trails JSON import — create mode only */}
+      {mode === "create" && (
+        <div style={{ background: "color-mix(in srgb, var(--teal) 6%, transparent)", border: "1px dashed var(--teal)", borderRadius: 8, padding: "14px 18px", marginBottom: 24, display: "flex", alignItems: "center", gap: 14 }}>
+          <div style={{ flex: 1 }}>
+            <p style={{ fontFamily: "var(--font-lato)", fontSize: 13, fontWeight: 700, color: "var(--teal-dark)", margin: 0 }}>
+              Import from Rift Trails
+            </p>
+            <p style={{ fontFamily: "var(--font-lato)", fontSize: 12, color: "var(--text-muted)", margin: "3px 0 0", lineHeight: 1.5 }}>
+              Upload a <code style={{ fontSize: 11 }}>.rifttrails.json</code> export to auto-fill this form.
+              {pendingAncestors.length > 0
+                ? <><br /><span style={{ color: "var(--teal)", fontWeight: 600 }}>✓ {pendingAncestors.length} pedigree ancestors ready to import after saving.{pendingPhoto ? " ✓ Photo ready." : ""}</span></>
+                : pendingPhoto
+                  ? <><br /><span style={{ color: "var(--teal)", fontWeight: 600 }}>✓ Photo ready.</span></>
+                  : null}
+            </p>
+          </div>
+          <input ref={fileInputRef} type="file" accept=".json" style={{ display: "none" }} onChange={handleJsonUpload} />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            style={{ background: "var(--teal)", color: "var(--white)", border: "none", borderRadius: 6, padding: "9px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-lato)", whiteSpace: "nowrap" }}
+          >
+            {pendingAncestors.length > 0 || pendingPhoto ? "Replace File" : "Choose File"}
+          </button>
+        </div>
+      )}
+
       {/* Identity */}
       <Section title="Identity" first>
         <Text k="name" label="Horse Name *" ph="[REC] HORSE NAME" full />
@@ -184,6 +389,22 @@ export default function HorseForm({ initial, mode }: { initial?: HorseData; mode
         <Area k="breedingPolicies" label="Breeding Policies" rows={2} ph="e.g. One free rebreed if first foal returned…" />
       </Section>
 
+      {/* Custom */}
+      <Section title="Custom">
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <input type="checkbox" id="isCustomHorse" checked={data.isCustomHorse ?? false} onChange={(e) => set("isCustomHorse", e.target.checked)} style={{ width: 16, height: 16 }} />
+          <label htmlFor="isCustomHorse" style={{ ...labelStyle, marginBottom: 0, textTransform: "none", letterSpacing: 0, fontSize: 13 }}>
+            Custom Horse — base horse created in the stable with custom traits
+          </label>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
+          <input type="checkbox" id="hasCustomCoat" checked={data.hasCustomCoat ?? false} onChange={(e) => set("hasCustomCoat", e.target.checked)} style={{ width: 16, height: 16 }} />
+          <label htmlFor="hasCustomCoat" style={{ ...labelStyle, marginBottom: 0, textTransform: "none", letterSpacing: 0, fontSize: 13 }}>
+            Custom Coat — carries a custom coat (10% chance to pass to foal)
+          </label>
+        </div>
+      </Section>
+
       {/* Description */}
       <Section title="Description">
         <Area k="description" label="Description / Backstory" rows={4} ph="Tell this horse's story…" />
@@ -191,7 +412,7 @@ export default function HorseForm({ initial, mode }: { initial?: HorseData; mode
       </Section>
 
       {/* For Sale */}
-      <Section title="For Sale Details" subtitle="Shown on the For Sale page when ownership is “For Sale”.">
+      <Section title="For Sale Details" subtitle="Shown on the For Sale page when ownership is "For Sale".">
         <Text k="price" label="Price" ph="e.g. $500 or Negotiable" />
         <Text k="saleContact" label="Sale Contact" ph="Discord / in-game name" />
         <Area k="saleDescription" label="Sale Description" ph="Sales pitch for buyers…" />
