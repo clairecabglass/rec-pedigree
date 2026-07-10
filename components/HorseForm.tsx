@@ -309,7 +309,7 @@ export default function HorseForm({ initial, mode }: { initial?: HorseData; mode
       {/* Identity */}
       <Section title="Identity" first>
         <Text k="name" label="Horse Name *" ph="[REC] HORSE NAME" full />
-        <Text k="microchip" label="Microchip / Reg #" ph="REC-0000000000" />
+        <MicrochipField />
         <div>
           <label style={labelStyle}>Breed</label>
           {/* Typeable: known breeds autocomplete, but any new breed is accepted. */}
@@ -458,6 +458,26 @@ function Area({ k, label, ph, rows = 3 }: { k: keyof HorseData; label: string; p
     <div style={{ gridColumn: "1 / -1" }}>
       <label style={labelStyle}>{label}</label>
       <textarea value={(data[k] as string) ?? ""} onChange={(e) => set(k, e.target.value)} rows={rows} style={{ ...fieldStyle, resize: "vertical" }} placeholder={ph} />
+    </div>
+  );
+}
+
+function MicrochipField() {
+  const { data, set } = useContext(FormCtx);
+  function generate() {
+    const digits = Array.from(crypto.getRandomValues(new Uint32Array(2)))
+      .map((n) => n.toString().padStart(5, "0")).join("").slice(0, 10);
+    set("microchip", `REC-${digits}`);
+  }
+  return (
+    <div>
+      <label style={labelStyle}>Microchip / Reg #</label>
+      <div style={{ display: "flex", gap: 6 }}>
+        <input value={(data.microchip as string) ?? ""} onChange={(e) => set("microchip", e.target.value)} style={{ ...fieldStyle, flex: 1 }} placeholder="REC-0000000000" />
+        <button type="button" onClick={generate} title="Generate chip number" style={{ background: "var(--teal)", color: "var(--white)", border: "none", borderRadius: 6, padding: "0 12px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-lato)", whiteSpace: "nowrap", flexShrink: 0 }}>
+          Generate
+        </button>
+      </div>
     </div>
   );
 }
