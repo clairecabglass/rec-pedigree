@@ -251,7 +251,6 @@ function CertBody({ name, breed, gender, dob, regNumber, testDate, baseRows, dil
   baseRows: GeneRow[]; diluteRows: GeneRow[]; patternRows: GeneRow[];
   interpretation: string; sigBreeder: string; sigLab: string;
 }) {
-  const s: Record<string, React.CSSProperties> = {
   const BL_DARK   = "#1c4f78";
   const BL_MED    = "#3a7ab0";
   const BL_LIGHT  = "#e6f1f8";
