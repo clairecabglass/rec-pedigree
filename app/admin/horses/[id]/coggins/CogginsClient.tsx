@@ -8,37 +8,52 @@ const CERT_W = 1240;
 const CERT_H = 1754;
 const PREVIEW_SCALE = 0.5;
 
+const TEAL      = "#3d6b6b";
+const TEAL_DARK = "#2a4e4e";
+const TEAL_LIGHT = "#e8f0f0";
+const BORDER    = "#b0c8c8";
+const MUTED     = "#607070";
+const TEXT      = "#1a2a2a";
+
 function slug(name: string) {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 }
 
-function formatDob(dob: string) {
-  if (!dob) return "";
-  const d = new Date(dob);
-  return d.toLocaleDateString("en-US", { year: "numeric", month: "2-digit", day: "2-digit" });
+function formatDate(iso: string) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 }
 
-function fakeSerial(id: string) {
-  const n = parseInt(id.replace(/\D/g, "").slice(0, 6) || "100000", 10);
-  return `REC-EIA-${2024}-${String(n % 90000 + 10000)}`;
+// Seeded pseudo-random that stays consistent per horse
+function seeded(id: string, offset = 0) {
+  const n = id.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0) + offset;
+  return (n * 1103515245 + 12345) & 0x7fffffff;
+}
+function rand(id: string, offset: number, min: number, max: number, decimals = 1) {
+  const r = seeded(id, offset) / 0x7fffffff;
+  return (min + r * (max - min)).toFixed(decimals);
 }
 
-function fakeAccession(id: string) {
-  const n = parseInt(id.replace(/\D/g, "").slice(2, 8) || "200000", 10);
-  return `LAB-${String(n % 900000 + 100000)}`;
+function drawDate(id: string) {
+  const s = seeded(id, 1);
+  const month = (s % 10) + 1;
+  const day   = (s % 20) + 5;
+  return `2024-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
-function bloodDrawn(id: string) {
-  const seed = parseInt(id.replace(/\D/g, "").slice(0, 4) || "1015", 10);
-  const month = (seed % 10) + 1;
-  const day = (seed % 20) + 5;
-  return `${2024}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-}
-
-function resultsDate(drawn: string) {
-  const d = new Date(drawn);
-  d.setDate(d.getDate() + 4);
+function addDays(iso: string, n: number) {
+  const d = new Date(iso);
+  d.setDate(d.getDate() + n);
   return d.toISOString().split("T")[0];
+}
+
+function accession(id: string) {
+  return `BL-EIA-${2024}-${String(seeded(id, 2) % 90000 + 10000)}`;
+}
+
+function tubeNum(id: string) {
+  return `T-${String(seeded(id, 9) % 9000 + 1000)}`;
 }
 
 interface Props {
@@ -90,7 +105,6 @@ export default function CogginsClient({ id, name, breed, gender, dob, regNumber,
             {loading ? "Generating…" : "↓ Download PNG"}
           </button>
         </div>
-
         <div style={{ width: CERT_W * PREVIEW_SCALE, height: CERT_H * PREVIEW_SCALE, overflow: "hidden", border: "1px solid var(--border)", borderRadius: 8 }}>
           <div style={{ transform: `scale(${PREVIEW_SCALE})`, transformOrigin: "top left", width: CERT_W, height: CERT_H }}>
             <CertBody ref={certRef} id={id} name={name} breed={breed} gender={gender} dob={dob} regNumber={regNumber} coat={coat} />
@@ -104,283 +118,223 @@ export default function CogginsClient({ id, name, breed, gender, dob, regNumber,
 const CertBody = forwardRef<HTMLDivElement, Props>(function CertBody(
   { id, name, breed, gender, dob, regNumber, coat }, ref
 ) {
-  const serial = fakeSerial(id);
-  const accession = fakeAccession(id);
-  const drawn = bloodDrawn(id);
-  const reported = resultsDate(drawn);
-  const received = resultsDate(drawn.replace(/-\d+$/, "-" + String(parseInt(drawn.split("-")[2]) + 1)));
+  const acc  = accession(id);
+  const tube = tubeNum(id);
+  const drawn     = drawDate(id);
+  const received  = addDays(drawn, 1);
+  const reported  = addDays(drawn, 4);
+  const validUntil = addDays(drawn, 365);
 
-  const cell: React.CSSProperties = {
-    border: "1px solid #999",
-    padding: "4px 6px",
-    fontSize: 13,
-    fontFamily: "Arial, sans-serif",
-    verticalAlign: "top",
-    background: "#fff",
-  };
-  const label: React.CSSProperties = {
-    fontSize: 9,
-    fontWeight: 700,
-    color: "#333",
-    textTransform: "uppercase",
-    letterSpacing: "0.03em",
-    marginBottom: 3,
-    display: "block",
-  };
-  const value: React.CSSProperties = {
-    fontSize: 13,
-    color: "#111",
-    fontFamily: "Arial, sans-serif",
-  };
-  const sectionHeader: React.CSSProperties = {
-    background: "#4a90b8",
-    color: "white",
-    fontWeight: 700,
-    fontSize: 11,
-    padding: "5px 8px",
-    letterSpacing: "0.06em",
-    textTransform: "uppercase",
-    fontFamily: "Arial, sans-serif",
-    borderBottom: "1px solid #2d6e96",
-  };
+  // CBC values — seeded per horse, all within normal equine ranges
+  const rbc  = rand(id,  3, 5.8, 9.2, 1);
+  const wbc  = rand(id,  4, 5.2, 9.8, 1);
+  const hct  = rand(id,  5, 32, 48, 0);
+  const hgb  = rand(id,  6, 11.2, 16.8, 1);
+  const mcv  = rand(id,  7, 41, 58, 0);
+  const mch  = rand(id,  8, 14.5, 19.5, 1);
+  const mchc = rand(id, 10, 32.5, 37.5, 1);
+  const plt  = rand(id, 11, 110, 320, 0);
+  const neut = rand(id, 12, 2.8, 6.5, 1);
+  const lymp = rand(id, 13, 1.6, 4.8, 1);
+  const mono = rand(id, 14, 0.1, 0.5, 2);
+  const eosi = rand(id, 15, 0.0, 0.7, 2);
+
+  // Serum chemistry
+  const tp   = rand(id, 16, 6.0, 8.5, 1);
+  const alb  = rand(id, 17, 2.7, 3.6, 1);
+  const glob = (parseFloat(tp) - parseFloat(alb)).toFixed(1);
+  const bun  = rand(id, 18, 11, 24, 0);
+  const creat = rand(id, 19, 0.9, 1.7, 1);
+  const gluc = rand(id, 20, 72, 112, 0);
+  const ast  = rand(id, 21, 215, 385, 0);
+  const ggt  = rand(id, 22, 7, 24, 0);
+  const ck   = rand(id, 23, 120, 390, 0);
+  const tbil = rand(id, 24, 0.8, 3.4, 1);
+
+  const lato    = "Arial, sans-serif";
+  const playfair = "'Georgia', 'Times New Roman', serif";
+
+  const sectionTitle = (text: string) => (
+    <div style={{ background: TEAL_DARK, color: "white", fontFamily: playfair, fontSize: 16, fontWeight: 700, letterSpacing: "0.06em", padding: "8px 16px", marginBottom: 0, textTransform: "uppercase" as const }}>
+      {text}
+    </div>
+  );
+
+  const grid2 = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0 } as React.CSSProperties;
+  const grid3 = { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0 } as React.CSSProperties;
+  const grid4 = { display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 0 } as React.CSSProperties;
+
+  const fieldBox = (label: string, val: string, bold = false): React.CSSProperties => ({});
+  void fieldBox;
+
+  function Field({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
+    return (
+      <div style={{ padding: "10px 14px", borderRight: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}` }}>
+        <div style={{ fontFamily: lato, fontSize: 10, fontWeight: 700, color: MUTED, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>{label}</div>
+        <div style={{ fontFamily: lato, fontSize: 14, color: TEXT, fontWeight: bold ? 700 : 400 }}>{value || "—"}</div>
+      </div>
+    );
+  }
+
+  function ResultRow({ analyte, result, ref: refRange, unit, flag }: { analyte: string; result: string; ref: string; unit: string; flag?: string }) {
+    const isFlag = !!flag;
+    return (
+      <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
+        <td style={{ fontFamily: lato, fontSize: 13, color: TEXT, padding: "7px 14px", borderRight: `1px solid ${BORDER}` }}>{analyte}</td>
+        <td style={{ fontFamily: lato, fontSize: 13, fontWeight: isFlag ? 700 : 400, color: isFlag ? "#b84040" : TEXT, padding: "7px 14px", borderRight: `1px solid ${BORDER}`, textAlign: "right" as const }}>{result}</td>
+        <td style={{ fontFamily: lato, fontSize: 13, color: MUTED, padding: "7px 14px", borderRight: `1px solid ${BORDER}`, textAlign: "center" as const }}>{unit}</td>
+        <td style={{ fontFamily: lato, fontSize: 13, color: MUTED, padding: "7px 14px", textAlign: "center" as const }}>{refRange}</td>
+        <td style={{ fontFamily: lato, fontSize: 12, color: isFlag ? "#b84040" : "#2a7a3a", fontWeight: 700, padding: "7px 10px", textAlign: "center" as const }}>{flag || "✓"}</td>
+      </tr>
+    );
+  }
 
   return (
-    <div ref={ref} style={{ width: CERT_W, height: CERT_H, background: "#fff", padding: "28px 32px", boxSizing: "border-box", fontFamily: "Arial, sans-serif", color: "#111" }}>
+    <div ref={ref} style={{ width: CERT_W, height: CERT_H, background: "#fff", boxSizing: "border-box", fontFamily: lato, color: TEXT, overflow: "hidden" }}>
 
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, textAlign: "center", letterSpacing: "0.08em", color: "#111" }}>FORM SERIAL NUMBER</div>
-          <div style={{ fontSize: 13, textAlign: "center", color: "#111", marginTop: 2 }}>{serial}</div>
+      <div style={{ background: TEAL_DARK, padding: "24px 36px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <div style={{ fontFamily: playfair, fontSize: 32, color: "white", fontWeight: 700, letterSpacing: "0.04em" }}>Belmont Laboratory</div>
+          <div style={{ fontFamily: lato, fontSize: 12, color: "rgba(255,255,255,0.7)", marginTop: 3, letterSpacing: "0.08em", textTransform: "uppercase" }}>Equine Diagnostic Services</div>
+          <div style={{ fontFamily: lato, fontSize: 11, color: "rgba(255,255,255,0.55)", marginTop: 2 }}>14 Westridge Road · Southern Territories · The Rift</div>
         </div>
         <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 22, fontWeight: 900, color: "#1a7ab5", letterSpacing: "0.1em" }}>GVL</div>
-          <div style={{ fontSize: 9, color: "#555", letterSpacing: "0.05em" }}>GLOBAL VET LINK</div>
+          <div style={{ fontFamily: lato, fontSize: 10, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Accession Number</div>
+          <div style={{ fontFamily: lato, fontSize: 17, color: "white", fontWeight: 700 }}>{acc}</div>
+          <div style={{ fontFamily: lato, fontSize: 10, color: "rgba(255,255,255,0.6)", marginTop: 6, textTransform: "uppercase", letterSpacing: "0.06em" }}>Report Date</div>
+          <div style={{ fontFamily: lato, fontSize: 13, color: "white" }}>{formatDate(reported)}</div>
         </div>
       </div>
 
-      {/* Section 1: Lab test info */}
-      <div style={sectionHeader}>GVL – Equine Infectious Anemia Laboratory Test</div>
-      <table style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #999" }}>
-        <tbody>
-          <tr>
-            <td style={{ ...cell, width: "22%" }}>
-              <span style={label}>1. Lab/Accession Number</span>
-              <span style={value}>{accession}</span>
-            </td>
-            <td style={{ ...cell, width: "20%" }}>
-              <span style={label}>2. Date Blood Drawn</span>
-              <span style={value}>{drawn}</span>
-            </td>
-            <td style={{ ...cell, width: "30%" }}>
-              <span style={label}>3. Test Requested by Vet</span>
-              <span style={value}>Dr. J. Nicks-Reyelle, DVM</span>
-            </td>
-            <td style={{ ...cell, width: "28%" }}>
-              <span style={label}>4. Reason for Testing</span>
-              <span style={value}>Annual</span>
-            </td>
-          </tr>
-          <tr>
-            <td style={{ ...cell, width: "40%" }} colSpan={2}>
-              <span style={label}>5. Current Home Premises of Equine: Ranch / Farm / Stable / Market</span>
-              <span style={value}>Redfield Equestrian Centre</span>
-              <div style={{ ...value, fontSize: 11, color: "#444", marginTop: 2 }}>Southern Territories, The Rift</div>
-            </td>
-            <td style={{ ...cell, width: "30%" }}>
-              <span style={label}>7. Name &amp; Address of Owner</span>
-              <span style={value}>Redfield Equestrian Centre</span>
-              <div style={{ ...value, fontSize: 11, color: "#444", marginTop: 2 }}>Southern Territories, The Rift</div>
-            </td>
-            <td style={{ ...cell, width: "30%" }}>
-              <span style={label}>8. Name &amp; Address of Veterinarian</span>
-              <span style={value}>Dr. J. Nicks-Reyelle, DVM</span>
-              <div style={{ ...value, fontSize: 11, color: "#444", marginTop: 2 }}>REC Veterinary Services, The Rift</div>
-            </td>
-          </tr>
-          <tr>
-            <td style={{ ...cell }} colSpan={2}>
-              <span style={label}>6. County of Current Home Premises of Equine</span>
-              <span style={value}>Southern Territories</span>
-            </td>
-            <td style={{ ...cell }} colSpan={2}>
-              <span style={label}>Veterinarian National Accreditation Number</span>
-              <span style={value}>REC-VET-2024-0082</span>
-            </td>
-          </tr>
-          <tr>
-            <td style={{ ...cell }} colSpan={4}>
-              <span style={label}>Certification of Federally Accredited Veterinarian</span>
-              <span style={{ ...value, fontSize: 11, color: "#333" }}>
-                I certify I am a category II federally accredited veterinarian, authorized, in the state where the sample was obtained, by me, from the animal described below.
-              </span>
-            </td>
-          </tr>
-          <tr>
-            <td style={{ ...cell, height: 44 }} colSpan={4}>
-              <span style={label}>Signature of Federally Accredited Veterinarian</span>
-              <span style={{ fontFamily: "'Times New Roman', serif", fontSize: 22, fontStyle: "italic", color: "#1a1a1a" }}>J. Nicks-Reyelle</span>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-
-      {/* Section 2: Horse */}
-      <div style={{ marginTop: 10 }}>
-        <div style={sectionHeader}>Horse</div>
-        <table style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #999" }}>
-          <tbody>
-            <tr>
-              <td style={{ ...cell, width: "22%" }}>
-                <span style={label}>9. Tube Number</span>
-                <span style={value}>T-{accession.slice(-5)}</span>
-              </td>
-              <td style={{ ...cell, width: "20%" }}>
-                <span style={label}>10. Freeze Brand</span>
-                <span style={value}>—</span>
-              </td>
-              <td style={{ ...cell, width: "30%" }}>
-                <span style={label}>11. Registered Name</span>
-                <span style={value}>{name}</span>
-              </td>
-              <td style={{ ...cell, width: "28%" }}>
-                <span style={label}>12. Color / Coat or Hair Color(s)</span>
-                <span style={value}>{coat || "—"}</span>
-              </td>
-            </tr>
-            <tr>
-              <td style={{ ...cell }} colSpan={2}>
-                <span style={label}>13. Breed or Species</span>
-                <span style={value}>{breed || "—"}</span>
-              </td>
-              <td style={{ ...cell }}>
-                <span style={label}>14. Age or DOB</span>
-                <span style={value}>{dob ? formatDob(dob) : "—"}</span>
-              </td>
-              <td style={{ ...cell }}>
-                <span style={label}>15. Gender</span>
-                <span style={value}>{gender || "—"}</span>
-              </td>
-            </tr>
-            <tr>
-              <td style={{ ...cell }} colSpan={4}>
-                <span style={label}>16. Microchip, Breed, or Registration Number</span>
-                <span style={value}>{regNumber || "—"}</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      {/* Report title bar */}
+      <div style={{ background: TEAL, padding: "8px 36px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ fontFamily: playfair, fontSize: 15, color: "white", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+          Equine Infectious Anemia (EIA) — Laboratory Report
+        </div>
+        <div style={{ fontFamily: lato, fontSize: 11, color: "rgba(255,255,255,0.75)" }}>
+          USDA Accredited · Test Method: AGID
+        </div>
       </div>
 
-      {/* Section 3: Narrative description */}
-      <div style={{ marginTop: 10 }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #999" }}>
-          <tbody>
-            <tr>
-              <td style={{ ...cell, width: "50%", paddingBottom: 8 }}>
-                <span style={label}>Narrative Description:</span>
-              </td>
-              <td style={{ ...cell, width: "50%", paddingBottom: 8 }}>
-                <span style={label}>Other Marks and Brands:</span>
-              </td>
-            </tr>
-            {[
-              ["17. Head:", "18. Neck and Body:"],
-              ["19. Left Forelimb:", "20. Right Forelimb:"],
-              ["21. Left Hindlimb:", "22. Right Hindlimb:"],
-            ].map(([l, r], i) => (
-              <tr key={i}>
-                <td style={{ ...cell, height: 28 }}>
-                  <span style={label}>{l}</span>
-                </td>
-                <td style={{ ...cell, height: 28 }}>
-                  <span style={label}>{r}</span>
-                </td>
+      <div style={{ padding: "0 36px 24px" }}>
+
+        {/* Result banner */}
+        <div style={{ margin: "18px 0 16px", background: TEAL_LIGHT, border: `2px solid ${TEAL}`, borderRadius: 6, padding: "14px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <div style={{ fontFamily: lato, fontSize: 11, fontWeight: 700, color: MUTED, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>EIA Official Result</div>
+            <div style={{ fontFamily: playfair, fontSize: 28, fontWeight: 700, color: "#1d5c2e", letterSpacing: "0.04em" }}>NEGATIVE</div>
+            <div style={{ fontFamily: lato, fontSize: 12, color: MUTED, marginTop: 3 }}>No precipitin bands detected · p26 antigen absent</div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontFamily: lato, fontSize: 11, color: MUTED, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>Valid Until</div>
+            <div style={{ fontFamily: lato, fontSize: 16, fontWeight: 700, color: TEAL_DARK }}>{formatDate(validUntil)}</div>
+            <div style={{ fontFamily: lato, fontSize: 11, color: MUTED, marginTop: 2 }}>Tube No. {tube}</div>
+          </div>
+        </div>
+
+        {/* Horse Identification */}
+        {sectionTitle("Equine Identification")}
+        <div style={{ border: `1px solid ${BORDER}`, borderTop: "none" }}>
+          <div style={grid4}>
+            <Field label="Registered Name" value={name} bold />
+            <Field label="Breed / Species" value={breed} />
+            <Field label="Gender" value={gender} />
+            <Field label="Date of Birth" value={formatDate(dob)} />
+          </div>
+          <div style={grid3}>
+            <Field label="Coat / Hair Colour" value={coat} />
+            <Field label="Registration / Microchip No." value={regNumber} />
+            <Field label="Attending Veterinarian" value="Dr. J. Nicks-Reyelle, DVM" />
+          </div>
+          <div style={grid3}>
+            <Field label="Premises / Stable" value="Redfield Equestrian Centre" />
+            <Field label="Date Blood Drawn" value={formatDate(drawn)} />
+            <Field label="Date Received" value={formatDate(received)} />
+          </div>
+        </div>
+
+        {/* CBC */}
+        <div style={{ marginTop: 14 }}>
+          {sectionTitle("Complete Blood Count")}
+          <table style={{ width: "100%", borderCollapse: "collapse", border: `1px solid ${BORDER}`, borderTop: "none" }}>
+            <thead>
+              <tr style={{ background: TEAL_LIGHT }}>
+                {["Analyte", "Result", "Units", "Reference Range", "Flag"].map((h, i) => (
+                  <th key={h} style={{ fontFamily: lato, fontSize: 11, fontWeight: 700, color: TEAL_DARK, padding: "7px 14px", borderRight: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}`, textAlign: i > 0 ? "center" : "left", textTransform: "uppercase", letterSpacing: "0.05em" }}>{h}</th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              <ResultRow analyte="Erythrocytes (RBC)"   result={rbc}  unit="×10⁶/μL" ref="5.5 – 9.5"   />
+              <ResultRow analyte="Haematocrit (PCV)"    result={hct}  unit="%"        ref="30 – 50"      />
+              <ResultRow analyte="Haemoglobin"          result={hgb}  unit="g/dL"     ref="11.0 – 17.0"  />
+              <ResultRow analyte="MCV"                  result={mcv}  unit="fL"       ref="40 – 60"      />
+              <ResultRow analyte="MCH"                  result={mch}  unit="pg"       ref="14.0 – 20.0"  />
+              <ResultRow analyte="MCHC"                 result={mchc} unit="g/dL"     ref="32.0 – 38.0"  />
+              <ResultRow analyte="Leucocytes (WBC)"     result={wbc}  unit="×10³/μL"  ref="5.0 – 10.0"  />
+              <ResultRow analyte="Neutrophils"          result={neut} unit="×10³/μL"  ref="2.7 – 6.7"   />
+              <ResultRow analyte="Lymphocytes"          result={lymp} unit="×10³/μL"  ref="1.5 – 5.5"   />
+              <ResultRow analyte="Monocytes"            result={mono} unit="×10³/μL"  ref="0.0 – 0.6"   />
+              <ResultRow analyte="Eosinophils"          result={eosi} unit="×10³/μL"  ref="0.0 – 0.8"   />
+              <ResultRow analyte="Platelets"            result={plt}  unit="×10³/μL"  ref="100 – 350"    />
+            </tbody>
+          </table>
+        </div>
 
-      {/* Section 4: Rabies vaccination */}
-      <div style={{ marginTop: 10 }}>
-        <div style={sectionHeader}>Rabies Vaccination</div>
-        <table style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #999" }}>
-          <tbody>
-            <tr>
-              {["Type", "Vaccination Date", "Product", "Serial Number", "Expiration Date", "Administered By"].map((h) => (
-                <td key={h} style={{ ...cell }}>
-                  <span style={label}>{h}</span>
-                  <span style={{ ...value, color: "#777", fontSize: 11 }}>—</span>
-                </td>
-              ))}
-            </tr>
-          </tbody>
-        </table>
-      </div>
+        {/* Serum chemistry */}
+        <div style={{ marginTop: 14 }}>
+          {sectionTitle("Serum Biochemistry")}
+          <table style={{ width: "100%", borderCollapse: "collapse", border: `1px solid ${BORDER}`, borderTop: "none" }}>
+            <thead>
+              <tr style={{ background: TEAL_LIGHT }}>
+                {["Analyte", "Result", "Units", "Reference Range", "Flag"].map((h, i) => (
+                  <th key={h} style={{ fontFamily: lato, fontSize: 11, fontWeight: 700, color: TEAL_DARK, padding: "7px 14px", borderRight: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}`, textAlign: i > 0 ? "center" : "left", textTransform: "uppercase", letterSpacing: "0.05em" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              <ResultRow analyte="Total Protein"       result={tp}    unit="g/dL"   ref="5.8 – 8.7"   />
+              <ResultRow analyte="Albumin"             result={alb}   unit="g/dL"   ref="2.6 – 3.7"   />
+              <ResultRow analyte="Globulin"            result={glob}  unit="g/dL"   ref="2.4 – 5.0"   />
+              <ResultRow analyte="BUN (Urea Nitrogen)" result={bun}   unit="mg/dL"  ref="10 – 25"      />
+              <ResultRow analyte="Creatinine"          result={creat} unit="mg/dL"  ref="0.8 – 1.8"   />
+              <ResultRow analyte="Glucose"             result={gluc}  unit="mg/dL"  ref="70 – 115"     />
+              <ResultRow analyte="AST"                 result={ast}   unit="IU/L"   ref="200 – 400"    />
+              <ResultRow analyte="GGT"                 result={ggt}   unit="IU/L"   ref="5 – 25"       />
+              <ResultRow analyte="CK (Creatine Kinase)" result={ck}   unit="IU/L"   ref="100 – 400"    />
+              <ResultRow analyte="Total Bilirubin"     result={tbil}  unit="mg/dL"  ref="0.5 – 3.5"   />
+            </tbody>
+          </table>
+        </div>
 
-      {/* Section 5: Lab use only */}
-      <div style={{ marginTop: 10 }}>
-        <div style={sectionHeader}>For Laboratory Use Only</div>
-        <table style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #999" }}>
-          <tbody>
-            <tr>
-              <td style={{ ...cell, width: "28%" }}>
-                <span style={label}>23. Laboratory</span>
-                <span style={value}>GVL Veterinary Diagnostics</span>
-                <div style={{ ...value, fontSize: 11, color: "#444", marginTop: 2 }}>Southwest Region</div>
-              </td>
-              <td style={{ ...cell, width: "18%" }}>
-                <span style={label}>24. Date Sample Received</span>
-                <span style={value}>{received}</span>
-              </td>
-              <td style={{ ...cell, width: "18%" }}>
-                <span style={label}>25. Date Results Reported</span>
-                <span style={value}>{reported}</span>
-              </td>
-              <td style={{ ...cell, width: "18%" }}>
-                <span style={label}>26. Official Result</span>
-                <span style={{ ...value, fontWeight: 700, color: "#1a7a2e" }}>Negative</span>
-              </td>
-              <td style={{ ...cell, width: "18%" }}>
-                <span style={label}>27. Test Type Used</span>
-                <span style={value}>AGID</span>
-              </td>
-            </tr>
-            <tr>
-              <td style={{ ...cell, height: 52 }} colSpan={5}>
-                <span style={label}>28. Laboratory Remarks</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+        {/* Certification & Signature */}
+        <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div style={{ border: `1px solid ${BORDER}`, borderRadius: 4, padding: "14px 16px" }}>
+            <div style={{ fontFamily: lato, fontSize: 10, fontWeight: 700, color: MUTED, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Laboratory Director</div>
+            <div style={{ fontFamily: "'Times New Roman', serif", fontSize: 22, fontStyle: "italic", color: TEXT, marginBottom: 6 }}>Dr. M. Belmont, PhD</div>
+            <div style={{ borderTop: `1px solid ${BORDER}`, paddingTop: 6 }}>
+              <div style={{ fontFamily: lato, fontSize: 11, color: MUTED }}>Director of Equine Diagnostics · Belmont Laboratory</div>
+              <div style={{ fontFamily: lato, fontSize: 11, color: MUTED }}>Accreditation No. BL-USDA-2024-0041</div>
+            </div>
+          </div>
+          <div style={{ border: `1px solid ${BORDER}`, borderRadius: 4, padding: "14px 16px", background: TEAL_LIGHT }}>
+            <div style={{ fontFamily: lato, fontSize: 10, fontWeight: 700, color: MUTED, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Certification Statement</div>
+            <div style={{ fontFamily: lato, fontSize: 12, color: TEXT, lineHeight: 1.6 }}>
+              This report certifies that the above-named equine was tested for Equine Infectious Anemia using the AGID method as approved by the USDA. Results are valid for 12 months from the date of blood draw.
+            </div>
+          </div>
+        </div>
 
-      {/* Section 6: Signatures */}
-      <div style={{ marginTop: 10 }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #999" }}>
-          <tbody>
-            <tr>
-              <td style={{ ...cell, height: 52, width: "60%" }}>
-                <span style={label}>29. Signature of NVSL Approved EIA Technician</span>
-                <span style={{ fontFamily: "'Times New Roman', serif", fontSize: 20, fontStyle: "italic", color: "#1a1a1a" }}>GVL Laboratory Services</span>
-              </td>
-              <td style={{ ...cell, width: "40%" }}>
-                <span style={label}>30. Interim Result Referred for Confirmation</span>
-                <span style={{ ...value, fontWeight: 700 }}>No</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
       </div>
 
       {/* Footer */}
-      <div style={{ marginTop: 12, borderTop: "1px solid #ccc", paddingTop: 6, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ fontSize: 9, color: "#555", fontFamily: "Arial, sans-serif" }}>
-          Official EIA Test Form · Approved by USDA Veterinary Services · GVL
+      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: TEAL_DARK, padding: "10px 36px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ fontFamily: lato, fontSize: 10, color: "rgba(255,255,255,0.6)" }}>
+          Belmont Laboratory · 14 Westridge Road · Southern Territories · The Rift
         </div>
-        <div style={{ fontSize: 9, color: "#555", fontFamily: "Arial, sans-serif" }}>
-          Form valid 12 months from date of draw · {drawn}
+        <div style={{ fontFamily: lato, fontSize: 10, color: "rgba(255,255,255,0.6)" }}>
+          Accession: {acc} · Official EIA Test · USDA Veterinary Services
         </div>
       </div>
     </div>
