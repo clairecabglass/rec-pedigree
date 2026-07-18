@@ -251,12 +251,13 @@ function CertBody({ name, breed, gender, dob, regNumber, testDate, baseRows, dil
   baseRows: GeneRow[]; diluteRows: GeneRow[]; patternRows: GeneRow[];
   interpretation: string; sigBreeder: string; sigLab: string;
 }) {
-  const BL_DARK   = "#4a5f5a";
-  const BL_MED    = "#879b95";
-  const BL_LIGHT  = "rgba(135,155,149,0.10)";
-  const BL_BORDER = "rgba(135,155,149,0.40)";
-  const BL_MUTED  = "#6a8078";
-  const BL_TEXT   = "#1e2c2a";
+  const BL_DARK      = "rgba(135,155,149,0.30)";
+  const BL_MED       = "rgba(135,155,149,0.20)";
+  const BL_LIGHT     = "rgba(135,155,149,0.08)";
+  const BL_BORDER    = "rgba(135,155,149,0.35)";
+  const BL_HEADER_TEXT = "#3d5450";
+  const BL_MUTED     = "#6a8078";
+  const BL_TEXT      = "#1e2c2a";
 
   const s: Record<string, React.CSSProperties> = {
     page: {
@@ -281,19 +282,19 @@ function CertBody({ name, breed, gender, dob, regNumber, testDate, baseRows, dil
       {/* Header — Belmont Laboratory */}
       <div style={{ background: BL_DARK, padding: "22px 36px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
         <div>
-          <div style={{ fontFamily: "Georgia, serif", fontSize: 30, color: "white", fontWeight: 700, letterSpacing: "0.04em" }}>Belmont Laboratory</div>
-          <div style={{ fontFamily: "Arial, sans-serif", fontSize: 11, color: "rgba(255,255,255,0.7)", marginTop: 3, letterSpacing: "0.08em", textTransform: "uppercase" }}>Equine Genetic Diagnostics</div>
-          <div style={{ fontFamily: "Arial, sans-serif", fontSize: 10, color: "rgba(255,255,255,0.5)", marginTop: 2 }}>14 Westridge Road · Southern Territories · The Rift</div>
+          <div style={{ fontFamily: "Georgia, serif", fontSize: 30, color: BL_HEADER_TEXT, fontWeight: 700, letterSpacing: "0.04em" }}>Belmont Laboratory</div>
+          <div style={{ fontFamily: "Arial, sans-serif", fontSize: 11, color: BL_MUTED, marginTop: 3, letterSpacing: "0.08em", textTransform: "uppercase" }}>Equine Genetic Diagnostics</div>
+          <div style={{ fontFamily: "Arial, sans-serif", fontSize: 10, color: BL_MUTED, marginTop: 2, opacity: 0.75 }}>14 Westridge Road · Southern Territories · The Rift</div>
         </div>
         <div style={{ textAlign: "right" }}>
-          <div style={{ fontFamily: "Arial, sans-serif", fontSize: 10, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 3 }}>Report Date</div>
-          <div style={{ fontFamily: "Arial, sans-serif", fontSize: 15, color: "white", fontWeight: 700 }}>{testDate}</div>
-          <div style={{ fontFamily: "Arial, sans-serif", fontSize: 10, color: "rgba(255,255,255,0.6)", marginTop: 5, textTransform: "uppercase", letterSpacing: "0.06em" }}>Accreditation</div>
-          <div style={{ fontFamily: "Arial, sans-serif", fontSize: 11, color: "rgba(255,255,255,0.85)" }}>BL-GEN-2024-0017</div>
+          <div style={{ fontFamily: "Arial, sans-serif", fontSize: 10, color: BL_MUTED, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 3 }}>Report Date</div>
+          <div style={{ fontFamily: "Arial, sans-serif", fontSize: 15, color: BL_HEADER_TEXT, fontWeight: 700 }}>{testDate}</div>
+          <div style={{ fontFamily: "Arial, sans-serif", fontSize: 10, color: BL_MUTED, marginTop: 5, textTransform: "uppercase", letterSpacing: "0.06em" }}>Accreditation</div>
+          <div style={{ fontFamily: "Arial, sans-serif", fontSize: 11, color: BL_HEADER_TEXT }}>BL-GEN-2024-0017</div>
         </div>
       </div>
       <div style={{ background: BL_MED, padding: "7px 36px", flexShrink: 0 }}>
-        <span style={{ fontFamily: "Georgia, serif", fontSize: 14, color: "white", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+        <span style={{ fontFamily: "Georgia, serif", fontSize: 14, color: BL_HEADER_TEXT, letterSpacing: "0.1em", textTransform: "uppercase" }}>
           Equine Colour Genetics Certificate — Official Coat Colour &amp; Gene Analysis
         </span>
       </div>
@@ -368,10 +369,10 @@ function CertBody({ name, breed, gender, dob, regNumber, testDate, baseRows, dil
 
       {/* Footer */}
       <div style={{ background: BL_DARK, padding: "9px 36px", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
-        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", fontFamily: "Arial, sans-serif" }}>
+        <div style={{ fontSize: 10, color: BL_MUTED, fontFamily: "Arial, sans-serif" }}>
           Belmont Laboratory · 14 Westridge Road · Southern Territories · The Rift
         </div>
-        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", fontFamily: "Arial, sans-serif" }}>
+        <div style={{ fontSize: 10, color: BL_MUTED, fontFamily: "Arial, sans-serif" }}>
           Equine Colour Genetics Certificate · Official Report
         </div>
       </div>
@@ -379,9 +380,9 @@ function CertBody({ name, breed, gender, dob, regNumber, testDate, baseRows, dil
   );
 }
 
-const GEN_DARK   = "#4a5f5a";
-const GEN_LIGHT  = "rgba(135,155,149,0.10)";
-const GEN_BORDER = "rgba(135,155,149,0.40)";
+const GEN_DARK   = "#3d5450";
+const GEN_LIGHT  = "rgba(135,155,149,0.08)";
+const GEN_BORDER = "rgba(135,155,149,0.35)";
 const GEN_MUTED  = "#6a8078";
 const GEN_TEXT   = "#1e2c2a";
 

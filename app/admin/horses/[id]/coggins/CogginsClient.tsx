@@ -8,14 +8,13 @@ const CERT_W = 1240;
 const CERT_H = 1754;
 const PREVIEW_SCALE = 0.5;
 
-const BASE      = "#879b95";
-const TEAL_DARK = "#4a5f5a";           // darkened base for headers
-const TEAL      = "#879b95";           // base
-const TEAL_LIGHT = "rgba(135,155,149,0.10)";   // very light tint for row alternates / banners
-const BORDER    = "rgba(135,155,149,0.40)";    // subtle border
-const MUTED     = "#6a8078";
-const TEXT      = "#1e2c2a";
-void BASE;
+const TEAL_DARK  = "rgba(135,155,149,0.30)";  // pastel header bg
+const TEAL       = "rgba(135,155,149,0.20)";  // title bar bg
+const TEAL_LIGHT = "rgba(135,155,149,0.08)";  // alternating row / banner tint
+const BORDER     = "rgba(135,155,149,0.35)";  // borders
+const HEADER_TEXT = "#3d5450";                // dark text on light headers
+const MUTED      = "#6a8078";
+const TEXT       = "#1e2c2a";
 
 function slug(name: string) {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
@@ -197,24 +196,24 @@ const CertBody = forwardRef<HTMLDivElement, Props>(function CertBody(
       {/* Header */}
       <div style={{ background: TEAL_DARK, padding: "24px 36px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
-          <div style={{ fontFamily: playfair, fontSize: 32, color: "white", fontWeight: 700, letterSpacing: "0.04em" }}>Belmont Laboratory</div>
-          <div style={{ fontFamily: lato, fontSize: 12, color: "rgba(255,255,255,0.7)", marginTop: 3, letterSpacing: "0.08em", textTransform: "uppercase" }}>Equine Diagnostic Services</div>
-          <div style={{ fontFamily: lato, fontSize: 11, color: "rgba(255,255,255,0.55)", marginTop: 2 }}>14 Westridge Road · Southern Territories · The Rift</div>
+          <div style={{ fontFamily: playfair, fontSize: 32, color: HEADER_TEXT, fontWeight: 700, letterSpacing: "0.04em" }}>Belmont Laboratory</div>
+          <div style={{ fontFamily: lato, fontSize: 12, color: MUTED, marginTop: 3, letterSpacing: "0.08em", textTransform: "uppercase" }}>Equine Diagnostic Services</div>
+          <div style={{ fontFamily: lato, fontSize: 11, color: MUTED, marginTop: 2, opacity: 0.75 }}>14 Westridge Road · Southern Territories · The Rift</div>
         </div>
         <div style={{ textAlign: "right" }}>
-          <div style={{ fontFamily: lato, fontSize: 10, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Accession Number</div>
-          <div style={{ fontFamily: lato, fontSize: 17, color: "white", fontWeight: 700 }}>{acc}</div>
-          <div style={{ fontFamily: lato, fontSize: 10, color: "rgba(255,255,255,0.6)", marginTop: 6, textTransform: "uppercase", letterSpacing: "0.06em" }}>Report Date</div>
-          <div style={{ fontFamily: lato, fontSize: 13, color: "white" }}>{formatDate(reported)}</div>
+          <div style={{ fontFamily: lato, fontSize: 10, color: MUTED, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Accession Number</div>
+          <div style={{ fontFamily: lato, fontSize: 17, color: HEADER_TEXT, fontWeight: 700 }}>{acc}</div>
+          <div style={{ fontFamily: lato, fontSize: 10, color: MUTED, marginTop: 6, textTransform: "uppercase", letterSpacing: "0.06em" }}>Report Date</div>
+          <div style={{ fontFamily: lato, fontSize: 13, color: HEADER_TEXT }}>{formatDate(reported)}</div>
         </div>
       </div>
 
       {/* Report title bar */}
       <div style={{ background: TEAL, padding: "8px 36px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ fontFamily: playfair, fontSize: 15, color: "white", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+        <div style={{ fontFamily: playfair, fontSize: 15, color: HEADER_TEXT, letterSpacing: "0.1em", textTransform: "uppercase" }}>
           Equine Infectious Anemia (EIA) — Laboratory Report
         </div>
-        <div style={{ fontFamily: lato, fontSize: 11, color: "rgba(255,255,255,0.75)" }}>
+        <div style={{ fontFamily: lato, fontSize: 11, color: MUTED }}>
           USDA Accredited · Test Method: AGID
         </div>
       </div>
@@ -332,10 +331,10 @@ const CertBody = forwardRef<HTMLDivElement, Props>(function CertBody(
 
       {/* Footer */}
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: TEAL_DARK, padding: "10px 36px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ fontFamily: lato, fontSize: 10, color: "rgba(255,255,255,0.6)" }}>
+        <div style={{ fontFamily: lato, fontSize: 10, color: MUTED }}>
           Belmont Laboratory · 14 Westridge Road · Southern Territories · The Rift
         </div>
-        <div style={{ fontFamily: lato, fontSize: 10, color: "rgba(255,255,255,0.6)" }}>
+        <div style={{ fontFamily: lato, fontSize: 10, color: MUTED }}>
           Accession: {acc} · Official EIA Test · USDA Veterinary Services
         </div>
       </div>
