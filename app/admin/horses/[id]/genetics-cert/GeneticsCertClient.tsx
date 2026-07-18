@@ -251,10 +251,10 @@ function CertBody({ name, breed, gender, dob, regNumber, testDate, baseRows, dil
   baseRows: GeneRow[]; diluteRows: GeneRow[]; patternRows: GeneRow[];
   interpretation: string; sigBreeder: string; sigLab: string;
 }) {
-  const BL_DARK      = "rgba(135,155,149,0.30)";
-  const BL_MED       = "rgba(135,155,149,0.20)";
-  const BL_LIGHT     = "rgba(135,155,149,0.08)";
-  const BL_BORDER    = "rgba(135,155,149,0.35)";
+  const BL_DARK      = "rgba(135,155,149,0.45)";
+  const BL_MED       = "rgba(135,155,149,0.32)";
+  const BL_LIGHT     = "rgba(135,155,149,0.14)";
+  const BL_BORDER    = "rgba(135,155,149,0.50)";
   const BL_HEADER_TEXT = "#3d5450";
   const BL_MUTED     = "#6a8078";
   const BL_TEXT      = "#1e2c2a";
@@ -381,8 +381,8 @@ function CertBody({ name, breed, gender, dob, regNumber, testDate, baseRows, dil
 }
 
 const GEN_DARK   = "#3d5450";
-const GEN_LIGHT  = "rgba(135,155,149,0.08)";
-const GEN_BORDER = "rgba(135,155,149,0.35)";
+const GEN_LIGHT  = "rgba(135,155,149,0.14)";
+const GEN_BORDER = "rgba(135,155,149,0.50)";
 const GEN_MUTED  = "#6a8078";
 const GEN_TEXT   = "#1e2c2a";
 

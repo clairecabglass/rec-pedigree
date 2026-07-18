@@ -8,10 +8,10 @@ const CERT_W = 1240;
 const CERT_H = 1754;
 const PREVIEW_SCALE = 0.5;
 
-const TEAL_DARK  = "rgba(135,155,149,0.30)";  // pastel header bg
-const TEAL       = "rgba(135,155,149,0.20)";  // title bar bg
-const TEAL_LIGHT = "rgba(135,155,149,0.08)";  // alternating row / banner tint
-const BORDER     = "rgba(135,155,149,0.35)";  // borders
+const TEAL_DARK  = "rgba(135,155,149,0.45)";  // pastel header bg
+const TEAL       = "rgba(135,155,149,0.32)";  // title bar bg
+const TEAL_LIGHT = "rgba(135,155,149,0.14)";  // alternating row / banner tint
+const BORDER     = "rgba(135,155,149,0.50)";  // borders
 const HEADER_TEXT = "#3d5450";                // dark text on light headers
 const MUTED      = "#6a8078";
 const TEXT       = "#1e2c2a";
