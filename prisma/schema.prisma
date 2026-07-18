@@ -1,0 +1,259 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+model Horse {
+  id        String    @id @default(cuid())
+  microchip String?
+  name      String    @unique
+  breed     String?
+  gender    String?
+  sireName  String?
+  damName   String?
+  coat      String?
+  withFoal  Boolean   @default(false)
+  ownership String?
+  notes     String?
+  dob       DateTime?
+
+  // Richer profile fields
+  height       String?
+  discipline   String?
+  regNumber    String?
+  achievements String?
+  videoUrl     String?
+  personality  String?
+  genotype     String?
+  eyeColor     String?
+  baseStats    String?
+  description  String? // backstory
+
+  // Owner / roleplay info
+  ownerName      String? // Discord name
+  ownerCharacter String? // in-game character
+  stablePrefix   String?
+
+  // Per-server character capacity assignment. Today the two slots are
+  // "Athena Redfield" and "Lucille"; nullable so non-Home rows stay clean.
+  assignedCharacter String?
+
+  // Roleplay life-stage: null = Adult, or one of "Gestation" | "Weanling" | "Yearling" | "Youngster"
+  lifeStage String?
+
+  // Breeding cool-down tracker: set to the real-world timestamp when the mare was bred.
+  lastBredDateTime DateTime?
+
+  // Breeding
+  breedingFee          String?  // price per cover
+  breedingPolicies     String?
+  availableForBreeding Boolean  @default(false) // listed on public Studs/Broodmares pages
+
+  // For Sale details
+  price           String?
+  saleDescription String?
+  saleContact     String?
+
+  photos    Photo[]
+  videos    Video[]
+  documents Document[]
+  results   Result[]
+  events    HorseEvent[]
+
+  mareBreedingPlans     BreedingPlan[] @relation("MareBreedingPlans")
+  stallionBreedingPlans BreedingPlan[] @relation("StallionBreedingPlans")
+
+  isImportedPlaceholder Boolean @default(false)
+  isCustomHorse         Boolean @default(false) // base horse created in the stable with custom traits
+  hasCustomCoat         Boolean @default(false) // carries a custom coat (10% pass chance to foal)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Photo {
+  id        String   @id @default(cuid())
+  horseId   String
+  horse     Horse    @relation(fields: [horseId], references: [id], onDelete: Cascade)
+  url       String
+  key       String
+  caption   String?
+  order     Int      @default(0)
+  isPrimary Boolean  @default(false)
+  fill      Boolean  @default(false) // true = cover (fill block, may crop); false = contain (show whole image)
+  createdAt DateTime @default(now())
+
+  @@index([horseId])
+}
+
+model Video {
+  id        String   @id @default(cuid())
+  horseId   String
+  horse     Horse    @relation(fields: [horseId], references: [id], onDelete: Cascade)
+  url       String
+  key       String
+  caption   String?
+  order     Int      @default(0)
+  mimeType  String?
+  createdAt DateTime @default(now())
+
+  @@index([horseId])
+}
+
+model Document {
+  id        String   @id @default(cuid())
+  horseId   String
+  horse     Horse    @relation(fields: [horseId], references: [id], onDelete: Cascade)
+  url       String
+  key       String
+  label     String
+  type      String?
+  createdAt DateTime @default(now())
+
+  @@index([horseId])
+}
+
+// Editable site content (homepage text, announcements, future pages)
+model SiteContent {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+// A show result / achievement entry for a horse.
+model Result {
+  id        String    @id @default(cuid())
+  horseId   String
+  horse     Horse     @relation(fields: [horseId], references: [id], onDelete: Cascade)
+  date      DateTime?
+  event     String
+  placement String?
+  notes     String?
+  createdAt DateTime  @default(now())
+
+  @@index([horseId])
+}
+
+// A saved planned pairing (breeding wishlist).
+model BreedingPlan {
+  id        String   @id @default(cuid())
+  damId     String?
+  dam       Horse?   @relation("MareBreedingPlans", fields: [damId], references: [id], onDelete: SetNull)
+  damName   String
+  sireId    String?
+  sire      Horse?   @relation("StallionBreedingPlans", fields: [sireId], references: [id], onDelete: SetNull)
+  sireName  String?
+  notes     String?
+  createdAt DateTime @default(now())
+
+  @@index([damId])
+  @@index([sireId])
+}
+
+// Breeding / pregnancy tracker. The foal is a real (placeholder) Horse row
+// created up-front so it has its own page, pedigree and can be filled in later.
+model Pregnancy {
+  id        String    @id @default(cuid())
+  damId     String
+  sireName  String?
+  coverDate DateTime?
+  dueDate   DateTime?
+  status    String    @default("expecting") // expecting | born
+  foalId    String?
+  notes     String?
+  markedForDeletion Boolean @default(false) // flagged to delete once the foal is born (e.g. unwanted coat/breed)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([damId])
+}
+
+// Manually added horse timeline events (training, health, milestones, etc.)
+model HorseEvent {
+  id          String    @id @default(cuid())
+  horseId     String
+  horse       Horse     @relation(fields: [horseId], references: [id], onDelete: Cascade)
+  date        DateTime
+  title       String
+  description String?
+  type        String    @default("note") // training | health | competition | milestone | note
+  imageUrl    String?
+  imageKey    String?
+  order       Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([horseId])
+}
+
+// Admin-only diary entries. We keep a single global "general notes" row
+// keyed by the string "general" and add more keyed sections (e.g.
+// "stable-strategy") later if needed.
+model DiaryNote {
+  key       String   @id
+  body      String   @default("")
+  updatedAt DateTime @updatedAt
+}
+
+// Preferred-services ledger — favourite providers across The Rift community.
+model PreferredService {
+  id           String   @id @default(cuid())
+  providerName String
+  serviceType  String // Training | Farrier | Vet Check | Custom Tack | Other
+  price        String? // free-text price, e.g. "Free", "250k", "Negotiable"
+  link         String? // optional URL to provider's profile, shop, or thread
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// A manually-logged Spooner build (arena/prop spawn presets), with reference
+// photos and the raw .txt spawn-data file. txtContent is cached alongside the
+// uploaded file so "Copy" never needs a round-trip fetch.
+model SpoonerBuild {
+  id          String   @id @default(cuid())
+  title       String
+  location    String?
+  category    String? // free-text filter facet, e.g. "Dressage", "Show Jumping", "Cross Country"
+  description String?
+  discordUrl  String? // link to the original Discord message/post
+
+  photos    SpoonerBuildPhoto[]
+  txtFiles  SpoonerBuildTxtFile[]
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+}
+
+model SpoonerBuildPhoto {
+  id        String       @id @default(cuid())
+  buildId   String
+  build     SpoonerBuild @relation(fields: [buildId], references: [id], onDelete: Cascade)
+  url       String
+  key       String
+  order     Int          @default(0)
+  createdAt DateTime     @default(now())
+
+  @@index([buildId])
+}
+
+// A version of the raw spawn-data .txt file — some builds have multiple
+// variants of the same arena/preset, so this is one-to-many rather than a
+// single field on SpoonerBuild.
+model SpoonerBuildTxtFile {
+  id        String       @id @default(cuid())
+  buildId   String
+  build     SpoonerBuild @relation(fields: [buildId], references: [id], onDelete: Cascade)
+  fileName  String
+  url       String
+  key       String
+  content   String
+  order     Int          @default(0)
+  createdAt DateTime     @default(now())
+
+  @@index([buildId])
+}

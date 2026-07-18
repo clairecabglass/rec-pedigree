@@ -1,0 +1,463 @@
+@import "tailwindcss";
+
+:root {
+  --cream: #FBF8F4;
+  --cream-dark: #F2ECE4;
+  --teal: #5E8080;
+  --teal-dark: #3F5F5F;
+  --teal-light: #8AABA8;
+  --teal-muted: #D4E3E1;
+  --gold: #C4A96E;
+  --gold-light: #DDD0A8;
+  --text: #2C3E3C;
+  --text-muted: #7A9090;
+  --border: #C8D8D5;
+  --white: #FFFFFF;
+
+  /* Soft pedigree palette */
+  --sire-bg: #F0F1F2;
+  --sire-border: #D5C5C8;
+  --sire-text: #5A6070;
+  --dam-bg: #FDF0F2;
+  --dam-border: #EABDC4;
+  --dam-text: #A85868;
+  --unknown-bg: #FBF6E8;
+  --unknown-border: #E6DBBB;
+  --inbreed-bg: #F9E6E6;
+  --inbreed-border: #D89595;
+  --inbreed-text: #A85454;
+  --ped-line: #C2D2CF;
+
+  /* Extra soft pastels, same washed-out feel as sire/dam, for varied accents */
+  --sage-bg: #F2F6EE;
+  --sage-border: #DDE7D3;
+  --sage-text: #8FA683;
+  --lilac-bg: #F6F1F7;
+  --lilac-border: #E5D9E8;
+  --lilac-text: #9E89AC;
+  --sand-bg: #FBF4E9;
+  --sand-border: #EFE0C5;
+  --sand-text: #B59A6E;
+
+  --background: var(--cream);
+  --foreground: var(--text);
+}
+
+/* ============================================================
+   THEMES — swap CSS variables per data-theme attribute.
+   Default (Meadow) lives in :root above.
+   ============================================================ */
+
+
+/* Buttermilk: warm oat bg, periwinkle headings/buttons, buttermilk gold */
+[data-theme="buttermilk"] {
+  --cream: #FBF6EE;
+  --cream-dark: #EEE0CC;
+  --teal: #C18EB2;
+  --teal-dark: #7A4E70;
+  --teal-light: #D8B4CC;
+  --teal-muted: #F4E8F0;
+  --gold: #D4A850;
+  --gold-light: #EDD898;
+  --text: #3C2E38;
+  --text-muted: #907080;
+  --border: #DED0C0;
+  --white: #FFFFF8;
+  --sire-bg: #F0F1F2;
+  --sire-border: #D5C5C8;
+  --sire-text: #5A6070;
+  --dam-bg: #FDF0F2;
+  --dam-border: #EABDC4;
+  --dam-text: #A85868;
+  --unknown-bg: #FAF6E8;
+  --unknown-border: #E8D8A8;
+  --inbreed-bg: #F8E4EE;
+  --inbreed-border: #D898C0;
+  --inbreed-text: #9A4878;
+  --ped-line: #D8C8B8;
+  --sage-bg: #F2EEE4;
+  --sage-border: #D8CCAA;
+  --sage-text: #907840;
+  --lilac-bg: #F4EAF4;
+  --lilac-border: #D8C0D4;
+  --lilac-text: #8A58A0;
+  --sand-bg: #FAF4E0;
+  --sand-border: #E8D490;
+  --sand-text: #9A8030;
+}
+
+
+[data-theme="soft-blush"] {
+  --cream: #FFF8F8;
+  --cream-dark: #F8EEEE;
+  --teal: #DB7F8E;
+  --teal-dark: #A85868;
+  --teal-light: #E8A8B2;
+  --teal-muted: #F8E4E6;
+  --gold: #9DA3A4;
+  --gold-light: #D5C5C8;
+  --text: #604D53;
+  --text-muted: #9A8088;
+  --border: #E0CDD0;
+  --white: #FFFFFF;
+  --sire-bg: #F0F1F2;
+  --sire-border: #D5C5C8;
+  --sire-text: #5A6070;
+  --dam-bg: #FDF0F2;
+  --dam-border: #EABDC4;
+  --dam-text: #A85868;
+  --unknown-bg: #F8F4F4;
+  --unknown-border: #E0D4D5;
+  --inbreed-bg: #F9E4E6;
+  --inbreed-border: #D49098;
+  --inbreed-text: #A85460;
+  --ped-line: #DDD0D4;
+  --sage-bg: #F2F4F4;
+  --sage-border: #D0D8D8;
+  --sage-text: #7A9090;
+  --lilac-bg: #F8F4F6;
+  --lilac-border: #E4D8DC;
+  --lilac-text: #9A8090;
+  --sand-bg: #FBF6F0;
+  --sand-border: #EDE0D8;
+  --sand-text: #A89080;
+}
+
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--cream);
+  color: var(--text);
+  font-family: 'Georgia', serif;
+  min-height: 100vh;
+}
+
+/* ============================================================
+   Pedigree tree — recursive flex layout with CSS connectors.
+   Scales to any depth & any subtree height without glitching.
+   ============================================================ */
+
+.ped-root {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 4px;
+}
+
+/* A node = its card + (optionally) its ancestors column */
+.ped-node {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* The two-ancestor column to the right of a card */
+.ped-parents {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: relative;
+  margin-left: 28px;
+}
+
+/* horizontal line from this card out to the ancestor bracket */
+.ped-parents::before {
+  content: "";
+  position: absolute;
+  left: -28px;
+  top: 50%;
+  width: 28px;
+  border-top: 1.5px solid var(--ped-line);
+}
+
+/* Each ancestor row */
+.ped-branch {
+  display: flex;
+  align-items: center;
+  position: relative;
+  padding-left: 28px;
+  margin: 4px 0;
+}
+
+/* horizontal stub into each ancestor at its vertical center */
+.ped-branch::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 28px;
+  border-top: 1.5px solid var(--ped-line);
+}
+
+/* vertical bracket halves — sire draws lower half, dam draws upper half.
+   Together they form one continuous line from sire-center to dam-center. */
+.ped-branch.has-sibling.sire::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  bottom: -4px;
+  border-left: 1.5px solid var(--ped-line);
+}
+.ped-branch.has-sibling.dam::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: -4px;
+  bottom: 50%;
+  border-left: 1.5px solid var(--ped-line);
+}
+
+/* ---- Cards ---- */
+.ped-card {
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  padding: 7px 11px;
+  min-width: 150px;
+  max-width: 190px;
+  background: var(--white);
+  cursor: pointer;
+  transition: box-shadow 0.15s, transform 0.1s;
+  text-decoration: none;
+  display: block;
+}
+.ped-card:hover {
+  box-shadow: 0 3px 10px rgba(94, 128, 128, 0.22);
+  transform: translateY(-1px);
+}
+.ped-card.no-link {
+  cursor: default;
+}
+.ped-card.no-link:hover {
+  box-shadow: none;
+  transform: none;
+}
+
+/* Every copy of the ancestor you're hovering lights up gold, so it's obvious
+   which repeated cards are the same horse (not the card sitting next to it). */
+.ped-card.dupe-active,
+[data-dupe].dupe-active {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(196, 169, 110, 0.25) !important;
+  z-index: 1;
+}
+
+.ped-card.root {
+  border-left: 4px solid var(--teal);
+  min-width: 168px;
+}
+.ped-card.sire {
+  background: var(--sire-bg);
+  border-color: var(--sire-border);
+}
+.ped-card.dam {
+  background: var(--dam-bg);
+  border-color: var(--dam-border);
+}
+.ped-card.unknown {
+  background: var(--unknown-bg);
+  border-color: var(--unknown-border);
+}
+.ped-card.inbreeding {
+  background: var(--inbreed-bg);
+  border-color: var(--inbreed-border);
+}
+
+.ped-card .pc-name {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--teal-dark);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-lato), sans-serif;
+  letter-spacing: 0.01em;
+}
+.ped-card.root .pc-name { font-size: 13px; }
+.ped-card.inbreeding .pc-name { color: var(--inbreed-text); }
+
+.ped-card .pc-breed {
+  font-size: 10px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-lato), sans-serif;
+}
+.ped-card .pc-coat {
+  font-size: 9.5px;
+  color: var(--gold);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-lato), sans-serif;
+}
+.ped-card .pc-flag {
+  font-size: 9px;
+  color: var(--inbreed-text);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* Compact pedigree for the certificate — much shorter rows so a wide,
+   short certificate area fits a 5–6 generation tree legibly. */
+.ped-root.cert .ped-branch { margin: 0; }
+.ped-root.cert .ped-parents { margin-left: 22px; }
+.ped-root.cert .ped-parents::before { left: -22px; width: 22px; }
+.ped-root.cert .ped-branch { padding-left: 22px; }
+.ped-root.cert .ped-branch::before { width: 22px; }
+.ped-root.cert .ped-card { padding: 3px 9px; min-width: 132px; max-width: 168px; }
+.ped-root.cert .ped-card .pc-breed,
+.ped-root.cert .ped-card .pc-coat { display: none; }
+
+/* Hover cards used inside Server Components (no JS handlers allowed there) */
+.hover-card {
+  transition: box-shadow 0.15s ease, border-color 0.1s ease, transform 0.15s ease;
+  will-change: transform;
+}
+.hover-card:hover {
+  box-shadow: 0 8px 24px rgba(94, 128, 128, 0.18);
+  border-color: var(--teal-light) !important;
+  transform: translateY(-3px);
+}
+.hover-row {
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+.hover-row:hover {
+  border-color: var(--teal-light) !important;
+}
+
+/* ============================================================
+   Site-wide motion — subtle, Wix-style smoothness.
+   ============================================================ */
+
+/* Gentle entrance for page content on load / navigation. */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Opacity-only entrance: a translate here would leave a lingering
+   transform (fill-mode: both), which makes <main> the containing block
+   for every position:fixed modal/lightbox inside it — pinning them to the
+   page instead of the viewport. Keep main transform-free. */
+main {
+  animation: fadeIn 0.3s ease both;
+}
+
+/* Stagger the first few direct children of a page section so blocks
+   ease in one after another rather than all at once. */
+.reveal > * {
+  animation: fadeInUp 0.35s ease both;
+}
+.reveal > *:nth-child(1) { animation-delay: 0.02s; }
+.reveal > *:nth-child(2) { animation-delay: 0.06s; }
+.reveal > *:nth-child(3) { animation-delay: 0.10s; }
+.reveal > *:nth-child(4) { animation-delay: 0.14s; }
+.reveal > *:nth-child(5) { animation-delay: 0.18s; }
+.reveal > *:nth-child(6) { animation-delay: 0.22s; }
+
+/* Make interactive elements feel smooth but snappy.
+   0.1s for color/bg so clicks feel instant; slightly longer for shadow/transform
+   so hover lifts look polished without delaying click feedback. */
+a,
+button,
+input,
+select,
+textarea {
+  transition: color 0.1s ease, background-color 0.1s ease, border-color 0.1s ease,
+    box-shadow 0.15s ease, opacity 0.1s ease, transform 0.15s ease;
+  touch-action: manipulation; /* removes 300ms tap delay on mobile */
+}
+
+/* Focus rings on form fields so editing feels responsive. */
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--teal-light) !important;
+  box-shadow: 0 0 0 3px rgba(138, 171, 168, 0.25);
+}
+
+/* ============================================================
+   Mobile — base tap targets & text sizing
+   ============================================================ */
+
+/* Comfortable tap targets on mobile without affecting desktop layout */
+@media (max-width: 640px) {
+  /* Prevent text from being microscopic on phones */
+  body { font-size: 16px; }
+
+  /* Full-width selects and inputs in filter bars on small screens */
+  select, input[type="text"], input[type="search"] {
+    min-height: 44px;
+    font-size: 16px; /* prevents iOS zoom-on-focus */
+  }
+
+  /* Horse profile two-col grid → stack on mobile */
+  .profile-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Registry cards: 2-col feels tight on very small phones — stay 2-col
+     but give a bit more breathing room */
+  .registry-card-name {
+    font-size: 13px !important;
+  }
+
+  /* Reduce page padding on mobile so content uses full width */
+  .max-w-3xl, .max-w-5xl, .max-w-6xl {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
+  /* Nav links that overflow on small screens */
+  nav { flex-wrap: wrap; }
+
+  /* Buttons that are too wide on mobile */
+  .mobile-full { width: 100% !important; }
+
+  /* Admin grid: 4-col stats → 2-col on mobile */
+  .grid-cols-4 { grid-template-columns: repeat(2, 1fr) !important; }
+}
+
+/* Respect users who prefer no motion. */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *,
+  main,
+  .reveal > * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* Rich-text description rendered on horse profile */
+.horse-description { font-family: var(--font-lato); font-size: 14.5px; color: var(--text); line-height: 1.75; }
+.horse-description p { margin: 0 0 0.6em; }
+.horse-description p:last-child { margin-bottom: 0; }
+.horse-description h1 { font-family: var(--font-playfair); font-size: 1.5em; color: var(--teal-dark); margin: 0.8em 0 0.3em; }
+.horse-description h2 { font-family: var(--font-playfair); font-size: 1.25em; color: var(--teal-dark); margin: 0.7em 0 0.3em; }
+.horse-description h3 { font-family: var(--font-playfair); font-size: 1.1em; color: var(--teal-dark); margin: 0.6em 0 0.2em; }
+.horse-description ul, .horse-description ol { padding-left: 1.4em; margin: 0.4em 0 0.6em; }
+.horse-description li { margin: 0.15em 0; }
+.horse-description blockquote { border-left: 3px solid var(--teal-light); margin: 0.6em 0; padding: 4px 12px; color: var(--text-muted); font-style: italic; }
+.horse-description code { background: var(--cream); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; font-size: 0.88em; }
+.horse-description a { color: var(--teal); text-decoration: underline; }
+.horse-description hr { border: none; border-top: 1px solid var(--border); margin: 1em 0; }

@@ -1,6 +1,10 @@
 "use client";
 import { useState, createContext, useContext, useRef } from "react";
 import { useRouter } from "next/navigation";
+import PedigreeTree from "@/components/PedigreeTree";
+import RichTextEditor from "@/components/RichTextEditor";
+import { buildPedigreeTree, findDuplicates, HorseNode } from "@/lib/pedigree";
+import type { HorseMap } from "@/lib/pedigree";
 
 interface HorseData {
   id?: string;
@@ -81,9 +85,6 @@ function riftToHorseData(h: RiftTrailsHorse, ownership?: string): HorseData {
 }
 
 const BREEDS = ["American Paint Horse", "American Quarter Horse", "Andalusian", "Anglo-Arabian", "Arabian", "Belgian", "Clydesdale", "Colorado Ranger", "Connemara", "Criollo", "Friesian", "Hanoverian", "Holsteiner", "Irish Cob", "KWPN", "Kladruber", "Klabruber", "Lipizzaner", "Lusitano", "Menorquin", "Mustang", "Norfolk Roadster", "Nokota", "Oldenburg", "Paso Fino", "Percheron", "Selle Francais", "Shire", "Sugarbush Harlequin", "Suffolk Punch", "Thoroughbred", "Trotteur Francais", "Turkoman", "Warlander"];
-// Each entry is [stored value, label shown in the dropdown]. The label spells
-// out what each status DOES so it's obvious which to pick when adding ancestors
-// vs. real owned horses.
 const OWNERSHIPS: ReadonlyArray<readonly [string, string]> = [
   ["Home", "My Horse (HOME) — active, included in breeding tools"],
   ["For Sale", "For Sale — listed on the For Sale page"],
@@ -107,19 +108,44 @@ export default function HorseForm({ initial, mode }: { initial?: HorseData; mode
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // New horses default to "Home" so they're immediately usable in the breeding
-  // tools. Switch to "Outside" when adding a pedigree-only reference horse.
   const [data, setData] = useState<HorseData>(initial ?? { name: "", ownership: "Home" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Rift Trails import state
+  // Rift Trails single-horse import state
   const [pendingAncestors, setPendingAncestors] = useState<RiftTrailsHorse[]>([]);
   const [pendingPhoto, setPendingPhoto] = useState("");
   const [savedHorseId, setSavedHorseId] = useState("");
   const [importStep, setImportStep] = useState<"form" | "post-save">("form");
   const [importLoading, setImportLoading] = useState(false);
   const [importResult, setImportResult] = useState<{ imported: number; skipped: string[] } | null>(null);
+
+  // Pedigree image OCR state
+  const imgInputRef = useRef<HTMLInputElement>(null);
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrError, setOcrError] = useState("");
+  const [pendingOcrAncestors, setPendingOcrAncestors] = useState<HorseData[]>([]);
+
+  // Pedigree preview (from JSON or OCR)
+  const [previewTree, setPreviewTree] = useState<HorseNode | null>(null);
+  const [previewDupes, setPreviewDupes] = useState<Set<string>>(new Set());
+  const [previewAllHorses, setPreviewAllHorses] = useState("[]");
+  const [showPreview, setShowPreview] = useState(false);
+
+  function buildAndSetPreview(root: HorseData, ancestors: HorseData[]) {
+    const all = [root, ...ancestors].filter((h) => h.name?.trim());
+    const map = new Map(
+      all.map((h) => [
+        (h.name ?? "").toLowerCase(),
+        { id: h.name ?? "", name: h.name ?? "", breed: h.breed ?? null, gender: h.gender ?? null, coat: h.coat ?? null, genotype: h.genotype ?? null, sireName: h.sireName ?? null, damName: h.damName ?? null },
+      ])
+    ) as unknown as HorseMap;
+    const tree = buildPedigreeTree(root.name ?? "", map, 5);
+    setPreviewTree(tree);
+    setPreviewDupes(findDuplicates(tree));
+    setPreviewAllHorses(JSON.stringify(all.map((h) => ({ id: h.name ?? "", name: h.name ?? "" }))));
+    setShowPreview(true);
+  }
 
   const set = (key: keyof HorseData, value: string | boolean) =>
     setData((d) => ({ ...d, [key]: value }));
@@ -134,18 +160,49 @@ export default function HorseForm({ initial, mode }: { initial?: HorseData; mode
         if (!json.horses?.length) { alert("No horse data found in this file."); return; }
         const root: RiftTrailsHorse = json.horses[0];
         const ancestors: RiftTrailsHorse[] = json.horses.slice(1).filter((h: RiftTrailsHorse) => h.name?.trim());
-        // Keep the ownership the user already picked (or the status from the file)
-        setData((prev) => ({ ...riftToHorseData(root), ownership: prev.ownership ?? statusToOwnership(root.status) }));
+        const rootData = riftToHorseData(root);
+        setData((prev) => ({ ...rootData, ownership: prev.ownership ?? statusToOwnership(root.status) }));
         setPendingAncestors(ancestors);
         const photo = root.photo?.startsWith("data:image") ? root.photo
           : root.gallery?.startsWith("data:image") ? root.gallery : "";
         setPendingPhoto(photo);
+        buildAndSetPreview(rootData, ancestors.map((a) => riftToHorseData(a)));
       } catch {
         alert("Could not parse this file. Make sure it's a valid Rift Trails export.");
       }
     };
     reader.readAsText(file);
     e.target.value = "";
+  }
+
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setOcrLoading(true);
+    setOcrError("");
+    try {
+      const fd = new FormData();
+      fd.append("image", file);
+      const res = await fetch("/api/admin/pedigree-import", { method: "POST", body: fd });
+      if (!res.ok) { const j = await res.json(); throw new Error(j.error ?? "OCR failed."); }
+      const { rootHorse, ancestors }: { rootHorse: HorseData; ancestors: HorseData[] } = await res.json();
+      // Merge rootHorse fields non-destructively (only fill blank fields)
+      setData((prev) => {
+        const merged = { ...prev };
+        for (const [k, v] of Object.entries(rootHorse)) {
+          if (v && !prev[k as keyof HorseData]) (merged as Record<string, unknown>)[k] = v;
+        }
+        return merged;
+      });
+      const filtered = ancestors.filter((a) => a.name?.trim());
+      setPendingOcrAncestors(filtered);
+      buildAndSetPreview(rootHorse, filtered);
+    } catch (err) {
+      setOcrError(err instanceof Error ? err.message : "OCR failed. Please try again.");
+    } finally {
+      setOcrLoading(false);
+    }
   }
 
   async function submit(e: React.FormEvent) {
@@ -172,10 +229,10 @@ export default function HorseForm({ initial, mode }: { initial?: HorseData; mode
         const fd = new FormData();
         fd.append("files", blob, "photo.jpg");
         await fetch(`/api/horses/${horse.id}/photos`, { method: "POST", body: fd });
-      } catch { /* non-fatal — photo upload failure shouldn't block */ }
+      } catch { /* non-fatal */ }
     }
 
-    if (mode === "create" && pendingAncestors.length > 0) {
+    if (mode === "create" && (pendingAncestors.length > 0 || pendingOcrAncestors.length > 0)) {
       setSavedHorseId(horse.id);
       setImportStep("post-save");
     } else {
@@ -188,15 +245,18 @@ export default function HorseForm({ initial, mode }: { initial?: HorseData; mode
     setImportLoading(true);
     let imported = 0;
     const skipped: string[] = [];
-    for (const ancestor of pendingAncestors) {
-      const payload = { ...riftToHorseData(ancestor, "Outside"), isImportedPlaceholder: true };
+    const allAncestors: HorseData[] = [
+      ...pendingAncestors.map((a) => riftToHorseData(a, "Outside")),
+      ...pendingOcrAncestors.map((a) => ({ ...a, ownership: "Outside" })),
+    ];
+    for (const payload of allAncestors) {
       const res = await fetch("/api/horses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ ...payload, isImportedPlaceholder: true }),
       });
       if (res.ok) imported++;
-      else skipped.push(ancestor.name);
+      else skipped.push(payload.name ?? "unknown");
     }
     setImportLoading(false);
     setImportResult({ imported, skipped });
@@ -239,7 +299,7 @@ export default function HorseForm({ initial, mode }: { initial?: HorseData; mode
         ) : (
           <div>
             <p style={{ fontFamily: "var(--font-lato)", fontSize: 14, marginBottom: 4, color: "var(--text)" }}>
-              This file contains <strong>{pendingAncestors.length} pedigree ancestor{pendingAncestors.length !== 1 ? "s" : ""}</strong>.
+              {(() => { const total = pendingAncestors.length + pendingOcrAncestors.length; return <>Found <strong>{total} pedigree ancestor{total !== 1 ? "s" : ""}</strong></>; })()}.
               Import them as <em>Outside / Reference</em> records so the pedigree tree resolves fully?
             </p>
             <p style={{ fontFamily: "var(--font-lato)", fontSize: 12, color: "var(--text-muted)", marginBottom: 14 }}>
@@ -254,6 +314,14 @@ export default function HorseForm({ initial, mode }: { initial?: HorseData; mode
                   {a.base ? ` · ${a.base}` : ""}
                 </li>
               ))}
+              {pendingOcrAncestors.map((a) => (
+                <li key={a.name}>
+                  <strong>{a.name}</strong>
+                  {a.gender ? ` · ${a.gender}` : ""}
+                  {a.breed ? ` · ${a.breed}` : ""}
+                  <span style={{ color: "var(--teal)", fontSize: 10, marginLeft: 4 }}>[OCR]</span>
+                </li>
+              ))}
             </ul>
             <div style={{ display: "flex", gap: 12 }}>
               <button
@@ -261,7 +329,7 @@ export default function HorseForm({ initial, mode }: { initial?: HorseData; mode
                 disabled={importLoading}
                 style={{ background: "var(--teal)", color: "var(--white)", border: "none", borderRadius: 6, padding: "11px 28px", fontSize: 14, fontWeight: 700, cursor: importLoading ? "not-allowed" : "pointer", fontFamily: "var(--font-lato)", opacity: importLoading ? 0.7 : 1 }}
               >
-                {importLoading ? "Importing…" : `Import ${pendingAncestors.length} Ancestors`}
+                {importLoading ? "Importing…" : `Import ${pendingAncestors.length + pendingOcrAncestors.length} Ancestors`}
               </button>
               <button
                 onClick={() => { router.push(`/registry/${savedHorseId}`); router.refresh(); }}
@@ -286,23 +354,56 @@ export default function HorseForm({ initial, mode }: { initial?: HorseData; mode
             <p style={{ fontFamily: "var(--font-lato)", fontSize: 13, fontWeight: 700, color: "var(--teal-dark)", margin: 0 }}>
               Import from Rift Trails
             </p>
-            <p style={{ fontFamily: "var(--font-lato)", fontSize: 12, color: "var(--text-muted)", margin: "3px 0 0", lineHeight: 1.5 }}>
-              Upload a <code style={{ fontSize: 11 }}>.rifttrails.json</code> export to auto-fill this form.
-              {pendingAncestors.length > 0
-                ? <><br /><span style={{ color: "var(--teal)", fontWeight: 600 }}>✓ {pendingAncestors.length} pedigree ancestors ready to import after saving.{pendingPhoto ? " ✓ Photo ready." : ""}</span></>
-                : pendingPhoto
-                  ? <><br /><span style={{ color: "var(--teal)", fontWeight: 600 }}>✓ Photo ready.</span></>
-                  : null}
+            <p style={{ fontFamily: "var(--font-lato)", fontSize: 12, color: "var(--text-muted)", margin: "3px 0 0", lineHeight: 1.6 }}>
+              Upload a <code style={{ fontSize: 11 }}>.rifttrails.json</code> or a pedigree screenshot to auto-fill sire/dam and queue ancestors.
+              {(pendingAncestors.length > 0 || pendingPhoto || pendingOcrAncestors.length > 0) && (
+                <><br /><span style={{ color: "var(--teal)", fontWeight: 600 }}>
+                  {pendingAncestors.length > 0 && `✓ ${pendingAncestors.length} JSON ancestors queued. `}
+                  {pendingPhoto && "✓ Photo ready. "}
+                  {pendingOcrAncestors.length > 0 && `✓ ${pendingOcrAncestors.length} OCR ancestors queued. `}
+                </span></>
+              )}
+              {ocrError && <><br /><span style={{ color: "#C05050" }}>{ocrError}</span></>}
             </p>
           </div>
           <input ref={fileInputRef} type="file" accept=".json" style={{ display: "none" }} onChange={handleJsonUpload} />
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            style={{ background: "var(--teal)", color: "var(--white)", border: "none", borderRadius: 6, padding: "9px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-lato)", whiteSpace: "nowrap" }}
-          >
-            {pendingAncestors.length > 0 || pendingPhoto ? "Replace File" : "Choose File"}
-          </button>
+          <input ref={imgInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleImageUpload} />
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              style={{ background: "var(--teal)", color: "var(--white)", border: "none", borderRadius: 6, padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-lato)", whiteSpace: "nowrap" }}
+            >
+              {pendingAncestors.length > 0 || pendingPhoto ? "Replace JSON" : "JSON File"}
+            </button>
+            <button
+              type="button"
+              onClick={() => imgInputRef.current?.click()}
+              disabled={ocrLoading}
+              style={{ background: "var(--white)", color: "var(--teal-dark)", border: "1px solid var(--teal)", borderRadius: 6, padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: ocrLoading ? "not-allowed" : "pointer", fontFamily: "var(--font-lato)", whiteSpace: "nowrap", opacity: ocrLoading ? 0.6 : 1 }}
+            >
+              {ocrLoading ? "Analysing…" : pendingOcrAncestors.length > 0 ? "Replace Image" : "Pedigree Image"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Pedigree preview after JSON / OCR import */}
+      {mode === "create" && previewTree && (
+        <div style={{ marginBottom: 24, border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 14px", background: "var(--cream)", borderBottom: "1px solid var(--border)" }}>
+            <span style={{ fontFamily: "var(--font-lato)", fontSize: 12, fontWeight: 700, color: "var(--teal-dark)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+              Pedigree Preview
+            </span>
+            <button type="button" onClick={() => setShowPreview((v) => !v)} style={{ background: "none", border: "none", fontSize: 12, color: "var(--text-muted)", cursor: "pointer", fontFamily: "var(--font-lato)" }}>
+              {showPreview ? "Hide ▲" : "Show ▼"}
+            </button>
+          </div>
+          {showPreview && (
+            <div style={{ overflowX: "auto", padding: 12 }}>
+              <PedigreeTree node={previewTree} dupes={previewDupes} allHorses={previewAllHorses} bare fixedDepth={4} />
+            </div>
+          )}
         </div>
       )}
 
@@ -312,7 +413,6 @@ export default function HorseForm({ initial, mode }: { initial?: HorseData; mode
         <MicrochipField />
         <div>
           <label style={labelStyle}>Breed</label>
-          {/* Typeable: known breeds autocomplete, but any new breed is accepted. */}
           <input
             list="breed-options"
             value={data.breed ?? ""}
@@ -348,7 +448,7 @@ export default function HorseForm({ initial, mode }: { initial?: HorseData; mode
         <Text k="sireName" label="Sire Name" ph="[TAG] SIRE NAME" />
         <Text k="damName" label="Dam Name" ph="[TAG] DAM NAME" />
         <div>
-          <label style={labelStyle}>Date of Birth</label>
+          <label style={labelStyle}>Foal Date</label>
           <input type="date" value={data.dob ? data.dob.slice(0, 10) : ""} onChange={(e) => set("dob", e.target.value)} style={fieldStyle} />
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -407,12 +507,19 @@ export default function HorseForm({ initial, mode }: { initial?: HorseData; mode
 
       {/* Description */}
       <Section title="Description">
-        <Area k="description" label="Description / Backstory" rows={4} ph="Tell this horse's story…" />
+        <div style={{ gridColumn: "1 / -1", marginBottom: 4 }}>
+          <label style={labelStyle}>Description / Backstory</label>
+          <RichTextEditor
+            value={data.description ?? ""}
+            onChange={(html) => set("description", html)}
+            placeholder="Tell this horse's story…"
+          />
+        </div>
         <Area k="notes" label="Internal Notes" rows={2} ph="Private notes (not emphasised publicly)" />
       </Section>
 
       {/* For Sale */}
-      <Section title="For Sale Details" subtitle="Shown on the For Sale page when ownership is "For Sale".">
+      <Section title="For Sale Details" subtitle="Shown on the For Sale page when ownership is &quot;For Sale&quot;.">
         <Text k="price" label="Price" ph="e.g. $500 or Negotiable" />
         <Text k="saleContact" label="Sale Contact" ph="Discord / in-game name" />
         <Area k="saleDescription" label="Sale Description" ph="Sales pitch for buyers…" />
@@ -435,8 +542,6 @@ export default function HorseForm({ initial, mode }: { initial?: HorseData; mode
   );
 }
 
-// Shared form state so the field helpers can live at module scope (defining them
-// inside HorseForm remounted every input on each keystroke, dropping focus).
 const FormCtx = createContext<{
   data: HorseData;
   set: (key: keyof HorseData, value: string | boolean) => void;
@@ -464,18 +569,32 @@ function Area({ k, label, ph, rows = 3 }: { k: keyof HorseData; label: string; p
 
 function MicrochipField() {
   const { data, set } = useContext(FormCtx);
-  function generate() {
-    const digits = Array.from(crypto.getRandomValues(new Uint32Array(2)))
-      .map((n) => n.toString().padStart(5, "0")).join("").slice(0, 10);
-    set("microchip", `REC-${digits}`);
+  const [checking, setChecking] = useState(false);
+
+  async function generate() {
+    setChecking(true);
+    try {
+      for (let attempts = 0; attempts < 20; attempts++) {
+        const digits = Array.from(crypto.getRandomValues(new Uint32Array(2)))
+          .map((n) => n.toString().padStart(5, "0")).join("").slice(0, 10);
+        const chip = `REC-${digits}`;
+        const res = await fetch(`/api/horses?microchip=${encodeURIComponent(chip)}`);
+        const { exists } = await res.json();
+        if (!exists) { set("microchip", chip); return; }
+      }
+      alert("Could not generate a unique chip number — please try again.");
+    } finally {
+      setChecking(false);
+    }
   }
+
   return (
     <div>
       <label style={labelStyle}>Microchip / Reg #</label>
       <div style={{ display: "flex", gap: 6 }}>
         <input value={(data.microchip as string) ?? ""} onChange={(e) => set("microchip", e.target.value)} style={{ ...fieldStyle, flex: 1 }} placeholder="REC-0000000000" />
-        <button type="button" onClick={generate} title="Generate chip number" style={{ background: "var(--teal)", color: "var(--white)", border: "none", borderRadius: 6, padding: "0 12px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-lato)", whiteSpace: "nowrap", flexShrink: 0 }}>
-          Generate
+        <button type="button" onClick={generate} disabled={checking} title="Generate unique chip number" style={{ background: "var(--teal)", color: "var(--white)", border: "none", borderRadius: 6, padding: "0 12px", fontSize: 12, fontWeight: 700, cursor: checking ? "not-allowed" : "pointer", fontFamily: "var(--font-lato)", whiteSpace: "nowrap", flexShrink: 0, opacity: checking ? 0.6 : 1 }}>
+          {checking ? "…" : "Generate"}
         </button>
       </div>
     </div>
