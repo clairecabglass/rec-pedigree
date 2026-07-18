@@ -380,7 +380,7 @@ function CertBody({ name, breed, gender, dob, regNumber, testDate, baseRows, dil
   );
 }
 
-const GEN_DARK   = "#3d5450";
+const GEN_DARK   = "rgba(135,155,149,0.45)";
 const GEN_LIGHT  = "rgba(135,155,149,0.14)";
 const GEN_BORDER = "rgba(135,155,149,0.50)";
 const GEN_MUTED  = "#6a8078";
@@ -389,7 +389,7 @@ const GEN_TEXT   = "#1e2c2a";
 function GroupHeader({ label }: { label: string }) {
   return (
     <tr>
-      <td colSpan={5} style={{ background: GEN_DARK, color: "#fff", fontSize: 12, textTransform: "uppercase", letterSpacing: "0.12em", fontWeight: "bold", padding: "5px 8px" }}
+      <td colSpan={5} style={{ background: GEN_DARK, color: GEN_TEXT, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.12em", fontWeight: "bold", padding: "5px 8px" }}
         dangerouslySetInnerHTML={{ __html: label }} />
     </tr>
   );
