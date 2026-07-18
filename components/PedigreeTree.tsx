@@ -335,7 +335,7 @@ export default function PedigreeTree({ node, dupes, allHorses, isAdmin, title, b
     if (!gridRef.current) return;
     setDownloading(true);
     try {
-      const url = await toPng(gridRef.current, { backgroundColor: "#FBF8F4", pixelRatio: 2, skipFonts: true });
+      const url = await toPng(gridRef.current, { backgroundColor: hideFoundation ? undefined : "#FBF8F4", pixelRatio: 2, skipFonts: true });
       const a = document.createElement("a");
       a.download = `${(title ?? "pedigree").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-pedigree.png`;
       a.href = url; a.click();
