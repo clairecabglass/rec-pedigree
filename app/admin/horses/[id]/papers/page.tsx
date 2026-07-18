@@ -60,6 +60,14 @@ export default async function PapersPage({ params }: { params: Promise<{ id: str
         </div>
 
         <div style={card}>
+          <div style={{ fontFamily: "var(--font-playfair)", fontSize: 18, color: "var(--teal-dark)" }}>Coggins Test (EIA)</div>
+          <div style={{ color: "var(--text-muted)", fontFamily: "var(--font-lato)", fontSize: 13 }}>
+            Equine Infectious Anemia negative result certificate — exports as PNG.
+          </div>
+          <Link href={`/admin/horses/${id}/coggins`} style={btn}>↓ Download Coggins</Link>
+        </div>
+
+        <div style={card}>
           <div style={{ fontFamily: "var(--font-playfair)", fontSize: 18, color: "var(--teal-dark)" }}>Training Certificate</div>
           <div style={{ color: "var(--text-muted)", fontFamily: "var(--font-lato)", fontSize: 13 }}>
             Official REC training completion certificate — exports as PNG.
