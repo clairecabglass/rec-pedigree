@@ -102,7 +102,7 @@ const CertBody = forwardRef<HTMLDivElement, { name: string; templateDataUri: str
         <div
           style={{
             position: "absolute",
-            top: "46%",
+            top: "61%",
             left: "8%",
             right: "8%",
             textAlign: "center",
