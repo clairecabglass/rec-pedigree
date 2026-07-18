@@ -59,11 +59,11 @@ function buildGrid(
 const NAME_SZ = [15, 13, 12, 11, 10,  9, 8, 8, 8, 8, 8];
 const META_SZ = [12, 11, 10,  9,  9,  8, 7, 7, 7, 7, 7];
 
-function GridCard({ cell, idMap, rowUnitH, showInbreeding = true }: { cell: GridCell; idMap: Map<string, string>; rowUnitH: number; showInbreeding?: boolean }) {
+function GridCard({ cell, idMap, rowUnitH, showInbreeding = true, hideFoundation = false }: { cell: GridCell; idMap: Map<string, string>; rowUnitH: number; showInbreeding?: boolean; hideFoundation?: boolean }) {
   const { col, rowStart, rowSpan, node, inbreed, slot } = cell;
 
-  // Null / Foundation / Unknown → render as invisible gap (no box, no text)
-  if (!node || isPlaceholderAncestor(node.name)) {
+  // When hiding foundation: null / Foundation / Unknown → invisible gap
+  if (hideFoundation && (!node || isPlaceholderAncestor(node.name))) {
     return (
       <div style={{ gridColumn: col, gridRow: `${rowStart} / span ${rowSpan}`, background: "transparent" }} />
     );
@@ -72,7 +72,7 @@ function GridCard({ cell, idMap, rowUnitH, showInbreeding = true }: { cell: Grid
   const s = cardColors(slot, inbreed, showInbreeding);
   const nameSize = NAME_SZ[col - 1] ?? 8;
   const metaSize = META_SZ[col - 1] ?? 7;
-  const isUnknown = false;
+  const isUnknown = !node || node.name.toLowerCase() === "unknown" || isPlaceholderAncestor(node.name);
   const parsedCoat = node?.coat ? parseHorseCoat(node.coat) : null;
   const coatName = parsedCoat?.cleanName || null;
   const genotypeCode = node?.genotype || parsedCoat?.genotype || null;
@@ -83,8 +83,8 @@ function GridCard({ cell, idMap, rowUnitH, showInbreeding = true }: { cell: Grid
   // Available unzoomed cell height drives how many lines we can show without
   // clipping. The name always shows; breed/coat appear only when there's room.
   const cellH    = rowUnitH * rowSpan;
-  const showBreed = !!node.breed && cellH >= 30;
-  const showCoat  = !!coat && cellH >= 46;
+  const showBreed = !isUnknown && !!node?.breed && cellH >= 30;
+  const showCoat  = !isUnknown && !!coat && cellH >= 46;
   const showFlag  = inbreed && showInbreeding && cellH >= 60;
 
   // Shrink vertical padding on tiny cells so the name isn't clipped
@@ -92,7 +92,7 @@ function GridCard({ cell, idMap, rowUnitH, showInbreeding = true }: { cell: Grid
   const inner = (
     <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", padding: col === 1 ? `10px 14px` : `${vPad}px 8px`, height: "100%", gap: 1, overflow: "hidden" }}>
       <div style={{ fontFamily: "var(--font-playfair)", fontSize: nameSize, fontWeight: 700, color: s.text, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-        {node.name}
+        {node?.name ?? "Unknown"}
       </div>
       {showBreed && (
         <div style={{ fontFamily: "var(--font-lato)", fontSize: metaSize, color: s.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", lineHeight: 1.25 }}>
@@ -252,7 +252,7 @@ export default function PedigreeTree({ node, dupes, allHorses, isAdmin, title, b
         gap: 2, padding: compact ? 4 : 6,
         width: compact ? 180 * (maxDepth + 1) : 1100, background: bareBg ?? "#FBF8F4",
       }}>
-        {cells.map((cell, i) => <GridCard key={i} cell={cell} idMap={idMap} rowUnitH={bareRowH} showInbreeding={showInbreeding} />)}
+        {cells.map((cell, i) => <GridCard key={i} cell={cell} idMap={idMap} rowUnitH={bareRowH} showInbreeding={showInbreeding} hideFoundation={hideFoundation} />)}
       </div>
     );
   }
@@ -448,7 +448,7 @@ export default function PedigreeTree({ node, dupes, allHorses, isAdmin, title, b
           {/* Grid — natural size, scaled via transform */}
           <div style={{ position: "absolute", top: 0, left: 0, width: containerW, height: naturalH, transform: `scale(${zoom})`, transformOrigin: "top left" }}>
             <div ref={gridRef} style={{ display: "grid", gridTemplateColumns: colTemplate, gridTemplateRows: rowTemplate, gap: 2, width: "100%", height: "100%", padding: 4, boxSizing: "border-box" }}>
-              {cells.map((cell, i) => <GridCard key={i} cell={cell} idMap={idMap} rowUnitH={rowUnitH} showInbreeding={showInbreeding} />)}
+              {cells.map((cell, i) => <GridCard key={i} cell={cell} idMap={idMap} rowUnitH={rowUnitH} showInbreeding={showInbreeding} hideFoundation={hideFoundation} />)}
             </div>
           </div>
 
