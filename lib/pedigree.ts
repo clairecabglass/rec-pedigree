@@ -29,9 +29,6 @@ export function isPlaceholderAncestor(name: string): boolean {
 export function pruneFoundationNodes(node: HorseNode | null | undefined): HorseNode | null {
   if (!node) return null;
   if (isPlaceholderAncestor(node.name)) return null;
-  // Also prune pure stub leaves — nodes not found in the registry (no breed/coat/gender/parents)
-  const isStubLeaf = !node.breed && !node.coat && !node.gender && !node.genotype && !node.sire && !node.dam;
-  if (isStubLeaf) return null;
   return {
     ...node,
     sire: pruneFoundationNodes(node.sire),
