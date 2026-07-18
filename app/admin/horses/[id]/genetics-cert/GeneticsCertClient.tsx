@@ -154,7 +154,7 @@ function buildInterpretation(g: ParsedGeno, coat: string, name: string): string 
   else text += ` No white patterning was detected.`;
 
   const genoCode = [base, ...[...dilutions], ...(pattern ? [pattern] : [])].filter(Boolean).join("_");
-  text += ` In-game code: ${genoCode || "unknown"}.`;
+  text += ` In-game genotype: ${genoCode || "unknown"}.`;
   return text;
 }
 
