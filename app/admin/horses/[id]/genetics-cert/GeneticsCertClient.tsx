@@ -252,20 +252,25 @@ function CertBody({ name, breed, gender, dob, regNumber, testDate, baseRows, dil
   interpretation: string; sigBreeder: string; sigLab: string;
 }) {
   const s: Record<string, React.CSSProperties> = {
+  const BL_DARK   = "#1c4f78";
+  const BL_MED    = "#3a7ab0";
+  const BL_LIGHT  = "#e6f1f8";
+  const BL_BORDER = "#9bbcd6";
+  const BL_MUTED  = "#506878";
+  const BL_TEXT   = "#1a2530";
+
+  const s: Record<string, React.CSSProperties> = {
     page: {
       width: "100%", height: "100%", background: "#ffffff", fontFamily: "Arial, Helvetica, sans-serif",
-      fontSize: 19, color: "#000", padding: "48px 60px 36px", boxSizing: "border-box",
+      fontSize: 19, color: BL_TEXT, boxSizing: "border-box",
       display: "flex", flexDirection: "column",
     },
-    org: { fontSize: 15, letterSpacing: "0.2em", textTransform: "uppercase", textAlign: "center", marginBottom: 6 },
-    title: { fontFamily: "Georgia, serif", fontSize: 34, fontWeight: "normal", textAlign: "center", letterSpacing: "0.04em", marginBottom: 5 },
-    subtitle: { fontSize: 16, fontStyle: "italic", textAlign: "center", color: "#444", marginBottom: 0 },
-    rule: { border: "none", borderTop: "1.5px solid #000", margin: "14px 0" },
-    ruleThin: { border: "none", borderTop: "0.5px solid #999", margin: "8px 0" },
-    sectionHeading: { fontSize: 13, textTransform: "uppercase" as const, letterSpacing: "0.16em", fontWeight: "bold", marginBottom: 6 },
+    rule: { border: "none", borderTop: `1.5px solid ${BL_BORDER}`, margin: "14px 0" },
+    ruleThin: { border: "none", borderTop: `0.5px solid ${BL_BORDER}`, margin: "8px 0" },
+    sectionHeading: { fontSize: 13, textTransform: "uppercase" as const, letterSpacing: "0.16em", fontWeight: "bold", marginBottom: 6, color: BL_DARK },
     detailsGrid: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "6px 20px" },
-    detailLabel: { display: "block", fontSize: 12, textTransform: "uppercase" as const, letterSpacing: "0.09em", color: "#666", marginBottom: 2 },
-    detailVal: { fontSize: 17, fontWeight: "bold" },
+    detailLabel: { display: "block", fontSize: 12, textTransform: "uppercase" as const, letterSpacing: "0.09em", color: BL_MUTED, marginBottom: 2 },
+    detailVal: { fontSize: 17, fontWeight: "bold", color: BL_TEXT },
   };
 
   const colW = ["23%", "10%", "13%", "36%", "18%"];
@@ -273,11 +278,28 @@ function CertBody({ name, breed, gender, dob, regNumber, testDate, baseRows, dil
   return (
     <div style={s.page}>
       <style>{`@font-face{font-family:'GreatVibes';src:url('data:font/woff2;base64,${GREAT_VIBES_B64}') format('woff2');font-weight:normal;font-style:normal;}`}</style>
-      {/* Header */}
-      <div style={s.org}>Redfield Equestrian Centre</div>
-      <div style={s.title}>Equine Colour Genetics Certificate</div>
-      <div style={s.subtitle}>Official Coat Colour &amp; Gene Analysis Report</div>
-      <hr style={s.rule} />
+
+      {/* Header — Belmont Laboratory */}
+      <div style={{ background: BL_DARK, padding: "22px 36px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
+        <div>
+          <div style={{ fontFamily: "Georgia, serif", fontSize: 30, color: "white", fontWeight: 700, letterSpacing: "0.04em" }}>Belmont Laboratory</div>
+          <div style={{ fontFamily: "Arial, sans-serif", fontSize: 11, color: "rgba(255,255,255,0.7)", marginTop: 3, letterSpacing: "0.08em", textTransform: "uppercase" }}>Equine Genetic Diagnostics</div>
+          <div style={{ fontFamily: "Arial, sans-serif", fontSize: 10, color: "rgba(255,255,255,0.5)", marginTop: 2 }}>14 Westridge Road · Southern Territories · The Rift</div>
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontFamily: "Arial, sans-serif", fontSize: 10, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 3 }}>Report Date</div>
+          <div style={{ fontFamily: "Arial, sans-serif", fontSize: 15, color: "white", fontWeight: 700 }}>{testDate}</div>
+          <div style={{ fontFamily: "Arial, sans-serif", fontSize: 10, color: "rgba(255,255,255,0.6)", marginTop: 5, textTransform: "uppercase", letterSpacing: "0.06em" }}>Accreditation</div>
+          <div style={{ fontFamily: "Arial, sans-serif", fontSize: 11, color: "rgba(255,255,255,0.85)" }}>BL-GEN-2024-0017</div>
+        </div>
+      </div>
+      <div style={{ background: BL_MED, padding: "7px 36px", flexShrink: 0 }}>
+        <span style={{ fontFamily: "Georgia, serif", fontSize: 14, color: "white", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+          Equine Colour Genetics Certificate — Official Coat Colour &amp; Gene Analysis
+        </span>
+      </div>
+
+      <div style={{ padding: "20px 36px 0", display: "flex", flexDirection: "column", flex: 1 }}>
 
       {/* Details */}
       <div style={s.detailsGrid}>
@@ -299,11 +321,11 @@ function CertBody({ name, breed, gender, dob, regNumber, testDate, baseRows, dil
 
       {/* Table */}
       <div style={{ ...s.sectionHeading }}>Genetic Test Results</div>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 16, tableLayout: "fixed" }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 16, tableLayout: "fixed", border: `1px solid ${BL_BORDER}` }}>
         <thead>
-          <tr style={{ borderTop: "1.5px solid #000", borderBottom: "1.5px solid #000" }}>
+          <tr style={{ background: BL_LIGHT }}>
             {["Gene / Locus", "Code", "Alleles", "Result", "Status"].map((h, i) => (
-              <th key={h} style={{ width: colW[i], textAlign: "left", padding: "5px 8px", fontSize: 12, textTransform: "uppercase", letterSpacing: "0.09em", fontWeight: "bold" }}>{h}</th>
+              <th key={h} style={{ width: colW[i], textAlign: "left", padding: "6px 8px", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.09em", fontWeight: "bold", color: BL_DARK, borderBottom: `1.5px solid ${BL_BORDER}`, borderRight: `1px solid ${BL_BORDER}` }}>{h}</th>
             ))}
           </tr>
         </thead>
@@ -321,48 +343,69 @@ function CertBody({ name, breed, gender, dob, regNumber, testDate, baseRows, dil
 
       {/* Interpretation */}
       <div style={{ ...s.sectionHeading, marginBottom: 5 }}>Interpretation</div>
-      <div style={{ border: "1px solid #000", padding: "10px 14px", fontSize: 15, lineHeight: 1.55, flexShrink: 0 }}>
+      <div style={{ border: `1px solid ${BL_BORDER}`, background: BL_LIGHT, borderRadius: 4, padding: "10px 14px", fontSize: 15, lineHeight: 1.55, flexShrink: 0 }}>
         {interpretation}
       </div>
 
-      {/* Signature — Lab Analyst only */}
-      <div style={{ marginTop: 24, width: "45%" }}>
-        <div style={{ fontSize: 15, fontWeight: "bold", letterSpacing: "0.04em", color: "#111", marginBottom: 8, paddingLeft: 2 }}>
-          C. Atkins
+      {/* Signature */}
+      <div style={{ marginTop: 20, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <div style={{ border: `1px solid ${BL_BORDER}`, borderRadius: 4, padding: "12px 14px" }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: BL_MUTED, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Certifying Analyst</div>
+          <div style={{ fontFamily: "'Times New Roman', serif", fontSize: 20, fontStyle: "italic", color: BL_TEXT, marginBottom: 6 }}>C. Atkins</div>
+          <div style={{ borderTop: `1px solid ${BL_BORDER}`, paddingTop: 5 }}>
+            <div style={{ fontSize: 11, color: BL_MUTED }}>Lab Analyst · Belmont Laboratory</div>
+            <div style={{ fontSize: 11, color: BL_MUTED }}>Accreditation No. BL-GEN-2024-0017</div>
+          </div>
         </div>
-        <div style={{ borderTop: "1px solid #000", paddingTop: 6 }}>
-          <div style={{ fontSize: 12, color: "#555" }}>Lab Analyst</div>
+        <div style={{ border: `1px solid ${BL_BORDER}`, borderRadius: 4, padding: "12px 14px", background: BL_LIGHT }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: BL_MUTED, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Certification Statement</div>
+          <div style={{ fontSize: 12, color: BL_TEXT, lineHeight: 1.6 }}>
+            This certificate confirms that the above equine&apos;s coat colour genetics were analysed using standard molecular testing protocols. Results reflect allele composition at the time of sampling.
+          </div>
         </div>
       </div>
 
+      </div>{/* end inner padding wrapper */}
+
       {/* Footer */}
-      <div style={{ textAlign: "center", fontSize: 12, color: "#666", letterSpacing: "0.07em", marginTop: 16, borderTop: "0.5px solid #ccc", paddingTop: 8 }}>
-        Redfield Equestrian Centre &nbsp;&middot;&nbsp; The Rift, ReDM &nbsp;&middot;&nbsp; redfieldec.site
+      <div style={{ background: BL_DARK, padding: "9px 36px", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
+        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", fontFamily: "Arial, sans-serif" }}>
+          Belmont Laboratory · 14 Westridge Road · Southern Territories · The Rift
+        </div>
+        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", fontFamily: "Arial, sans-serif" }}>
+          Equine Colour Genetics Certificate · Official Report
+        </div>
       </div>
     </div>
   );
 }
 
+const GEN_DARK   = "#1c4f78";
+const GEN_LIGHT  = "#e6f1f8";
+const GEN_BORDER = "#9bbcd6";
+const GEN_MUTED  = "#506878";
+const GEN_TEXT   = "#1a2530";
+
 function GroupHeader({ label }: { label: string }) {
   return (
     <tr>
-      <td colSpan={5} style={{ background: "#000", color: "#fff", fontSize: 12, textTransform: "uppercase", letterSpacing: "0.12em", fontWeight: "bold", padding: "5px 8px" }}
+      <td colSpan={5} style={{ background: GEN_DARK, color: "#fff", fontSize: 12, textTransform: "uppercase", letterSpacing: "0.12em", fontWeight: "bold", padding: "5px 8px" }}
         dangerouslySetInnerHTML={{ __html: label }} />
     </tr>
   );
 }
 
 function TableRow({ row, i }: { row: GeneRow; i: number }) {
-  const bg = i % 2 === 0 ? "#ffffff" : "#f5f5f5";
-  const statusColor = row.status === "positive" ? "#000" : row.status === "na" ? "#aaa" : "#777";
+  const bg = i % 2 === 0 ? "#ffffff" : GEN_LIGHT;
+  const statusColor = row.status === "positive" ? "#1d5c2e" : row.status === "na" ? GEN_MUTED : GEN_MUTED;
   const statusText = row.status === "positive" ? "✓ Positive" : row.status === "na" ? "N/A" : "− Negative";
   return (
     <tr style={{ background: bg }}>
-      <td style={{ padding: "5px 8px", fontWeight: 500, borderBottom: "0.5px solid #ddd", fontSize: 16 }}>{row.locus}</td>
-      <td style={{ padding: "5px 8px", fontFamily: "Courier New, monospace", fontSize: 14, borderBottom: "0.5px solid #ddd" }}>{row.code}</td>
-      <td style={{ padding: "5px 8px", fontFamily: "Courier New, monospace", fontSize: 14, color: "#444", borderBottom: "0.5px solid #ddd" }}>{row.alleles}</td>
-      <td style={{ padding: "5px 8px", color: "#333", fontSize: 15, borderBottom: "0.5px solid #ddd" }}>{row.result}</td>
-      <td style={{ padding: "5px 8px", fontSize: 14, fontWeight: "bold", color: statusColor, borderBottom: "0.5px solid #ddd" }}>{statusText}</td>
+      <td style={{ padding: "5px 8px", fontWeight: 500, borderBottom: `0.5px solid ${GEN_BORDER}`, fontSize: 16, color: GEN_TEXT }}>{row.locus}</td>
+      <td style={{ padding: "5px 8px", fontFamily: "Courier New, monospace", fontSize: 14, borderBottom: `0.5px solid ${GEN_BORDER}`, color: GEN_TEXT }}>{row.code}</td>
+      <td style={{ padding: "5px 8px", fontFamily: "Courier New, monospace", fontSize: 14, color: GEN_MUTED, borderBottom: `0.5px solid ${GEN_BORDER}` }}>{row.alleles}</td>
+      <td style={{ padding: "5px 8px", color: GEN_TEXT, fontSize: 15, borderBottom: `0.5px solid ${GEN_BORDER}` }}>{row.result}</td>
+      <td style={{ padding: "5px 8px", fontSize: 14, fontWeight: "bold", color: statusColor, borderBottom: `0.5px solid ${GEN_BORDER}` }}>{statusText}</td>
     </tr>
   );
 }

@@ -8,12 +8,12 @@ const CERT_W = 1240;
 const CERT_H = 1754;
 const PREVIEW_SCALE = 0.5;
 
-const TEAL      = "#3d6b6b";
-const TEAL_DARK = "#2a4e4e";
-const TEAL_LIGHT = "#e8f0f0";
-const BORDER    = "#b0c8c8";
-const MUTED     = "#607070";
-const TEXT      = "#1a2a2a";
+const TEAL      = "#3a7ab0";
+const TEAL_DARK = "#1c4f78";
+const TEAL_LIGHT = "#e6f1f8";
+const BORDER    = "#9bbcd6";
+const MUTED     = "#506878";
+const TEXT      = "#1a2530";
 
 function slug(name: string) {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
@@ -35,11 +35,11 @@ function rand(id: string, offset: number, min: number, max: number, decimals = 1
   return (min + r * (max - min)).toFixed(decimals);
 }
 
-function drawDate(id: string) {
-  const s = seeded(id, 1);
-  const month = (s % 10) + 1;
-  const day   = (s % 20) + 5;
-  return `2024-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+function drawDate() {
+  // Blood drawn 4 days before today (generation date)
+  const d = new Date();
+  d.setDate(d.getDate() - 4);
+  return d.toISOString().split("T")[0];
 }
 
 function addDays(iso: string, n: number) {
@@ -120,9 +120,9 @@ const CertBody = forwardRef<HTMLDivElement, Props>(function CertBody(
 ) {
   const acc  = accession(id);
   const tube = tubeNum(id);
-  const drawn     = drawDate(id);
-  const received  = addDays(drawn, 1);
-  const reported  = addDays(drawn, 4);
+  const drawn      = drawDate();
+  const received   = addDays(drawn, 2);
+  const reported   = new Date().toISOString().split("T")[0];
   const validUntil = addDays(drawn, 365);
 
   // CBC values — seeded per horse, all within normal equine ranges
@@ -183,7 +183,7 @@ const CertBody = forwardRef<HTMLDivElement, Props>(function CertBody(
         <td style={{ fontFamily: lato, fontSize: 13, color: TEXT, padding: "7px 14px", borderRight: `1px solid ${BORDER}` }}>{analyte}</td>
         <td style={{ fontFamily: lato, fontSize: 13, fontWeight: isFlag ? 700 : 400, color: isFlag ? "#b84040" : TEXT, padding: "7px 14px", borderRight: `1px solid ${BORDER}`, textAlign: "right" as const }}>{result}</td>
         <td style={{ fontFamily: lato, fontSize: 13, color: MUTED, padding: "7px 14px", borderRight: `1px solid ${BORDER}`, textAlign: "center" as const }}>{unit}</td>
-        <td style={{ fontFamily: lato, fontSize: 13, color: MUTED, padding: "7px 14px", textAlign: "center" as const }}>{refRange}</td>
+        <td style={{ fontFamily: lato, fontSize: 13, color: MUTED, padding: "7px 14px", borderRight: `1px solid ${BORDER}`, textAlign: "center" as const }}>{refRange}</td>
         <td style={{ fontFamily: lato, fontSize: 12, color: isFlag ? "#b84040" : "#2a7a3a", fontWeight: 700, padding: "7px 10px", textAlign: "center" as const }}>{flag || "✓"}</td>
       </tr>
     );
