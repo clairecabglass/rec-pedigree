@@ -15,7 +15,7 @@ interface ParsedGeno {
   pattern: string | null;
 }
 
-function parseGeno(genotype: string): ParsedGeno {
+export function parseGeno(genotype: string): ParsedGeno {
   const tokens = genotype.toUpperCase().replace(/\s/g, "").split("_").filter(Boolean);
   const base = (["R", "B", "BL"].includes(tokens[0]) ? tokens[0] : null) as ParsedGeno["base"];
   const dilutions = new Set<string>();
@@ -36,7 +36,7 @@ interface GeneRow {
   status: RowStatus;
 }
 
-function buildRows(g: ParsedGeno, coat: string): GeneRow[] {
+export function buildRows(g: ParsedGeno, coat: string): GeneRow[] {
   const { base, dilutions, pattern } = g;
   const isRed   = base === "R";
   const isBay   = base === "B";
@@ -127,7 +127,7 @@ function buildRows(g: ParsedGeno, coat: string): GeneRow[] {
   return rows;
 }
 
-function buildInterpretation(g: ParsedGeno, coat: string, name: string): string {
+export function buildInterpretation(g: ParsedGeno, coat: string, name: string): string {
   const { base, dilutions, pattern } = g;
   const baseLabel = base === "R" ? "Red/Chestnut (R)" : base === "B" ? "Bay (B)" : base === "BL" ? "Black (BL)" : "Unknown";
   const coatDisplay = coat || "unknown coat";
@@ -246,7 +246,7 @@ export default function GeneticsCertClient({
   );
 }
 
-function CertBody({ name, breed, gender, dob, regNumber, testDate, baseRows, diluteRows, patternRows, interpretation, sigBreeder, sigLab }: {
+export function CertBody({ name, breed, gender, dob, regNumber, testDate, baseRows, diluteRows, patternRows, interpretation, sigBreeder, sigLab }: {
   name: string; breed: string; gender: string; dob: string; regNumber: string; testDate: string;
   baseRows: GeneRow[]; diluteRows: GeneRow[]; patternRows: GeneRow[];
   interpretation: string; sigBreeder: string; sigLab: string;

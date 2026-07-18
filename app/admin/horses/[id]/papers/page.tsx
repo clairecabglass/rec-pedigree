@@ -1,9 +1,20 @@
 import { isAdminLoggedIn } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { readFile } from "fs/promises";
+import path from "path";
 import Link from "next/link";
+import BulkDownloader from "./BulkDownloader";
 
 export const dynamic = "force-dynamic";
+
+async function toDataUri(filename: string) {
+  try {
+    const buf = await readFile(path.join(process.cwd(), "public/brand", filename));
+    const ext = filename.split(".").pop() ?? "png";
+    return `data:image/${ext};base64,${buf.toString("base64")}`;
+  } catch { return ""; }
+}
 
 export default async function PapersPage({ params }: { params: Promise<{ id: string }> }) {
   if (!(await isAdminLoggedIn())) redirect("/admin/login");
@@ -11,9 +22,14 @@ export default async function PapersPage({ params }: { params: Promise<{ id: str
 
   const horse = await prisma.horse.findUnique({
     where: { id },
-    select: { id: true, name: true },
+    select: { id: true, name: true, breed: true, gender: true, dob: true, regNumber: true, coat: true, genotype: true },
   });
   if (!horse) notFound();
+
+  const [templateDataUri, sigLab] = await Promise.all([
+    toDataUri("REC Training Cert No Name.png"),
+    toDataUri("lab-analyst.png"),
+  ]);
 
   const card: React.CSSProperties = {
     display: "flex", flexDirection: "column", gap: 8,
@@ -35,9 +51,23 @@ export default async function PapersPage({ params }: { params: Promise<{ id: str
         </Link>
       </div>
 
-      <h1 style={{ fontFamily: "var(--font-playfair)", fontSize: 28, color: "var(--teal-dark)", marginBottom: 6 }}>
-        Papers
-      </h1>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+        <h1 style={{ fontFamily: "var(--font-playfair)", fontSize: 28, color: "var(--teal-dark)", margin: 0 }}>
+          Papers
+        </h1>
+        <BulkDownloader
+          id={horse.id}
+          name={horse.name}
+          breed={horse.breed ?? ""}
+          gender={horse.gender ?? ""}
+          dob={horse.dob ? horse.dob.toISOString().split("T")[0] : ""}
+          regNumber={horse.regNumber ?? ""}
+          coat={horse.coat ?? ""}
+          genotype={horse.genotype ?? ""}
+          templateDataUri={templateDataUri}
+          sigLab={sigLab}
+        />
+      </div>
       <p style={{ color: "var(--text-muted)", fontFamily: "var(--font-lato)", fontSize: 13, marginBottom: 28 }}>
         {horse.name}
       </p>

@@ -116,7 +116,7 @@ export default function CogginsClient({ id, name, breed, gender, dob, regNumber,
   );
 }
 
-const CertBody = forwardRef<HTMLDivElement, Props>(function CertBody(
+export const CertBody = forwardRef<HTMLDivElement, Props>(function CertBody(
   { id, name, breed, gender, dob, regNumber, coat }, ref
 ) {
   const acc  = accession(id);

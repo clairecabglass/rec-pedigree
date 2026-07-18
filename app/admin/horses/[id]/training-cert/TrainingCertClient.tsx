@@ -76,7 +76,7 @@ export default function TrainingCertClient({ id, name, templateDataUri }: Props)
 
 import { forwardRef } from "react";
 
-const CertBody = forwardRef<HTMLDivElement, { name: string; templateDataUri: string }>(
+export const CertBody = forwardRef<HTMLDivElement, { name: string; templateDataUri: string }>(
   function CertBody({ name, templateDataUri }, ref) {
     return (
       <div
