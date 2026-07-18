@@ -251,12 +251,12 @@ function CertBody({ name, breed, gender, dob, regNumber, testDate, baseRows, dil
   baseRows: GeneRow[]; diluteRows: GeneRow[]; patternRows: GeneRow[];
   interpretation: string; sigBreeder: string; sigLab: string;
 }) {
-  const BL_DARK   = "#1c4f78";
-  const BL_MED    = "#3a7ab0";
-  const BL_LIGHT  = "#e6f1f8";
-  const BL_BORDER = "#9bbcd6";
-  const BL_MUTED  = "#506878";
-  const BL_TEXT   = "#1a2530";
+  const BL_DARK   = "#4a5f5a";
+  const BL_MED    = "#879b95";
+  const BL_LIGHT  = "rgba(135,155,149,0.10)";
+  const BL_BORDER = "rgba(135,155,149,0.40)";
+  const BL_MUTED  = "#6a8078";
+  const BL_TEXT   = "#1e2c2a";
 
   const s: Record<string, React.CSSProperties> = {
     page: {
@@ -379,11 +379,11 @@ function CertBody({ name, breed, gender, dob, regNumber, testDate, baseRows, dil
   );
 }
 
-const GEN_DARK   = "#1c4f78";
-const GEN_LIGHT  = "#e6f1f8";
-const GEN_BORDER = "#9bbcd6";
-const GEN_MUTED  = "#506878";
-const GEN_TEXT   = "#1a2530";
+const GEN_DARK   = "#4a5f5a";
+const GEN_LIGHT  = "rgba(135,155,149,0.10)";
+const GEN_BORDER = "rgba(135,155,149,0.40)";
+const GEN_MUTED  = "#6a8078";
+const GEN_TEXT   = "#1e2c2a";
 
 function GroupHeader({ label }: { label: string }) {
   return (

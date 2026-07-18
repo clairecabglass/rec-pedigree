@@ -8,12 +8,14 @@ const CERT_W = 1240;
 const CERT_H = 1754;
 const PREVIEW_SCALE = 0.5;
 
-const TEAL      = "#3a7ab0";
-const TEAL_DARK = "#1c4f78";
-const TEAL_LIGHT = "#e6f1f8";
-const BORDER    = "#9bbcd6";
-const MUTED     = "#506878";
-const TEXT      = "#1a2530";
+const BASE      = "#879b95";
+const TEAL_DARK = "#4a5f5a";           // darkened base for headers
+const TEAL      = "#879b95";           // base
+const TEAL_LIGHT = "rgba(135,155,149,0.10)";   // very light tint for row alternates / banners
+const BORDER    = "rgba(135,155,149,0.40)";    // subtle border
+const MUTED     = "#6a8078";
+const TEXT      = "#1e2c2a";
+void BASE;
 
 function slug(name: string) {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
