@@ -49,7 +49,7 @@ export default async function AdminHorsesPage({ searchParams }: { searchParams: 
                 <td style={{ padding: "9px 14px", color: "var(--text-muted)" }}>{h.breed ?? "—"}</td>
                 <td style={{ padding: "9px 14px", color: "var(--text-muted)" }}>{h.gender ?? "—"}</td>
                 <td style={{ padding: "9px 14px" }}>{h.ownership ?? "—"}</td>
-                <td style={{ padding: "9px 14px", color: "var(--text-muted)" }}>{h.updatedAt.toLocaleDateString()}</td>
+                <td style={{ padding: "9px 14px", color: "var(--text-muted)" }}>{h.updatedAt.toLocaleDateString("en-GB")}</td>
                 <td style={{ padding: "9px 14px" }}>
                   <Link href={`/admin/horses/${h.id}`} style={{ color: "var(--teal)", fontSize: 12, textDecoration: "none", fontWeight: 600 }}>Edit</Link>
                 </td>

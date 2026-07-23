@@ -280,7 +280,7 @@ export default function AdminDashboard({ stats, recent, initialTodos }: {
                   <td style={{ padding: "8px 12px", color: "var(--text-muted)" }}>{h.breed ?? "—"}</td>
                   <td style={{ padding: "8px 12px", color: "var(--text-muted)" }}>{h.gender ?? "—"}</td>
                   <td style={{ padding: "8px 12px" }}>{h.ownership ?? "—"}</td>
-                  <td style={{ padding: "8px 12px", color: "var(--text-muted)" }}>{new Date(h.updatedAt).toLocaleDateString()}</td>
+                  <td style={{ padding: "8px 12px", color: "var(--text-muted)" }}>{new Date(h.updatedAt).toLocaleDateString("en-GB")}</td>
                   <td style={{ padding: "8px 12px" }}>
                     <Link href={`/admin/horses/${h.id}`} style={{ color: "var(--teal)", fontSize: 12, textDecoration: "none" }}>Edit</Link>
                   </td>

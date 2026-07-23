@@ -3,17 +3,37 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 
 export interface HeroPhoto { id: string; url: string; caption: string | null; fill: boolean; }
+export interface HeroVideo { id: string; url: string; caption: string | null; mimeType: string | null; }
 
-export default function HorseHero({ photos: initial, name, isAdmin }: { photos: HeroPhoto[]; name: string; isAdmin?: boolean }) {
-  const [photos, setPhotos] = useState(initial);
+type Item =
+  | { kind: "photo"; data: HeroPhoto }
+  | { kind: "video"; data: HeroVideo };
+
+export default function HorseHero({
+  photos: initialPhotos,
+  videos = [],
+  name,
+  isAdmin,
+}: {
+  photos: HeroPhoto[];
+  videos?: HeroVideo[];
+  name: string;
+  isAdmin?: boolean;
+}) {
+  const [photos, setPhotos] = useState(initialPhotos);
   const [index, setIndex] = useState(0);
   const [lightbox, setLightbox] = useState(false);
   const [saving, setSaving] = useState(false);
-  const count = photos.length;
+
+  const items: Item[] = [
+    ...photos.map((p) => ({ kind: "photo" as const, data: p })),
+    ...videos.map((v) => ({ kind: "video" as const, data: v })),
+  ];
+  const count = items.length;
+  const current = items[index] ?? items[0];
 
   const go = (dir: 1 | -1) => setIndex((i) => (i + dir + count) % count);
 
-  // Arrow keys: navigate the lightbox when open, the hero otherwise.
   useEffect(() => {
     if (count < 2 && !lightbox) return;
     const onKey = (e: KeyboardEvent) => {
@@ -25,52 +45,62 @@ export default function HorseHero({ photos: initial, name, isAdmin }: { photos: 
     return () => window.removeEventListener("keydown", onKey);
   }, [count, lightbox]); // eslint-disable-line
 
-  const current = photos[index];
-
   async function toggleFill(e: React.MouseEvent) {
+    if (!current || current.kind !== "photo") return;
     e.stopPropagation();
-    const next = !current.fill;
+    const next = !current.data.fill;
     setSaving(true);
-    // Optimistic update
-    setPhotos((ps) => ps.map((p, i) => (i === index ? { ...p, fill: next } : p)));
+    setPhotos((ps) => ps.map((p) => (p.id === current.data.id ? { ...p, fill: next } : p)));
     try {
-      const res = await fetch(`/api/photos/${current.id}`, {
+      const res = await fetch(`/api/photos/${current.data.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fill: next }),
       });
       if (!res.ok) throw new Error();
     } catch {
-      // Revert on failure
-      setPhotos((ps) => ps.map((p, i) => (i === index ? { ...p, fill: !next } : p)));
+      setPhotos((ps) => ps.map((p) => (p.id === current.data.id ? { ...p, fill: !next } : p)));
       alert("Could not save the image fit.");
     } finally {
       setSaving(false);
     }
   }
 
+  if (!current) return null;
+
   return (
     <div style={{ textAlign: "center", marginBottom: 8 }}>
       <div style={{ position: "relative", display: "inline-block", maxWidth: 920, width: "100%" }}>
-        {/* Fixed-height frame holds the border/background; the image sits inside.
-            Fit mode renders the image at its natural size (max 100%) so it's
-            never upscaled/pixelated; fill mode stretches it to cover the frame
-            (an intentional crop chosen by the admin). */}
         <div
-          onClick={() => setLightbox(true)}
-          style={{ position: "relative", height: "min(70vh, 520px)", overflow: "hidden", background: "var(--cream-dark)", borderRadius: 8, border: "4px solid var(--gold)", boxShadow: "0 6px 20px rgba(0,0,0,0.12)", cursor: "zoom-in" }}
+          onClick={() => { if (current.kind === "photo") setLightbox(true); }}
+          style={{
+            position: "relative", height: "min(70vh, 520px)", overflow: "hidden",
+            background: "var(--cream-dark)", borderRadius: 8, border: "4px solid var(--gold)",
+            boxShadow: "0 6px 20px rgba(0,0,0,0.12)",
+            cursor: current.kind === "photo" ? "zoom-in" : "default",
+          }}
         >
-          <Image
-            src={current.url}
-            alt={current.caption ?? name}
-            fill
-            sizes="(max-width: 960px) 100vw, 920px"
-            style={{ objectFit: current.fill ? "cover" : "contain" }}
-          />
+          {current.kind === "photo" ? (
+            <Image
+              src={current.data.url}
+              alt={current.data.caption ?? name}
+              fill
+              sizes="(max-width: 960px) 100vw, 920px"
+              style={{ objectFit: current.data.fill ? "cover" : "contain" }}
+            />
+          ) : (
+            <video
+              key={current.data.id}
+              src={current.data.url}
+              controls
+              style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
+            >
+              {current.data.mimeType && <source src={current.data.url} type={current.data.mimeType} />}
+            </video>
+          )}
         </div>
 
-        {/* Admin: toggle fill vs fit for this photo */}
-        {isAdmin && (
+        {isAdmin && current.kind === "photo" && (
           <button
             onClick={toggleFill}
             disabled={saving}
@@ -81,16 +111,16 @@ export default function HorseHero({ photos: initial, name, isAdmin }: { photos: 
               borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: 700,
               fontFamily: "var(--font-lato)", cursor: saving ? "wait" : "pointer", zIndex: 2,
             }}
-            title={current.fill ? "Currently filling the block — click to show the whole image" : "Currently showing the whole image — click to fill the block"}
+            title={current.data.fill ? "Currently filling the block — click to show the whole image" : "Currently showing the whole image — click to fill the block"}
           >
-            {current.fill ? "⤡ Fit whole image" : "⤢ Fill block"}
+            {current.data.fill ? "⤡ Fit whole image" : "⤢ Fill block"}
           </button>
         )}
 
         {count > 1 && (
           <>
-            <button onClick={() => go(-1)} style={heroArrow("left")} aria-label="Previous photo">‹</button>
-            <button onClick={() => go(1)}  style={heroArrow("right")} aria-label="Next photo">›</button>
+            <button onClick={() => go(-1)} style={heroArrow("left")} aria-label="Previous">‹</button>
+            <button onClick={() => go(1)}  style={heroArrow("right")} aria-label="Next">›</button>
             <div style={{
               position: "absolute", bottom: 12, right: 12,
               background: "rgba(20,28,27,0.6)", color: "white", fontSize: 12, fontWeight: 700,
@@ -103,11 +133,10 @@ export default function HorseHero({ photos: initial, name, isAdmin }: { photos: 
       </div>
 
       <div style={{ fontSize: 11, letterSpacing: "0.12em", color: "var(--text-muted)", textTransform: "uppercase", fontFamily: "var(--font-lato)", marginTop: 8 }}>
-        Click to view full image
+        {current.kind === "video" ? "Video" : "Click to view full image"}
       </div>
 
-      {/* Fullscreen lightbox */}
-      {lightbox && (
+      {lightbox && current.kind === "photo" && (
         <div
           onClick={() => setLightbox(false)}
           style={{ position: "fixed", inset: 0, background: "rgba(20,28,27,0.88)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
@@ -117,8 +146,8 @@ export default function HorseHero({ photos: initial, name, isAdmin }: { photos: 
           )}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={current.url}
-            alt={current.caption ?? name}
+            src={current.data.url}
+            alt={current.data.caption ?? name}
             onClick={(e) => e.stopPropagation()}
             style={{ maxWidth: "90vw", maxHeight: "85vh", objectFit: "contain", borderRadius: 6, boxShadow: "0 8px 40px rgba(0,0,0,0.5)" }}
           />

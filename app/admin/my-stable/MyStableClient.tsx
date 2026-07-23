@@ -653,7 +653,7 @@ const ListView = memo(function ListView({ horses, selected, pendingId, onToggle,
                   <CharacterToggle value={(h.assignedCharacter as Character) || "Athena Redfield"} disabled={isPending} onChange={(next) => onSetCharacter(h.id, next)} />
                 </td>
                 <td style={{ padding: "8px 12px", color: "var(--text-muted)", fontSize: 11 }}>
-                  {new Date(h.updatedAt).toLocaleDateString()}
+                  {new Date(h.updatedAt).toLocaleDateString("en-GB")}
                 </td>
               </tr>
             );
@@ -712,7 +712,7 @@ const GalleryView = memo(function GalleryView({ horses, selected, pendingId, onT
             <div className="mt-auto flex items-center justify-between gap-2 pt-2" style={{ borderTop: "1px solid var(--border)" }}>
               <CharacterToggle value={(h.assignedCharacter as Character) || "Athena Redfield"} disabled={isPending} onChange={(next) => onSetCharacter(h.id, next)} />
               <span className="text-[10px] uppercase tracking-[0.08em]" style={{ color: "var(--text-muted)", fontFamily: "var(--font-lato)" }}>
-                {new Date(h.updatedAt).toLocaleDateString()}
+                {new Date(h.updatedAt).toLocaleDateString("en-GB")}
               </span>
             </div>
           </div>

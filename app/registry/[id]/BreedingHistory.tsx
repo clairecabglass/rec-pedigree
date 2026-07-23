@@ -25,7 +25,7 @@ export default function BreedingHistory({
   const [open, setOpen] = useState(false);
 
   const fmt = (iso: string | null) =>
-    iso ? new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : null;
+    iso ? new Date(iso).toLocaleDateString("en-GB") : null;
 
   return (
     <div style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden" }}>

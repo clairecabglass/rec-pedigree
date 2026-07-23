@@ -194,8 +194,7 @@ export default async function HorsePage({ params }: { params: Promise<{ id: stri
     ["Height", horse.height],
     ["Discipline", horse.discipline],
     ["Microchip / Reg #", horse.microchip ?? horse.regNumber],
-    ["Foal Date", horse.dob ? new Date(horse.dob).toLocaleDateString() : null],
-    ["Has Pedigree?", sire || dam ? "Yes" : "No"],
+    ["Foal Date", horse.dob ? new Date(horse.dob).toLocaleDateString("en-GB") : null],
     ["Generations", generations > 0 ? String(generations) : null],
   ];
 
@@ -227,6 +226,7 @@ export default async function HorsePage({ params }: { params: Promise<{ id: stri
           name={horse.name}
           isAdmin={admin}
           photos={horse.photos.map((p) => ({ id: p.id, url: p.url, caption: p.caption, fill: p.fill }))}
+          videos={horse.videos.map((v) => ({ id: v.id, url: v.url, caption: v.caption, mimeType: v.mimeType }))}
         />
       ) : (
         <div style={{ maxWidth: 920, margin: "0 auto 8px", aspectRatio: "16/8", background: "linear-gradient(135deg, var(--teal-muted), var(--cream-dark))", borderRadius: 8, border: "4px solid var(--gold-light)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
@@ -272,7 +272,7 @@ export default async function HorsePage({ params }: { params: Promise<{ id: stri
             <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 2 }}>
               {pregnancy.sireName ? <>by <strong style={{ color: "var(--sire-text)" }}>{pregnancy.sireName}</strong>  ·  </> : null}
               {pregnancy.dueDate
-                ? <>due {new Date(pregnancy.dueDate).toLocaleDateString()}{daysToDue !== null && daysToDue >= 0 ? `  (${daysToDue} day${daysToDue !== 1 ? "s" : ""} to go)` : daysToDue !== null ? "  (overdue)" : ""}</>
+                ? <>due {new Date(pregnancy.dueDate).toLocaleDateString("en-GB")}{daysToDue !== null && daysToDue >= 0 ? `  (${daysToDue} day${daysToDue !== 1 ? "s" : ""} to go)` : daysToDue !== null ? "  (overdue)" : ""}</>
                 : "due date not set"}
             </div>
           </div>
@@ -382,7 +382,7 @@ export default async function HorsePage({ params }: { params: Promise<{ id: stri
                   <span style={{ fontWeight: 700, color: "var(--teal-dark)" }}>{r.event}</span>
                   {r.notes && <span style={{ color: "var(--text-muted)" }}>  —  {r.notes}</span>}
                 </div>
-                {r.date && <span style={{ fontSize: 12, color: "var(--text-muted)", whiteSpace: "nowrap" }}>{new Date(r.date).toLocaleDateString()}</span>}
+                {r.date && <span style={{ fontSize: 12, color: "var(--text-muted)", whiteSpace: "nowrap" }}>{new Date(r.date).toLocaleDateString("en-GB")}</span>}
               </div>
             ))}
           </div>

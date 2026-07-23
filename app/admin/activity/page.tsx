@@ -69,7 +69,7 @@ export default async function ActivityPage() {
   entries.sort((a, b) => b.time.getTime() - a.time.getTime());
   const shown = entries.slice(0, 60);
 
-  const fmt = (d: Date) => d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) + " " + d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  const fmt = (d: Date) => d.toLocaleDateString("en-GB") + " " + d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-10">

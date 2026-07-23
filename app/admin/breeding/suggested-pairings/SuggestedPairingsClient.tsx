@@ -50,6 +50,8 @@ interface Pairing {
   stallionDepth: number;
   /** Raw depth of the mare's recorded pedigree (not +1 for the foal). */
   mareDepth: number;
+  /** Count of non-placeholder ancestors across the combined foal pedigree. */
+  namedAncestors: number;
   inbreedingCoefficient: number;
   sharedAncestors: number;
   isPurebredCross: boolean;
@@ -71,6 +73,7 @@ export default function SuggestedPairingsClient({
   const [knownParentsOnly, setKnownParentsOnly] = useState(false);
   const [noVisibleInbreeding, setNoVisibleInbreeding] = useState(false);
   const [fullPedigreeOnly, setFullPedigreeOnly] = useState(false);
+  const [sortMode, setSortMode] = useState<"named" | "generations">("named");
   // Multi-select set of gene codes the foal must be able to produce.
   const [targetGenotypes, setTargetGenotypes] = useState<string[]>([]);
 
@@ -81,7 +84,7 @@ export default function SuggestedPairingsClient({
   // Effect to reset current page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [minGenerations, requirePurebred, maxInbreeding, limitCoi, selectedBreed, knownParentsOnly, targetGenotypes, noVisibleInbreeding, fullPedigreeOnly]);
+  }, [minGenerations, requirePurebred, maxInbreeding, limitCoi, selectedBreed, knownParentsOnly, targetGenotypes, noVisibleInbreeding, fullPedigreeOnly, sortMode]);
 
   const toggleTarget = (code: string) =>
     setTargetGenotypes((prev) => prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]);
@@ -200,10 +203,13 @@ export default function SuggestedPairingsClient({
 
         if (targetGenotypes.length && !foalCanProduce(foalGenetics, targetGenotypes)) continue;
 
+        const namedAncestors = countNamedAncestors(foal);
+
         const reasons: string[] = [];
+        reasons.push(`Named ancestors: ${namedAncestors}`);
         const balanced = stallionDepth === mareDepth
           ? `${pedigreeDepth} gen`
-          : `${pedigreeDepth} gen balanced (♂ ${stallionDepth} · ♀ ${mareDepth})`;
+          : `${pedigreeDepth} gen (♂ ${stallionDepth} · ♀ ${mareDepth})`;
         reasons.push(`Pedigree depth: ${balanced}`);
         if (requirePurebred !== null) reasons.push(requirePurebred ? "Purebred pairing" : "Cross-breed pairing");
         if (shared === 0) reasons.push("Outcross — no shared ancestors");
@@ -211,13 +217,16 @@ export default function SuggestedPairingsClient({
         if (targetGenotypes.length) reasons.push(`Can produce target genotype: ${targetGenotypes.join(", ")}`);
 
         pairings.push({
-          mare, stallion, foal, pedigreeDepth, stallionDepth, mareDepth,
+          mare, stallion, foal, pedigreeDepth, stallionDepth, mareDepth, namedAncestors,
           inbreedingCoefficient: coi, sharedAncestors: shared, isPurebredCross, foalGenetics, reasons,
         });
       }
     }
+    if (sortMode === "named") {
+      return pairings.sort((a, b) => b.namedAncestors - a.namedAncestors || a.inbreedingCoefficient - b.inbreedingCoefficient);
+    }
     return pairings.sort((a, b) => a.inbreedingCoefficient - b.inbreedingCoefficient || b.pedigreeDepth - a.pedigreeDepth);
-  }, [mares, stallions, horseTreeCache, horseDepthCache, minGenerations, requirePurebred, maxInbreeding, limitCoi, selectedBreed, knownParentsOnly, targetGenotypes, noVisibleInbreeding]);
+  }, [mares, stallions, horseTreeCache, horseDepthCache, minGenerations, requirePurebred, maxInbreeding, limitCoi, selectedBreed, knownParentsOnly, targetGenotypes, noVisibleInbreeding, fullPedigreeOnly, sortMode]);
 
   const totalPages = Math.ceil(suggestedPairings.length / itemsPerPage);
   const paginatedPairings = useMemo(() => {
@@ -370,9 +379,28 @@ export default function SuggestedPairingsClient({
 
         <div className="md:col-span-3">
           <div style={cardStyle}>
-            <h2 style={{ fontFamily: "var(--font-playfair)", fontSize: 22, color: "var(--teal-dark)", marginBottom: 16 }}>
-              Suggested Pairings ({suggestedPairings.length})
-            </h2>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, gap: 12, flexWrap: "wrap" }}>
+              <h2 style={{ fontFamily: "var(--font-playfair)", fontSize: 22, color: "var(--teal-dark)", margin: 0 }}>
+                Suggested Pairings ({suggestedPairings.length})
+              </h2>
+              <div style={{ display: "flex", gap: 0, border: "1px solid var(--border)", borderRadius: 6, overflow: "hidden", flexShrink: 0 }}>
+                {(["named", "generations"] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setSortMode(mode)}
+                    style={{
+                      padding: "6px 14px", fontSize: 12, fontFamily: "var(--font-lato)", fontWeight: 700,
+                      border: "none", cursor: "pointer",
+                      background: sortMode === mode ? "var(--teal-dark)" : "var(--white)",
+                      color: sortMode === mode ? "white" : "var(--text-muted)",
+                    }}
+                  >
+                    {mode === "named" ? "Named Ancestors" : "Generations"}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             {suggestedPairings.length > 0 && (
               <div className="flex flex-wrap items-center justify-between gap-3 mb-5" style={{ fontFamily: "var(--font-lato)", fontSize: 13, color: "var(--text-muted)" }}>
@@ -519,6 +547,13 @@ function buildPageWindow(current: number, total: number): (number | "…")[] {
   if (end < total - 1) pages.push("…");
   pages.push(total);
   return pages;
+}
+
+/** Count ancestors (excluding the root foal itself) that are real named horses — not foundation/unknown placeholders. */
+function countNamedAncestors(n: HorseNode | null | undefined, isRoot = true): number {
+  if (!n) return 0;
+  const selfCount = isRoot ? 0 : (isPlaceholder(n.name) ? 0 : 1);
+  return selfCount + countNamedAncestors(n.sire, false) + countNamedAncestors(n.dam, false);
 }
 
 // Re-using the nodeDepth function from BreedingClient for consistency

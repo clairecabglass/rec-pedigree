@@ -3,7 +3,7 @@ import { useRef, useState } from "react";
 
 interface UploadedVideo { id: string; url: string; caption: string | null; mimeType: string | null; }
 
-const MAX_DIRECT = 50 * 1024 * 1024; // 50 MB direct; above this → presigned R2
+const MAX_DIRECT = 4 * 1024 * 1024; // 4 MB direct (Vercel body limit); above this → presigned R2
 const COMPRESS_THRESHOLD = 100 * 1024 * 1024; // compress if > 100 MB
 
 export default function VideoUploader({

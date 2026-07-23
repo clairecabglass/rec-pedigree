@@ -55,7 +55,7 @@ export default function PhotoGallery({
                 alt={item.data.caption ?? "Horse photo"}
                 fill
                 quality={90}
-                sizes="(max-width: 640px) 50vw, 33vw"
+                sizes="(max-width: 640px) 100vw, 50vw"
                 style={{ objectFit: "cover" }}
               />
             ) : (

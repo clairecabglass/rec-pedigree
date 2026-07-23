@@ -163,7 +163,7 @@ export default function EventsEditor({ horseId, initial }: { horseId: string; in
                     )}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: "flex", gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-                        <span style={{ fontSize: 12, color: "var(--text-muted)", whiteSpace: "nowrap" }}>{new Date(ev.date).toLocaleDateString()}</span>
+                        <span style={{ fontSize: 12, color: "var(--text-muted)", whiteSpace: "nowrap" }}>{new Date(ev.date).toLocaleDateString("en-GB")}</span>
                         <span style={{ fontSize: 10, background: "var(--teal-muted)", color: "var(--teal-dark)", borderRadius: 10, padding: "1px 8px", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", fontFamily: "var(--font-lato)" }}>{TYPE_LABELS[ev.type] ?? ev.type}</span>
                         <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text)", fontFamily: "var(--font-lato)" }}>{ev.title}</span>
                       </div>

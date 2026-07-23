@@ -75,7 +75,7 @@ function sortCombined(sys: SystemEvent[], man: ManualEvent[]): CombinedItem[] {
 }
 
 const fmt = (iso: string) =>
-  new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  new Date(iso).toLocaleDateString("en-GB");
 
 const inputStyle: React.CSSProperties = {
   width: "100%", padding: "8px 10px", border: "1px solid var(--border)",

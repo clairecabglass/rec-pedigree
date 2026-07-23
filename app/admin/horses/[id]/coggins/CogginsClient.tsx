@@ -23,7 +23,7 @@ function slug(name: string) {
 function formatDate(iso: string) {
   if (!iso) return "—";
   const d = new Date(iso);
-  return d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  return d.toLocaleDateString("en-GB");
 }
 
 // Seeded pseudo-random that stays consistent per horse

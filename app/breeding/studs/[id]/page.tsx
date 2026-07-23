@@ -29,6 +29,7 @@ export default async function StudProfilePage({ params }: { params: Promise<{ id
     where: { id, gender: "Stallion", availableForBreeding: true },
     include: {
       photos: { orderBy: [{ isPrimary: "desc" }, { order: "asc" }] },
+      videos: { orderBy: { order: "asc" } },
       documents: { orderBy: { createdAt: "asc" } },
       events: { orderBy: { date: "asc" } },
     },
@@ -94,7 +95,7 @@ export default async function StudProfilePage({ params }: { params: Promise<{ id
     ["Genotype", horse.genotype],
     ["Height", horse.height],
     ["Discipline", horse.discipline],
-    ["Foal Date", horse.dob ? new Date(horse.dob).toLocaleDateString() : null],
+    ["Foal Date", horse.dob ? new Date(horse.dob).toLocaleDateString("en-GB") : null],
     ["Reg #", horse.regNumber],
     ["Generations", generations > 0 ? String(generations) : null],
   ];
@@ -122,7 +123,7 @@ export default async function StudProfilePage({ params }: { params: Promise<{ id
       </div>
 
       {hero ? (
-        <HorseHero name={horse.name} isAdmin={admin} photos={horse.photos.map(p => ({ id: p.id, url: p.url, caption: p.caption, fill: p.fill }))} />
+        <HorseHero name={horse.name} isAdmin={admin} photos={horse.photos.map(p => ({ id: p.id, url: p.url, caption: p.caption, fill: p.fill }))} videos={horse.videos.map(v => ({ id: v.id, url: v.url, caption: v.caption, mimeType: v.mimeType }))} />
       ) : (
         <div style={{ maxWidth: 920, margin: "0 auto 8px", aspectRatio: "16/8", background: "linear-gradient(135deg, var(--teal-muted), var(--cream-dark))", borderRadius: 8, border: "4px solid var(--gold-light)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
           <Icon name="photo" size={46} color="var(--teal-light)" strokeWidth={1.3} />
@@ -180,10 +181,13 @@ export default async function StudProfilePage({ params }: { params: Promise<{ id
         </div>
       )}
 
-      {horse.photos.length > 1 && (
+      {(horse.photos.length > 1 || horse.videos.length > 0) && (
         <div style={{ marginBottom: 28 }}>
-          <h2 style={{ fontFamily: "var(--font-playfair)", fontSize: 22, color: "var(--teal-dark)", marginBottom: 16 }}>Photos</h2>
-          <PhotoGallery photos={horse.photos.map(p => ({ id: p.id, url: p.url, caption: p.caption }))} />
+          <h2 style={{ fontFamily: "var(--font-playfair)", fontSize: 22, color: "var(--teal-dark)", marginBottom: 16 }}>{horse.videos.length > 0 ? "Photos & Videos" : "Photos"}</h2>
+          <PhotoGallery
+            photos={horse.photos.map(p => ({ id: p.id, url: p.url, caption: p.caption }))}
+            videos={horse.videos.map(v => ({ id: v.id, url: v.url, caption: v.caption, mimeType: v.mimeType }))}
+          />
         </div>
       )}
 
@@ -198,7 +202,7 @@ export default async function StudProfilePage({ params }: { params: Promise<{ id
                   <span style={{ fontWeight: 700, color: "var(--teal-dark)" }}>{r.event}</span>
                   {r.notes && <span style={{ color: "var(--text-muted)" }}>  —  {r.notes}</span>}
                 </div>
-                {r.date && <span style={{ fontSize: 12, color: "var(--text-muted)", whiteSpace: "nowrap" }}>{new Date(r.date).toLocaleDateString()}</span>}
+                {r.date && <span style={{ fontSize: 12, color: "var(--text-muted)", whiteSpace: "nowrap" }}>{new Date(r.date).toLocaleDateString("en-GB")}</span>}
               </div>
             ))}
           </div>

@@ -57,7 +57,7 @@ export default function ResultManager({ horseId, initial }: { horseId: string; i
             <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 12, border: "1px solid var(--border)", borderRadius: 6, padding: "8px 12px", background: "var(--white)", fontFamily: "var(--font-lato)", fontSize: 13 }}>
               {r.placement && <span style={{ background: "var(--gold-light)", color: "#6B5A2A", borderRadius: 10, padding: "2px 9px", fontSize: 11, fontWeight: 700 }}>{r.placement}</span>}
               <span style={{ flex: 1, fontWeight: 600, color: "var(--teal-dark)" }}>{r.event}</span>
-              {r.date && <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{new Date(r.date).toLocaleDateString()}</span>}
+              {r.date && <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{new Date(r.date).toLocaleDateString("en-GB")}</span>}
               <button type="button" onClick={() => remove(r.id)} style={{ border: "none", background: "none", color: "#C05050", cursor: "pointer" }}>✕</button>
             </div>
           ))}

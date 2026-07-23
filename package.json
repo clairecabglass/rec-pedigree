@@ -27,6 +27,7 @@
     "@types/bcryptjs": "^2.4.6",
     "@vercel/analytics": "^2.0.1",
     "bcryptjs": "^3.0.3",
+    "fflate": "^0.8.3",
     "html-to-image": "^1.11.13",
     "iron-session": "^8.0.4",
     "jspdf": "^4.2.1",

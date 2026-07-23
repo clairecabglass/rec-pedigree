@@ -63,7 +63,7 @@ export default async function EditHorsePage({ params }: { params: Promise<{ id: 
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-10">
-      <div style={{ display: "flex", gap: 16, marginBottom: 20 }}>
+      <div style={{ display: "flex", gap: 16, marginBottom: 20, alignItems: "center", flexWrap: "wrap" }}>
         <Link href="/admin" style={{ fontSize: 13, color: "var(--teal)", textDecoration: "none", fontFamily: "var(--font-lato)" }}>
           ← Admin
         </Link>
@@ -73,6 +73,17 @@ export default async function EditHorsePage({ params }: { params: Promise<{ id: 
         <Link href={`/admin/horses/${horse.id}/papers`} style={{ fontSize: 13, color: "var(--text-muted)", textDecoration: "none", fontFamily: "var(--font-lato)" }}>
           Papers →
         </Link>
+        <a
+          href={`/api/horses/${horse.id}/zip`}
+          download
+          style={{
+            marginLeft: "auto", fontSize: 13, fontFamily: "var(--font-lato)", fontWeight: 700,
+            background: "var(--teal-dark)", color: "white", textDecoration: "none",
+            padding: "6px 14px", borderRadius: 6,
+          }}
+        >
+          ↓ Export ZIP
+        </a>
       </div>
       <h1 style={{ fontFamily: "var(--font-playfair)", fontSize: 28, color: "var(--teal-dark)", marginBottom: 24 }}>
         Edit: {horse.name}
