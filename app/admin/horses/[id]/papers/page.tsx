@@ -9,9 +9,9 @@ import PdfDownloader from "./PdfDownloader";
 
 export const dynamic = "force-dynamic";
 
-async function toDataUri(filename: string) {
+async function toDataUri(filename: string, folder = "brand") {
   try {
-    const buf = await readFile(path.join(process.cwd(), "public/brand", filename));
+    const buf = await readFile(path.join(process.cwd(), "public", folder, filename));
     const ext = filename.split(".").pop() ?? "png";
     return `data:image/${ext};base64,${buf.toString("base64")}`;
   } catch { return ""; }
@@ -37,9 +37,13 @@ export default async function PapersPage({ params }: { params: Promise<{ id: str
     prisma.player.findMany({ orderBy: { ign: "asc" } }),
   ]);
 
-  const [templateDataUri, sigLab] = await Promise.all([
+  const [templateDataUri, sigLab, xray1, xray2, xray3, xray4] = await Promise.all([
     toDataUri("REC Training Cert No Name.png"),
     toDataUri("lab-analyst.png"),
+    toDataUri("skull.jpg",   "xray"),
+    toDataUri("stifle.jpg",  "xray"),
+    toDataUri("foot.jpg",    "xray"),
+    toDataUri("spine.jpg",   "xray"),
   ]);
 
   const card: React.CSSProperties = {
@@ -123,6 +127,7 @@ export default async function PapersPage({ params }: { params: Promise<{ id: str
             Health Book · PPE Report · Microchip · BSE (stallions) · Reproductive Record (mares) · Insurance · Training Log · Bill of Sale · Equine Passport · Farrier History
           </div>
           <PdfDownloader
+            xrayImages={[xray1, xray2, xray3, xray4]}
             players={players.map(p => ({ id: p.id, ign: p.ign, username: p.username, stableName: p.stableName, stablePrefix: p.stablePrefix }))}
             horse={{
               id:          horse.id,

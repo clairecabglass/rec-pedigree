@@ -638,43 +638,53 @@ function HBClinicalExam({ h }: { h: PdfHorse }) {
 }
 
 // ─── HB PAGE 5 & 6: X-RAY RECORDS ─────────────────────────────────────────────
-function XRayPage({ h, pgOffset }: { h: PdfHorse; pgOffset: number }) {
-  const hd   = buildHealth(h.id, h.gender, h.height);
-  const xrs  = hd.xrayRegions.slice(pgOffset * 2, pgOffset * 2 + 2);
-  const pgN  = 5 + pgOffset;
+const XRAY_REGIONS = [
+  { region: "Head & Dental Survey — Lateral View",           views: "Lateral", findings: "Dentition and skull structures within normal limits. No pathological bony changes identified. Tooth roots well-supported, no periapical lucency." },
+  { region: "Stifles — Bilateral Femoropatellar (CrCd & ML)", views: "CrCd, ML bilateral", findings: "No significant radiographic abnormalities. Joint spaces symmetrical and maintained bilaterally. No enthesiophyte formation on trochlear ridges." },
+  { region: "Left Fore — Distal Limb (Foot & Pastern)",      views: "DP, LM, DLPMO, DMPLO", findings: "No significant radiographic findings. Normal bone density and joint spacing. Navicular bone within normal limits." },
+  { region: "Thoracic Spine — Lateral Survey",               views: "Lateral", findings: "Vertebral bodies and intervertebral spaces appear within normal limits on lateral projection. No evidence of kissing spines or vertebral compression." },
+];
+
+function XRayPage({ h, pgOffset, images }: { h: PdfHorse; pgOffset: number; images: string[] }) {
+  const rows  = XRAY_REGIONS.slice(pgOffset * 2, pgOffset * 2 + 2);
+  const imgs  = images.slice(pgOffset * 2, pgOffset * 2 + 2);
+  const pgN   = 5 + pgOffset;
   const today = fmtDate(new Date());
+  const examDate = daysAgo(h.id, 80 + pgOffset, 30, 400);
 
   return (
     <div style={base}>
       <PageHeader title="RADIOGRAPHIC RECORDS (X-RAY)" />
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 36 }}>
-        {xrs.map((xr, i) => (
-          <div key={i}>
-            {/* Meta row */}
-            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: "0 28px", marginBottom: 12 }}>
-              <LabelVal label="Region Examined" value={xr.region} />
-              <LabelVal label="Date Taken"      value={xr.date} />
-              <LabelVal label="Views"           value={xr.views} />
+      <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+        {rows.map((xr, i) => {
+          const imgSrc = imgs[i];
+          return (
+            <div key={i}>
+              <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: "0 28px", marginBottom: 10 }}>
+                <LabelVal label="Region Examined" value={xr.region} />
+                <LabelVal label="Date Taken"      value={examDate} />
+                <LabelVal label="Views"           value={xr.views} />
+              </div>
+              {/* Image */}
+              <div style={{ width: "100%", height: 420, borderRadius: 8, overflow: "hidden", border: `1px solid ${TEAL_LIGHT}`, background: "#111", marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {imgSrc
+                  ? <img src={imgSrc} alt={xr.region} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                  : (
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, opacity: 0.4 }}>
+                      <CrossIcon size={48} color={WHITE} />
+                      <span style={{ fontFamily: "var(--font-lato)", fontSize: 14, color: WHITE, letterSpacing: "0.12em" }}>RADIOGRAPH PENDING</span>
+                    </div>
+                  )
+                }
+              </div>
+              <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                <span style={{ fontFamily: "var(--font-lato)", fontSize: 12, fontWeight: 700, color: MUTED, textTransform: "uppercase", whiteSpace: "nowrap", marginTop: 2 }}>Findings:</span>
+                <div style={{ fontFamily: "var(--font-lato)", fontSize: 14, color: TEXT, fontStyle: "italic", borderBottom: `1px solid ${TEAL_LIGHT}`, flexGrow: 1, paddingBottom: 4 }}>{xr.findings}</div>
+              </div>
             </div>
-            {/* Image placeholder */}
-            <div style={{
-              width: "100%", height: 400, border: `2px dashed ${TEAL}`,
-              borderRadius: 8, background: "rgba(135,155,149,0.04)",
-              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-              marginBottom: 12,
-            }}>
-              <div style={{ opacity: 0.25, marginBottom: 14 }}><CrossIcon size={48} color={TEAL_DARK} /></div>
-              <div style={{ fontFamily: "var(--font-lato)", fontSize: 18, fontWeight: 700, color: TEAL, letterSpacing: "0.15em", textTransform: "uppercase" }}>X-RAY IMAGE</div>
-              <div style={{ fontFamily: "var(--font-lato)", fontSize: 13, color: MUTED, marginTop: 8, letterSpacing: "0.08em" }}>Insert radiograph image here</div>
-            </div>
-            {/* Findings */}
-            <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-              <span style={{ fontFamily: "var(--font-lato)", fontSize: 12, fontWeight: 700, color: MUTED, textTransform: "uppercase", whiteSpace: "nowrap", marginTop: 2 }}>Findings:</span>
-              <div style={{ fontFamily: "var(--font-lato)", fontSize: 14, color: TEXT, fontStyle: "italic", borderBottom: `1px solid ${TEAL_LIGHT}`, flexGrow: 1, paddingBottom: 4 }}>{xr.findings}</div>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div style={{ position: "absolute", bottom: PAD, right: PAD }}>
@@ -1388,7 +1398,7 @@ async function asPdf(refs: React.RefObject<HTMLDivElement | null>[], filename: s
 }
 
 // ─── Main component ────────────────────────────────────────────────────────────
-export interface PdfDownloaderProps { horse: PdfHorse; results: PdfResult[]; players: PdfPlayer[]; }
+export interface PdfDownloaderProps { horse: PdfHorse; results: PdfResult[]; players: PdfPlayer[]; xrayImages: string[]; }
 
 function Btn({ onClick, disabled, children }: { onClick: () => void; disabled: boolean; children: React.ReactNode }) {
   return (
@@ -1402,7 +1412,7 @@ const inputStyle: React.CSSProperties = {
   width: "100%", boxSizing: "border-box",
 };
 
-export default function PdfDownloader({ horse, results, players }: PdfDownloaderProps) {
+export default function PdfDownloader({ horse, results, players, xrayImages }: PdfDownloaderProps) {
   // Health book
   const r0  = useRef<HTMLDivElement>(null);
   const r1  = useRef<HTMLDivElement>(null);
@@ -1560,8 +1570,8 @@ export default function PdfDownloader({ horse, results, players }: PdfDownloader
         <div ref={r1}  style={PS}><HBHealthReport h={horse} /></div>
         <div ref={r2}  style={PS}><HBPreventiveCare h={horse} /></div>
         <div ref={r3}  style={PS}><HBClinicalExam h={horse} /></div>
-        <div ref={r4}  style={PS}><XRayPage h={horse} pgOffset={0} /></div>
-        <div ref={r5}  style={PS}><XRayPage h={horse} pgOffset={1} /></div>
+        <div ref={r4}  style={PS}><XRayPage h={horse} pgOffset={0} images={xrayImages} /></div>
+        <div ref={r5}  style={PS}><XRayPage h={horse} pgOffset={1} images={xrayImages} /></div>
         {isStallion && <div ref={frt} style={PS}><FertilityPage h={horse} /></div>}
         {isMare     && <div ref={mrp} style={PS}><MareReproductivePage h={horse} /></div>}
         <div ref={mcR} style={PS}><MicrochipPage h={horse} /></div>
