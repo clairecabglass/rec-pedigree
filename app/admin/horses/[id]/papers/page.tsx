@@ -5,6 +5,7 @@ import { readFile } from "fs/promises";
 import path from "path";
 import Link from "next/link";
 import BulkDownloader from "./BulkDownloader";
+import PdfDownloader from "./PdfDownloader";
 
 export const dynamic = "force-dynamic";
 
@@ -22,9 +23,16 @@ export default async function PapersPage({ params }: { params: Promise<{ id: str
 
   const horse = await prisma.horse.findUnique({
     where: { id },
-    select: { id: true, name: true, breed: true, gender: true, dob: true, regNumber: true, coat: true, genotype: true },
+    select: {
+      id: true, name: true, breed: true, gender: true, dob: true,
+      regNumber: true, coat: true, genotype: true,
+      microchip: true, height: true, discipline: true, stablePrefix: true,
+      ownerName: true, sireName: true, damName: true,
+    },
   });
   if (!horse) notFound();
+
+  const results = await prisma.result.findMany({ where: { horseId: id }, orderBy: { date: "desc" } });
 
   const [templateDataUri, sigLab] = await Promise.all([
     toDataUri("REC Training Cert No Name.png"),
@@ -103,6 +111,40 @@ export default async function PapersPage({ params }: { params: Promise<{ id: str
             Official REC training completion certificate — exports as PNG.
           </div>
           <Link href={`/admin/horses/${id}/training-cert`} style={btn}>↓ Download Training Cert</Link>
+        </div>
+
+        {/* ── PDF Documents (Belmont Veterinarian Clinic) ── */}
+        <div style={{ ...card, gap: 14 }}>
+          <div style={{ fontFamily: "var(--font-playfair)", fontSize: 18, color: "var(--teal-dark)" }}>Belmont Veterinarian Clinic — PDF Documents</div>
+          <div style={{ color: "var(--text-muted)", fontFamily: "var(--font-lato)", fontSize: 13 }}>
+            Health &amp; Vet Book (3 pages) · Microchip Registration · BSE / Fertility (stallions) · Insurance Certificate · Training Log
+          </div>
+          <PdfDownloader
+            horse={{
+              id:          horse.id,
+              name:        horse.name,
+              breed:       horse.breed,
+              gender:      horse.gender,
+              coat:        horse.coat,
+              genotype:    horse.genotype,
+              dob:         horse.dob?.toISOString() ?? null,
+              regNumber:   horse.regNumber,
+              microchip:   horse.microchip,
+              height:      horse.height,
+              discipline:  horse.discipline,
+              stablePrefix: horse.stablePrefix,
+              ownerName:   horse.ownerName,
+              sireName:    horse.sireName,
+              damName:     horse.damName,
+            }}
+            results={results.map(r => ({
+              id:        r.id,
+              event:     r.event,
+              placement: r.placement,
+              date:      r.date?.toISOString() ?? null,
+              notes:     r.notes,
+            }))}
+          />
         </div>
       </div>
     </div>
