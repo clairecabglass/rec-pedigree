@@ -610,7 +610,7 @@ function HBClinicalExam({ h }: { h: PdfHorse }) {
                 ["Fibrinogen",                `${hd.lab.fibrinogen} mg/dL`,       "100–400 mg/dL",      "Normal"],
                 ["WBC",                       `${hd.lab.wbc} ×10³/µL`,           "5.4–14.3 ×10³/µL",   "Normal"],
                 ["Neutrophils",               `${hd.lab.neutrophils} ×10³/µL`,   "2.7–6.7 ×10³/µL",    "Normal"],
-                ["Lymphocytes",               `${hd.lab.lymphocytes} ×10³/µL`,   "1.5–5.0 ×10³/µL`,    "Normal"],
+                ["Lymphocytes",               `${hd.lab.lymphocytes} ×10³/µL`,   "1.5–5.0 ×10³/µL",    "Normal"],
               ].map(([p, r, ref, interp], i) => (
                 <tr key={p} style={{ background: i % 2 === 0 ? WHITE : "rgba(135,155,149,0.04)" }}>
                   <td style={{ border: `1px solid ${TEAL_LIGHT}`, padding: "9px 14px", color: TEXT }}>{p}</td>
@@ -873,6 +873,481 @@ function TrainingLogPage({ h, results }: { h: PdfHorse; results: PdfResult[] }) 
   );
 }
 
+// ─── PPE data ─────────────────────────────────────────────────────────────────
+function buildPPE(id: string) {
+  const verdict = seed(id, 400) > 0.18 ? "PASS" : seed(id, 400) > 0.06 ? "CONDITIONAL PASS" : "FAIL";
+  const gaitWalk   = pick(id, 401, ["1/5 — Sound at walk", "1/5 — Sound at walk"]);
+  const gaitTrot   = pick(id, 402, ["1/5 — Sound at trot", "1/5 — Sound at trot", "2/5 — Mild, intermittent lameness at trot on hard surface"]);
+  const gaitCanter = pick(id, 403, ["1/5 — Sound at canter", "1/5 — Sound at canter", "1/5 — Sound; mild disuniting noted once"]);
+  const flexLF     = pick(id, 404, ["Negative", "Negative", "Mildly positive — resolved within 10 strides"]);
+  const flexRF     = pick(id, 405, ["Negative", "Negative", "Negative"]);
+  const flexLH     = pick(id, 406, ["Negative", "Negative", "Mildly positive — 3/5 strides post-flex"]);
+  const flexRH     = pick(id, 407, ["Negative", "Negative", "Negative"]);
+  const circLung   = pick(id, 408, ["Regular, no murmurs", "Regular sinus rhythm, no auscultatory defects"]);
+  const scope      = seed(id, 409) > 0.5;
+  const scopeGrade = scope ? pick(id, 410, ["Grade 0/4 — Clear larynx, full abduction", "Grade 1/4 — Left arytenoid asymmetry, no significant obstruction"]) : null;
+  const eyeOph     = pick(id, 411, ["No evidence of uveitis, cataracts, or corneal opacity. PLR intact bilaterally.", "Eyes clear. No active intraocular inflammation. PLR brisk. No fundus abnormalities noted.", "Both eyes clear. No inflammatory changes. Fundoscopy unremarkable."]);
+  const xraySum    = pick(id, 412, [
+    "Distal limb radiographs within normal limits. No significant DJD, lysis, or periosteal new bone formation identified.",
+    "Radiographic survey reviewed — mild remodelling at DIPJ noted, consistent with age and workload. No pathological changes identified.",
+    "Radiographic findings unremarkable. Joint spaces maintained. Navicular bones normal morphology bilaterally.",
+  ]);
+  const condNote   = verdict === "PASS"
+    ? pick(id, 413, ["No significant findings to limit intended use. Horse is suitable for purchase for its intended purpose.", "Horse presented sound and in good health. No conditions identified that would preclude purchase for stated purpose."])
+    : verdict === "CONDITIONAL PASS"
+    ? pick(id, 414, ["One or more findings noted. Prospective purchaser advised to seek further diagnostic evaluation prior to purchase decision.", "Findings noted as above. Horse may be suitable subject to further investigation and buyer accepting informed risk."])
+    : "Significant findings identified that are likely to affect soundness for stated intended use. Purchase not recommended without further specialist evaluation.";
+  const purpose = pick(id, 415, ["General leisure / pleasure riding", "Competitive show work", "Breeding programme", "Trail and endurance work", "Dressage competition"]);
+  return { verdict, gaitWalk, gaitTrot, gaitCanter, flexLF, flexRF, flexLH, flexRH, circLung, scope, scopeGrade, eyeOph, xraySum, condNote, purpose };
+}
+
+// ─── PPE PAGE 1 ───────────────────────────────────────────────────────────────
+function PPEPage1({ h }: { h: PdfHorse }) {
+  const p = buildPPE(h.id); const today = fmtDate(new Date());
+  const hd = buildHealth(h.id, h.gender, h.height);
+  return (
+    <div style={base}>
+      <PageHeader title="PRE-PURCHASE EXAMINATION" />
+      <div style={{ fontFamily: "var(--font-lato)", fontSize: 13, color: MUTED, fontStyle: "italic", marginBottom: 10, borderBottom: `1px solid ${TEAL_LIGHT}`, paddingBottom: 10 }}>
+        This examination was carried out at the request of the prospective purchaser. It is an opinion only and does not constitute a warranty of soundness. {VET} · Lic. {LIC}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0 36px", marginBottom: 8 }}>
+        {([["Horse's Name", h.name], ["Breed", h.breed], ["Coat / Colour", h.coat], ["Gender", h.gender], ["Foal Date", h.dob ? fmtDate(h.dob) : null], ["Reg. Number", h.regNumber], ["Microchip", chipNumber(h.microchip, h.id)], ["Date of Exam", today], ["Intended Use", p.purpose]] as [string, string | null][]).map(([lbl, val]) => <LabelVal key={lbl} label={lbl} value={val} />)}
+      </div>
+      <div style={{ height: 1, background: TEAL_LIGHT, marginBottom: 16 }} />
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 48px", marginBottom: 20 }}>
+        <div>
+          <Bar>Vital Signs at Presentation</Bar>
+          {[["Temperature", `${hd.temp} °F`], ["Heart Rate", `${hd.hr} bpm`], ["Respiratory Rate", `${hd.rr} rpm`], ["Body Weight (est.)", `${hd.wt} lbs`], ["Body Condition Score", `${hd.bcs} / 9`], ["Mucous Membranes", hd.mm], ["CRT", hd.crt], ["Demeanour", hd.dem]].map(([lbl, val]) => (
+            <div key={lbl} style={{ display: "flex", borderBottom: `1px solid ${TEAL_LIGHT}`, padding: "8px 0" }}>
+              <span style={{ fontFamily: "var(--font-lato)", fontSize: 12, fontWeight: 700, color: MUTED, textTransform: "uppercase", minWidth: 220 }}>{lbl}</span>
+              <span style={{ fontFamily: "var(--font-lato)", fontSize: 14, color: TEXT }}>{val}</span>
+            </div>
+          ))}
+        </div>
+        <div>
+          <Bar>General Appearance</Bar>
+          {[["Coat Quality", pick(h.id, 420, ["Good — healthy sheen, well-maintained", "Excellent — glossy and well-conditioned", "Good — appropriate for season"])], ["Musculature", pick(h.id, 421, ["Well-developed and symmetrical", "Good muscle mass, appropriate for workload", "Good topline; hindquarter development appropriate"])], ["Conformation", pick(h.id, 422, ["Good overall conformation. No notable deviations.", "Slightly over at the knee — within normal limits.", "Good balance and proportion. No conformational concerns."])], ["Lymph Nodes", hd.lymphNote], ["Skin & Coat", pick(h.id, 423, ["No skin conditions. Coat clean and parasite-free.", "No ectoparasites or dermatological concerns noted.", "Coat clean. No rain rot, sweet itch, or dermatitis."])]].map(([lbl, val]) => (
+            <div key={lbl} style={{ borderBottom: `1px solid ${TEAL_LIGHT}`, padding: "8px 0" }}>
+              <div style={{ fontFamily: "var(--font-lato)", fontSize: 12, fontWeight: 700, color: MUTED, textTransform: "uppercase" }}>{lbl}</div>
+              <div style={{ fontFamily: "var(--font-lato)", fontSize: 13, color: TEXT, fontStyle: "italic" }}>{val}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <Bar>Gait Assessment (AAEP Scale 0–5)</Bar>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 48px", marginBottom: 20 }}>
+        <div>
+          {[["Walk — in hand (hard surface)", p.gaitWalk], ["Trot — in hand (hard surface)", p.gaitTrot], ["Canter — on the lunge", p.gaitCanter], ["Trot — on lunge (soft surface)", pick(h.id, 424, ["1/5 — Sound on soft going", "1/5 — Sound on soft going", "1/5 — No change from hard surface"])]].map(([lbl, val]) => (
+            <div key={lbl} style={{ borderBottom: `1px solid ${TEAL_LIGHT}`, padding: "10px 0" }}>
+              <div style={{ fontFamily: "var(--font-lato)", fontSize: 12, fontWeight: 700, color: MUTED, textTransform: "uppercase" }}>{lbl}</div>
+              <div style={{ fontFamily: "var(--font-lato)", fontSize: 14, color: TEXT, fontStyle: "italic" }}>{val}</div>
+            </div>
+          ))}
+        </div>
+        <div>
+          <Bar>Flexion Tests</Bar>
+          {[["Left Fore", p.flexLF], ["Right Fore", p.flexRF], ["Left Hind", p.flexLH], ["Right Hind", p.flexRH]].map(([lbl, val]) => (
+            <div key={lbl} style={{ display: "flex", borderBottom: `1px solid ${TEAL_LIGHT}`, padding: "10px 0" }}>
+              <span style={{ fontFamily: "var(--font-lato)", fontSize: 12, fontWeight: 700, color: MUTED, textTransform: "uppercase", minWidth: 140 }}>{lbl}</span>
+              <span style={{ fontFamily: "var(--font-lato)", fontSize: 14, color: val === "Negative" ? GREEN_OK : TEXT, fontStyle: "italic" }}>{val}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 8, fontFamily: "var(--font-lato)", fontSize: 11, color: MUTED, fontStyle: "italic" }}>
+        <span>AAEP Scale: 0 = Sound · 1 = Barely perceptible · 2 = Mild, intermittent · 3 = Consistent at trot · 4 = Obvious · 5 = Non-weight-bearing</span>
+      </div>
+      <PgNum n={1} />
+    </div>
+  );
+}
+
+// ─── PPE PAGE 2 ───────────────────────────────────────────────────────────────
+function PPEPage2({ h }: { h: PdfHorse }) {
+  const p = buildPPE(h.id); const hd = buildHealth(h.id, h.gender, h.height); const today = fmtDate(new Date());
+  const verdictColor = p.verdict === "PASS" ? GREEN_OK : p.verdict === "CONDITIONAL PASS" ? "#8a6a00" : "#8a2020";
+  return (
+    <div style={base}>
+      <PageHeader title="PRE-PURCHASE EXAMINATION (cont.)" />
+
+      <Bar>Systems Examination</Bar>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 48px", marginBottom: 18 }}>
+        {([["Cardiovascular", p.circLung], ["Respiratory", hd.lungNote], ["Eyes / Ophthalmic", p.eyeOph], ["Musculoskeletal", hd.limbNote], ["Digestive", `Gut sounds: LDQ ${hd.gutLDQ} · RDQ ${hd.gutRDQ}. ${hd.fecalNote}`], ["Neurological", hd.neuroNote], ["Integumentary", hd.skinNote], ["Reproductive", hd.reproNote]] as [string, string][]).map(([sys, note]) => (
+          <div key={sys} style={{ borderBottom: `1px solid ${TEAL_LIGHT}`, padding: "9px 0" }}>
+            <div style={{ fontFamily: "var(--font-lato)", fontSize: 12, fontWeight: 700, color: TEAL_DARK, textTransform: "uppercase", marginBottom: 3 }}>{sys}</div>
+            <div style={{ fontFamily: "var(--font-lato)", fontSize: 13, color: TEXT, fontStyle: "italic", lineHeight: 1.5 }}>{note}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 48px", marginBottom: 18 }}>
+        <div>
+          <Bar>Radiographic Survey</Bar>
+          <div style={{ fontFamily: "var(--font-lato)", fontSize: 13, color: TEXT, fontStyle: "italic", lineHeight: 1.7, borderLeft: `3px solid ${TEAL}`, paddingLeft: 14 }}>{p.xraySum}</div>
+        </div>
+        <div>
+          <Bar>Upper Airway Endoscopy</Bar>
+          {p.scope
+            ? <div style={{ fontFamily: "var(--font-lato)", fontSize: 13, color: TEXT, fontStyle: "italic", lineHeight: 1.7, borderLeft: `3px solid ${TEAL}`, paddingLeft: 14 }}>{p.scopeGrade}</div>
+            : <div style={{ fontFamily: "var(--font-lato)", fontSize: 13, color: MUTED, fontStyle: "italic" }}>Not performed at this examination.</div>}
+        </div>
+      </div>
+
+      <Bar>Overall Assessment &amp; Verdict</Bar>
+      <div style={{ border: `3px solid ${verdictColor}`, borderRadius: 8, padding: "22px 28px", marginBottom: 20, background: `${verdictColor}08` }}>
+        <div style={{ fontFamily: "var(--font-lato)", fontSize: 28, fontWeight: 900, color: verdictColor, letterSpacing: "0.12em", marginBottom: 10 }}>{p.verdict}</div>
+        <div style={{ fontFamily: "var(--font-lato)", fontSize: 14, color: TEXT, lineHeight: 1.7 }}>{p.condNote}</div>
+      </div>
+      <div style={{ fontFamily: "var(--font-lato)", fontSize: 12, color: MUTED, fontStyle: "italic", marginBottom: 28, lineHeight: 1.6 }}>
+        This certificate represents the professional opinion of the examining veterinarian at the time of examination. It is not a guarantee of future soundness or health. The examination was conducted at the request of the prospective purchaser and findings are disclosed solely to them. Belmont Veterinarian Clinic accepts no liability for conditions not detectable at the time of examination.
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "flex-end" }}><SignBlock date={today} /></div>
+      <PgNum n={2} />
+    </div>
+  );
+}
+
+// ─── BILL OF SALE ─────────────────────────────────────────────────────────────
+interface BillOfSaleProps { h: PdfHorse; buyerName: string; buyerAddress: string; salePrice: string; saleDate: string; }
+function BillOfSalePage({ h, buyerName, buyerAddress, salePrice, saleDate }: BillOfSaleProps) {
+  const chip   = chipNumber(h.microchip, h.id);
+  const seller = h.ownerName || h.stablePrefix || "Redfield Equestrian Centre";
+  const agrNum = `REC-${new Date().getFullYear()}-${Array.from({ length: 5 }, (_, i) => Math.floor(seed(h.id, i + 50) * 10)).join("")}`;
+  return (
+    <div style={{ ...base, display: "flex", flexDirection: "column" }}>
+      {/* Watermark */}
+      <div style={{ position: "absolute", top: "36%", left: "50%", transform: "translate(-50%,-50%) rotate(-22deg)", opacity: 0.04, fontFamily: "var(--font-playfair)", fontSize: 130, color: TEAL_DARK, whiteSpace: "nowrap", pointerEvents: "none" }}>BILL OF SALE</div>
+
+      {/* Header */}
+      <div style={{ textAlign: "center", marginBottom: 10 }}>
+        <div style={{ fontFamily: "var(--font-lato)", fontSize: 13, fontWeight: 700, color: MUTED, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 8 }}>Redfield Equestrian Centre</div>
+        <div style={{ fontFamily: "var(--font-playfair)", fontSize: 44, color: TEAL_DARK }}>BILL OF SALE</div>
+        <div style={{ fontFamily: "var(--font-playfair)", fontSize: 18, color: MUTED }}>Purchase Agreement — Equine</div>
+      </div>
+      <div style={{ height: 3, background: TEAL, marginBottom: 6 }} />
+      <div style={{ height: 1, background: TEAL_LIGHT, marginBottom: 28 }} />
+
+      <div style={{ fontFamily: "var(--font-lato)", fontSize: 14, color: TEXT, lineHeight: 2, marginBottom: 24 }}>
+        This Bill of Sale and Purchase Agreement (Agreement No. <strong>{agrNum}</strong>) is entered into on <strong>{saleDate || fmtDate(new Date())}</strong>, between the Seller and Buyer identified below, for the sale and purchase of the equine described herein.
+      </div>
+
+      {/* Parties */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 48px", marginBottom: 24 }}>
+        <div>
+          <Bar>Seller</Bar>
+          <LabelVal label="Name / Stable"  value={seller} />
+          <LabelVal label="Address"        value="Redfield Equestrian Centre, The Rift" />
+          <LabelVal label="Contact"        value="rec@therift.com" />
+        </div>
+        <div>
+          <Bar>Buyer</Bar>
+          <LabelVal label="Full Name"   value={buyerName  || "___________________________"} />
+          <LabelVal label="Address"     value={buyerAddress || "___________________________"} />
+          <LabelVal label="Contact"     value={"___________________________"} />
+        </div>
+      </div>
+
+      {/* Horse */}
+      <Bar>Animal Description</Bar>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0 36px", marginBottom: 24 }}>
+        {([["Name", h.name], ["Breed", h.breed], ["Gender", h.gender], ["Coat / Colour", h.coat], ["Foal Date", h.dob ? fmtDate(h.dob) : null], ["Reg. Number", h.regNumber], ["Microchip (ISO)", chip], ["Height", h.height ? `${h.height} hh` : null], ["Stable", h.stablePrefix || "Redfield EC"]] as [string, string | null][]).map(([lbl, val]) => <LabelVal key={lbl} label={lbl} value={val} />)}
+      </div>
+
+      {/* Terms */}
+      <Bar>Purchase Price &amp; Terms</Bar>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 48px", marginBottom: 20 }}>
+        <div>
+          <div style={{ display: "flex", gap: 10, alignItems: "baseline", marginBottom: 14 }}>
+            <span style={{ fontFamily: "var(--font-lato)", fontSize: 12, fontWeight: 700, color: MUTED, textTransform: "uppercase" }}>Agreed Sale Price:</span>
+            <span style={{ fontFamily: "var(--font-playfair)", fontSize: 28, color: TEAL_DARK }}>{salePrice ? `$${salePrice}` : "$ _____________"}</span>
+          </div>
+          <LabelVal label="Payment Method" value="___________________________" />
+          <LabelVal label="Deposit Paid"   value="___________________________" />
+        </div>
+        <div style={{ fontFamily: "var(--font-lato)", fontSize: 13, color: TEXT, lineHeight: 1.8 }}>
+          <div style={{ marginBottom: 8 }}><strong>1.</strong> The animal is sold as-is on the date of sale. Seller makes no warranty of fitness beyond statements herein.</div>
+          <div style={{ marginBottom: 8 }}><strong>2.</strong> Risk of loss passes to Buyer upon delivery or collection of the animal.</div>
+          <div><strong>3.</strong> Seller warrants lawful ownership and authority to sell. Title transfers upon receipt of full payment.</div>
+        </div>
+      </div>
+
+      {/* Signatures */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0 32px", marginTop: "auto" }}>
+        {[["Seller Signature", seller], ["Buyer Signature", buyerName || "___________________________"], ["Witness"]].map(([role, name]) => (
+          <div key={role}>
+            <div style={{ height: 56, borderBottom: `2px solid ${TEXT}`, marginBottom: 8 }} />
+            <div style={{ fontFamily: "var(--font-lato)", fontSize: 13, fontWeight: 700, color: TEXT }}>{role}</div>
+            <div style={{ fontFamily: "var(--font-lato)", fontSize: 12, color: MUTED }}>{name || ""}</div>
+            <div style={{ fontFamily: "var(--font-lato)", fontSize: 12, color: MUTED, marginTop: 4 }}>Date: {saleDate || "___________"}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── MARE REPRODUCTIVE RECORD ─────────────────────────────────────────────────
+function buildReproductive(id: string, dob: string | null) {
+  const ageYears = dob ? Math.floor((Date.now() - new Date(dob).getTime()) / (365.25 * 864e5)) : 7;
+  const cycleLen = intBetween(id, 600, 19, 23);
+  const heatDays = intBetween(id, 601, 4, 7);
+  const lastHeat = daysAgo(id, 602, 7, 30);
+  const status   = pick(id, 603, ["Open — cycling normally", "Open — cycling normally", "Open — anestrus (transitional)"]);
+  const reprExam = pick(id, 604, [
+    "Uterus palpates normal on rectal — mild uterine tone consistent with luteal phase. Ovaries smooth, no active follicle palpated. Perineal conformation adequate.",
+    "Uterine tone moderate — consistent with early follicular phase. Right ovary: 32 mm follicle palpated. Left ovary quiescent. Vulval conformation good with adequate perineal seal.",
+    "Uterus small and tubular — consistent with anestrous state. No palpable follicles. Reproductive tract appears healthy. Recommend hormonal monitoring as season begins.",
+  ]);
+  const hpg = pick(id, 605, ["Progesterone < 1 ng/mL (follicular phase)", "Progesterone 3.2 ng/mL (mid-luteal)", "Progesterone < 0.5 ng/mL (anestrus)"]);
+  const uterineFlush = pick(id, 606, ["Clear — no cytological evidence of endometritis", "Slight PMN infiltrate — treated with uterine lavage, resolved", "Clear — culture negative"]);
+  const caslick = seed(id, 607) > 0.65;
+
+  // Foaling history (mares 5+ years old have 0-3 foals)
+  const numFoals = ageYears >= 5 ? intBetween(id, 610, 0, Math.min(ageYears - 3, 4)) : 0;
+  const foals = Array.from({ length: numFoals }, (_, i) => {
+    const foalYear = new Date().getFullYear() - numFoals + i;
+    return {
+      year: foalYear,
+      sire: pick(id, 611 + i, ["Unknown Sire", "Distant Thunder", "Ashwood Blaze", "Rowanfield Echo", "Copperwind Bolt", "Black Heron"]),
+      sex:  pick(id, 620 + i, ["Colt", "Filly"]),
+      outcome: pick(id, 630 + i, ["Live foal, weaned normally", "Live foal, healthy", "Live foal — retained in herd", "Live foal, sold at weaning"]),
+    };
+  });
+  const recs = [
+    pick(id, 640, ["Continue monitoring cycle. No interventions required at this time.", "Progesterone monitoring recommended prior to next breeding attempt.", "Recommend repeat reproductive exam at next oestrus."]),
+    caslick ? "Caslick's procedure has been performed — will require episiotomy prior to breeding." : "No Caslick's procedure in place. Perineal conformation suitable for natural covering.",
+    pick(id, 641, ["Annual reproductive examination recommended.", "Uterine culture recommended prior to next breeding season.", "Ultrasound monitoring of follicular development advised for optimal breeding timing."]),
+  ];
+  return { cycleLen, heatDays, lastHeat, status, reprExam, hpg, uterineFlush, caslick, foals, recs };
+}
+
+function MareReproductivePage({ h }: { h: PdfHorse }) {
+  const r = buildReproductive(h.id, h.dob); const today = fmtDate(new Date());
+  return (
+    <div style={base}>
+      <PageHeader title="MARE REPRODUCTIVE RECORD" />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0 36px", marginBottom: 10 }}>
+        {([["Mare's Name", h.name], ["Breed", h.breed], ["Coat", h.coat], ["Foal Date", h.dob ? fmtDate(h.dob) : null], ["Reg. Number", h.regNumber], ["Registered Stable", h.stablePrefix || "Redfield EC"]] as [string, string | null][]).map(([lbl, val]) => <LabelVal key={lbl} label={lbl} value={val} />)}
+      </div>
+      <div style={{ fontFamily: "var(--font-lato)", fontSize: 13, marginBottom: 8 }}>
+        <strong style={{ color: MUTED, textTransform: "uppercase", fontSize: 11 }}>Gender: </strong><span style={{ color: TEXT }}>☑ MARE</span>
+        <span style={{ marginLeft: 32, fontWeight: 700, color: MUTED, textTransform: "uppercase", fontSize: 11 }}>Examining Vet: </span><span style={{ color: TEXT }}>{VET}</span>
+        <span style={{ marginLeft: 32, fontWeight: 700, color: MUTED, textTransform: "uppercase", fontSize: 11 }}>Date: </span><span style={{ color: TEXT }}>{today}</span>
+      </div>
+      <div style={{ height: 1, background: TEAL_LIGHT, marginBottom: 16 }} />
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 48px", marginBottom: 20 }}>
+        <div>
+          <Bar>Reproductive Status</Bar>
+          {[["Current Status", r.status], ["Cycle Length", `${r.cycleLen} days`], ["Heat Duration", `${r.heatDays} days`], ["Last Observed Heat", r.lastHeat], ["Caslick's Procedure", r.caslick ? "Yes — in place" : "No"], ["Number of Previous Foals", r.foals.length.toString()]].map(([lbl, val]) => (
+            <div key={lbl} style={{ display: "flex", borderBottom: `1px solid ${TEAL_LIGHT}`, padding: "9px 0" }}>
+              <span style={{ fontFamily: "var(--font-lato)", fontSize: 12, fontWeight: 700, color: MUTED, textTransform: "uppercase", minWidth: 240 }}>{lbl}</span>
+              <span style={{ fontFamily: "var(--font-lato)", fontSize: 14, color: TEXT, fontStyle: "italic" }}>{val}</span>
+            </div>
+          ))}
+        </div>
+        <div>
+          <Bar>Hormonal &amp; Cytology</Bar>
+          {[["Progesterone", r.hpg], ["Uterine Flush / Cytology", r.uterineFlush], ["Culture", pick(h.id, 642, ["Not performed", "Negative — no significant growth", "Streptococcus equi var. zooepidemicus — treated, resolved"])]].map(([lbl, val]) => (
+            <div key={lbl} style={{ borderBottom: `1px solid ${TEAL_LIGHT}`, padding: "9px 0" }}>
+              <div style={{ fontFamily: "var(--font-lato)", fontSize: 12, fontWeight: 700, color: MUTED, textTransform: "uppercase" }}>{lbl}</div>
+              <div style={{ fontFamily: "var(--font-lato)", fontSize: 13, color: TEXT, fontStyle: "italic" }}>{val}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <Bar>Reproductive Examination Findings</Bar>
+      <div style={{ fontFamily: "var(--font-lato)", fontSize: 14, color: TEXT, fontStyle: "italic", lineHeight: 1.8, borderLeft: `3px solid ${TEAL}`, paddingLeft: 16, marginBottom: 20 }}>{r.reprExam}</div>
+
+      {r.foals.length > 0 && (
+        <>
+          <Bar>Foaling History</Bar>
+          <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 20, fontFamily: "var(--font-lato)", fontSize: 13 }}>
+            <thead><tr style={{ background: "rgba(135,155,149,0.14)" }}>{["Year", "Sire", "Sex of Foal", "Outcome"].map(col => <th key={col} style={{ border: `1px solid ${TEAL_LIGHT}`, padding: "9px 14px", color: MUTED, fontWeight: 700, fontSize: 11, textTransform: "uppercase", textAlign: "left" }}>{col}</th>)}</tr></thead>
+            <tbody>{r.foals.map((f, i) => <tr key={i} style={{ background: i % 2 === 0 ? WHITE : "rgba(135,155,149,0.04)" }}><td style={{ border: `1px solid ${TEAL_LIGHT}`, padding: "10px 14px", color: TEXT }}>{f.year}</td><td style={{ border: `1px solid ${TEAL_LIGHT}`, padding: "10px 14px", color: TEXT }}>{f.sire}</td><td style={{ border: `1px solid ${TEAL_LIGHT}`, padding: "10px 14px", color: TEXT }}>{f.sex}</td><td style={{ border: `1px solid ${TEAL_LIGHT}`, padding: "10px 14px", color: MUTED, fontStyle: "italic" }}>{f.outcome}</td></tr>)}</tbody>
+          </table>
+        </>
+      )}
+
+      <Bar>Recommendations</Bar>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
+        {r.recs.map((rec, i) => <div key={i} style={{ display: "flex", gap: 12 }}><span style={{ color: GREEN_OK, fontWeight: 900, fontSize: 16, flexShrink: 0 }}>✓</span><span style={{ fontFamily: "var(--font-lato)", fontSize: 14, color: TEXT, lineHeight: 1.6 }}>{rec}</span></div>)}
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "flex-end" }}><SignBlock date={today} /></div>
+    </div>
+  );
+}
+
+// ─── EQUINE PASSPORT ──────────────────────────────────────────────────────────
+function EquinePassportPage({ h }: { h: PdfHorse }) {
+  const chip   = chipNumber(h.microchip, h.id);
+  const today  = fmtDate(new Date());
+  const issued = h.dob ? fmtDate(new Date(new Date(h.dob).getTime() + 60 * 864e5)) : today;
+  const expiry = fmtDate(new Date(Date.now() + 10 * 365 * 864e5));
+  const passNo = `EP-${new Date().getFullYear()}-${Array.from({ length: 8 }, (_, i) => Math.floor(seed(h.id, i + 700) * 10)).join("")}`;
+  const hd     = buildHealth(h.id, h.gender, h.height);
+  const markings = pick(h.id, 710, [
+    "Star on forehead. No other white markings. No brands.",
+    "Blaze from forehead to muzzle. Three white socks (LF, RF, RH). No brands.",
+    "Small star and snip. Left hind fetlock white. Freeze brand on left shoulder.",
+    "No facial markings. LF coronet white. No brands or scars.",
+    "Broad blaze. Four white socks. No brands. Small scar on left stifle — old injury, healed.",
+    "Star. Stripe. RF sock. No brands. Freeze brand on neck.",
+  ]);
+  return (
+    <div style={{ ...base, display: "flex", flexDirection: "column" }}>
+      {/* Passport border */}
+      <div style={{ position: "absolute", inset: 14, border: `3px double ${TEAL}`, borderRadius: 6, pointerEvents: "none" }} />
+
+      {/* Header strip */}
+      <div style={{ background: TEAL_DARK, color: WHITE, textAlign: "center", padding: "18px 0", marginBottom: 28, fontFamily: "var(--font-lato)", letterSpacing: "0.18em" }}>
+        <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4, opacity: 0.8 }}>OFFICIAL DOCUMENT · THE RIFT EQUESTRIAN AUTHORITY</div>
+        <div style={{ fontFamily: "var(--font-playfair)", fontSize: 32 }}>EQUINE PASSPORT</div>
+        <div style={{ fontSize: 12, opacity: 0.8, marginTop: 4 }}>Document No: {passNo}</div>
+      </div>
+
+      {/* Main columns */}
+      <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 36, marginBottom: 24 }}>
+        {/* Left: photo + chip */}
+        <div>
+          {/* Photo placeholder */}
+          <div style={{ width: "100%", aspectRatio: "3/4", border: `2px dashed ${TEAL}`, borderRadius: 6, background: "rgba(135,155,149,0.05)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
+            <div style={{ opacity: 0.2, marginBottom: 10 }}><CrossIcon size={40} /></div>
+            <div style={{ fontFamily: "var(--font-lato)", fontSize: 13, color: MUTED, letterSpacing: "0.1em", textAlign: "center" }}>OFFICIAL<br />PHOTOGRAPH</div>
+          </div>
+          {/* Chip box */}
+          <div style={{ background: BG, border: `1px solid ${TEAL_LIGHT}`, borderRadius: 6, padding: "14px 16px", marginBottom: 16 }}>
+            <div style={{ fontFamily: "var(--font-lato)", fontSize: 11, fontWeight: 700, color: MUTED, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>Microchip (ISO 11784/85)</div>
+            <div style={{ fontFamily: "Courier New, monospace", fontSize: 16, fontWeight: 900, color: TEAL_DARK, letterSpacing: "0.18em" }}>{chip.slice(0, 5)} {chip.slice(5, 10)} {chip.slice(10)}</div>
+          </div>
+          {/* Dates */}
+          <div style={{ fontFamily: "var(--font-lato)", fontSize: 12, color: MUTED }}>
+            <div style={{ display: "flex", gap: 8, marginBottom: 6 }}><span style={{ fontWeight: 700, textTransform: "uppercase", width: 70 }}>Issued:</span><span style={{ color: TEXT }}>{issued}</span></div>
+            <div style={{ display: "flex", gap: 8, marginBottom: 6 }}><span style={{ fontWeight: 700, textTransform: "uppercase", width: 70 }}>Expires:</span><span style={{ color: TEXT }}>{expiry}</span></div>
+            <div style={{ display: "flex", gap: 8 }}><span style={{ fontWeight: 700, textTransform: "uppercase", width: 70 }}>Authority:</span><span style={{ color: TEXT }}>TREA</span></div>
+          </div>
+        </div>
+
+        {/* Right: details */}
+        <div>
+          <Bar>Identification</Bar>
+          <div style={{ marginBottom: 18 }}>
+            {([["Name", h.name], ["Breed", h.breed], ["Gender", h.gender], ["Coat Colour", h.coat], ["Genotype", h.genotype], ["Date of Birth", h.dob ? fmtDate(h.dob) : null], ["Height", h.height ? `${h.height} hh` : null], ["Reg. Number", h.regNumber]] as [string, string | null][]).map(([lbl, val]) => (
+              <div key={lbl} style={{ display: "flex", borderBottom: `1px solid ${TEAL_LIGHT}`, padding: "8px 0" }}>
+                <span style={{ fontFamily: "var(--font-lato)", fontSize: 12, fontWeight: 700, color: MUTED, textTransform: "uppercase", minWidth: 160 }}>{lbl}</span>
+                <span style={{ fontFamily: "var(--font-lato)", fontSize: 14, color: TEXT }}>{val || "—"}</span>
+              </div>
+            ))}
+          </div>
+
+          <Bar>Breeding</Bar>
+          <div style={{ marginBottom: 18 }}>
+            {([["Sire", h.sireName], ["Dam", h.damName], ["Breeder / Stable", h.stablePrefix || "Redfield Equestrian Centre"]] as [string, string | null][]).map(([lbl, val]) => (
+              <div key={lbl} style={{ display: "flex", borderBottom: `1px solid ${TEAL_LIGHT}`, padding: "8px 0" }}>
+                <span style={{ fontFamily: "var(--font-lato)", fontSize: 12, fontWeight: 700, color: MUTED, textTransform: "uppercase", minWidth: 160 }}>{lbl}</span>
+                <span style={{ fontFamily: "var(--font-lato)", fontSize: 14, color: TEXT }}>{val || "—"}</span>
+              </div>
+            ))}
+          </div>
+
+          <Bar>Markings &amp; Description</Bar>
+          <div style={{ fontFamily: "var(--font-lato)", fontSize: 13, color: TEXT, fontStyle: "italic", lineHeight: 1.7, borderLeft: `3px solid ${TEAL}`, paddingLeft: 14 }}>{markings}</div>
+        </div>
+      </div>
+
+      {/* Vaccination summary bar */}
+      <Bar>Recent Vaccinations (Summary — see Health Book for full record)</Bar>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 20 }}>
+        {hd.vaxList.slice(0, 5).map(v => (
+          <div key={v.name} style={{ background: WHITE, border: `1px solid ${TEAL_LIGHT}`, borderRadius: 6, padding: "8px 14px" }}>
+            <div style={{ fontFamily: "var(--font-lato)", fontSize: 11, fontWeight: 700, color: TEAL_DARK }}>{v.name}</div>
+            <div style={{ fontFamily: "var(--font-lato)", fontSize: 11, color: MUTED }}>{v.date}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Owner + seal */}
+      <div style={{ display: "flex", gap: 48, alignItems: "flex-end", marginTop: "auto" }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontFamily: "var(--font-lato)", fontSize: 11, fontWeight: 700, color: MUTED, textTransform: "uppercase", marginBottom: 6 }}>Registered Owner</div>
+          <div style={{ fontFamily: "var(--font-lato)", fontSize: 16, color: TEXT, borderBottom: `2px solid ${TEAL}`, paddingBottom: 6, minWidth: 340 }}>{h.ownerName || "—"}</div>
+        </div>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ width: 100, height: 100, borderRadius: "50%", border: `3px solid ${TEAL}`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "rgba(135,155,149,0.05)" }}>
+            <CrossIcon size={36} />
+            <div style={{ fontFamily: "var(--font-lato)", fontSize: 9, fontWeight: 700, color: MUTED, letterSpacing: "0.08em", marginTop: 4 }}>OFFICIAL</div>
+          </div>
+        </div>
+        <SignBlock date={today} />
+      </div>
+    </div>
+  );
+}
+
+// ─── FARRIER HISTORY ──────────────────────────────────────────────────────────
+function buildFarrier(id: string) {
+  const interval   = intBetween(id, 500, 35, 49);
+  const farrier    = "E. Morrison (RFA)";
+  const setup      = pick(id, 501, ["Barefoot — trimmed and balanced", "Steel keg shoes — front pair", "Steel keg shoes — all four", "Aluminum wide-web — front pair", "Hind shoes only — steel keg"]);
+  const notePool   = ["Good hoof growth. Balanced trim. No concerns.", "Minor flare on RF corrected. Wall integrity maintained.", "Hoof wall in excellent condition. Reset went well.", "Slight bruising on LF sole — monitor. Pad not required.", "Normal growth and wear. All four walls in good condition.", "Excellent wall thickness. Shoe fit well. No hot spots.", "LH shoe loose — re-set with additional clinch. Resolved.", "Even wear pattern. Hoof quality consistent.", "Good hoof quality. Mild thrush LH — treated with Thrushbuster.", "Short shoeing interval due to show schedule. No issues."];
+  const typePool   = ["Full Reset (4 shoes)", "Trim & Balance", "Front Reset (2 shoes)", "Trim only", "Hind Reset (2 shoes)", "Full Reset — concave plates"];
+  const rows       = Array.from({ length: 10 }, (_, i) => ({
+    date: fmtDate(new Date(Date.now() - interval * (i + 1) * 864e5)),
+    type: pick(id, 510 + i, typePool),
+    notes: pick(id, 520 + i, notePool),
+  }));
+  const nextDue    = fmtDate(new Date(Date.now() + interval * 864e5));
+  return { interval, farrier, setup, rows, nextDue };
+}
+
+function FarrierHistoryPage({ h }: { h: PdfHorse }) {
+  const f = buildFarrier(h.id); const today = fmtDate(new Date());
+  return (
+    <div style={base}>
+      <PageHeader title="FARRIERY RECORD" />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0 36px", marginBottom: 10 }}>
+        {([["Horse", h.name], ["Breed", h.breed], ["Gender", h.gender], ["Foal Date", h.dob ? fmtDate(h.dob) : null], ["Height", h.height ? `${h.height} hh` : null], ["Stable", h.stablePrefix || "Redfield EC"]] as [string, string | null][]).map(([lbl, val]) => <LabelVal key={lbl} label={lbl} value={val} />)}
+      </div>
+      <div style={{ height: 1, background: TEAL_LIGHT, marginBottom: 16 }} />
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 48px", marginBottom: 20 }}>
+        <div>
+          <Bar>Current Setup</Bar>
+          {[["Registered Farrier", f.farrier], ["Qualifications", "Registered Farriery Association (RFA)"], ["Current Shoeing", f.setup], ["Trim Interval", `${f.interval} days`], ["Next Appointment Due", f.nextDue]].map(([lbl, val]) => (
+            <div key={lbl} style={{ display: "flex", borderBottom: `1px solid ${TEAL_LIGHT}`, padding: "10px 0" }}>
+              <span style={{ fontFamily: "var(--font-lato)", fontSize: 12, fontWeight: 700, color: MUTED, textTransform: "uppercase", minWidth: 230 }}>{lbl}</span>
+              <span style={{ fontFamily: "var(--font-lato)", fontSize: 14, color: TEXT, fontStyle: "italic" }}>{val}</span>
+            </div>
+          ))}
+        </div>
+        <div>
+          <Bar>Hoof Notes</Bar>
+          <div style={{ fontFamily: "var(--font-lato)", fontSize: 13, color: TEXT, lineHeight: 1.8, fontStyle: "italic", borderLeft: `3px solid ${TEAL}`, paddingLeft: 14 }}>
+            {pick(h.id, 530, ["Hooves are well-balanced with good wall thickness. No chronic issues identified. Hoof quality has been consistently good under current management.", "Hoof quality generally good. Minor tendency for flaring on RF — managed through regular trimming intervals. No corrective shoeing required.", "Excellent hoof quality maintained on a strict 6-week schedule. Barefoot transition completed successfully — hoof wall has hardened well.", "Good hoof health throughout the record period. Some seasonal softening in wet months — monitored. No pathological changes."])}
+          </div>
+        </div>
+      </div>
+
+      <Bar>Appointment History</Bar>
+      <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 28, fontFamily: "var(--font-lato)", fontSize: 13 }}>
+        <thead><tr style={{ background: "rgba(135,155,149,0.14)" }}>{["Date", "Service Performed", "Notes"].map(col => <th key={col} style={{ border: `1px solid ${TEAL_LIGHT}`, padding: "9px 14px", color: MUTED, fontWeight: 700, fontSize: 11, textTransform: "uppercase", textAlign: "left" }}>{col}</th>)}</tr></thead>
+        <tbody>{f.rows.map((row, i) => <tr key={i} style={{ background: i % 2 === 0 ? WHITE : "rgba(135,155,149,0.04)" }}><td style={{ border: `1px solid ${TEAL_LIGHT}`, padding: "10px 14px", color: TEXT, whiteSpace: "nowrap" }}>{row.date}</td><td style={{ border: `1px solid ${TEAL_LIGHT}`, padding: "10px 14px", color: TEXT, fontWeight: 700 }}>{row.type}</td><td style={{ border: `1px solid ${TEAL_LIGHT}`, padding: "10px 14px", color: MUTED, fontStyle: "italic" }}>{row.notes}</td></tr>)}</tbody>
+      </table>
+
+      <div style={{ display: "flex", gap: 36, alignItems: "flex-end" }}>
+        <div style={{ flex: 1, fontFamily: "var(--font-lato)", fontSize: 13, color: MUTED, fontStyle: "italic" }}>Record maintained by {f.farrier} in partnership with Redfield Equestrian Centre. Last updated: {today}.</div>
+        <SignBlock sigName="E. Morrison" line2="E. Morrison (RFA)" line3="Registered Farrier" licLine="" date={today} />
+      </div>
+    </div>
+  );
+}
+
 // ─── Capture / download helpers ────────────────────────────────────────────────
 const RATIO = 2;
 
@@ -911,21 +1386,42 @@ function Btn({ onClick, disabled, children }: { onClick: () => void; disabled: b
   );
 }
 
+const inputStyle: React.CSSProperties = {
+  border: "1px solid var(--border)", borderRadius: 5, padding: "6px 10px",
+  fontFamily: "var(--font-lato)", fontSize: 13, color: "var(--text)", background: "var(--white)",
+  width: "100%", boxSizing: "border-box",
+};
+
 export default function PdfDownloader({ horse, results }: PdfDownloaderProps) {
-  const r0  = useRef<HTMLDivElement>(null); // HB cover
-  const r1  = useRef<HTMLDivElement>(null); // HB health report
-  const r2  = useRef<HTMLDivElement>(null); // HB preventive care
-  const r3  = useRef<HTMLDivElement>(null); // HB clinical exam
-  const r4  = useRef<HTMLDivElement>(null); // HB xray pg1
-  const r5  = useRef<HTMLDivElement>(null); // HB xray pg2
+  // Health book
+  const r0  = useRef<HTMLDivElement>(null);
+  const r1  = useRef<HTMLDivElement>(null);
+  const r2  = useRef<HTMLDivElement>(null);
+  const r3  = useRef<HTMLDivElement>(null);
+  const r4  = useRef<HTMLDivElement>(null);
+  const r5  = useRef<HTMLDivElement>(null);
+  // Existing docs
   const mcR = useRef<HTMLDivElement>(null);
   const frt = useRef<HTMLDivElement>(null);
   const ins = useRef<HTMLDivElement>(null);
   const tlg = useRef<HTMLDivElement>(null);
+  // New docs
+  const pp1 = useRef<HTMLDivElement>(null);
+  const pp2 = useRef<HTMLDivElement>(null);
+  const bos = useRef<HTMLDivElement>(null);
+  const mrp = useRef<HTMLDivElement>(null);
+  const epp = useRef<HTMLDivElement>(null);
+  const fhr = useRef<HTMLDivElement>(null);
 
-  const [status, setStatus] = useState<string | null>(null);
-  const sl = horseSlug(horse.name);
+  const [status, setStatus]           = useState<string | null>(null);
+  const [buyerName, setBuyerName]     = useState("");
+  const [buyerAddress, setBuyerAddress] = useState("");
+  const [salePrice, setSalePrice]     = useState("");
+  const [saleDate, setSaleDate]       = useState(fmtDate(new Date()));
+
+  const sl         = horseSlug(horse.name);
   const isStallion = horse.gender === "Stallion";
+  const isMare     = horse.gender === "Mare";
 
   async function run(label: string, fn: () => Promise<void>) {
     setStatus(`Generating ${label}…`);
@@ -934,43 +1430,99 @@ export default function PdfDownloader({ horse, results }: PdfDownloaderProps) {
 
   const PS: React.CSSProperties = { width: PW, height: PH, flexShrink: 0 };
 
+  const labelStyle: React.CSSProperties = {
+    fontFamily: "var(--font-lato)", fontSize: 11, fontWeight: 700,
+    color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em",
+    display: "block", marginBottom: 4,
+  };
+
   return (
     <>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        {/* Health book: 6 pages → PDF */}
-        <Btn disabled={!!status} onClick={() => run("Health Book", () => asPdf([r0, r1, r2, r3, r4, r5], `${sl}-health-book.pdf`))}>
-          {status?.includes("Health Book") ? status : "↓ Health Book PDF"}
-        </Btn>
-        {/* Single-page → PNG */}
-        <Btn disabled={!!status} onClick={() => run("Microchip Card", () => asPng(mcR, `${sl}-microchip.png`))}>
-          {status?.includes("Microchip") ? status : "↓ Microchip Card"}
-        </Btn>
-        {isStallion && (
-          <Btn disabled={!!status} onClick={() => run("BSE Report", () => asPng(frt, `${sl}-bse.png`))}>
-            {status?.includes("BSE") ? status : "↓ BSE Report"}
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {/* Row 1: existing docs */}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Btn disabled={!!status} onClick={() => run("Health Book", () => asPdf([r0, r1, r2, r3, r4, r5], `${sl}-health-book.pdf`))}>
+            {status?.includes("Health Book") ? status : "↓ Health Book PDF"}
           </Btn>
-        )}
-        <Btn disabled={!!status} onClick={() => run("Insurance", () => asPng(ins, `${sl}-insurance.png`))}>
-          {status?.includes("Insurance") ? status : "↓ Insurance Cert"}
-        </Btn>
-        {/* Training log → PDF */}
-        <Btn disabled={!!status} onClick={() => run("Training Log", () => asPdf([tlg], `${sl}-training-log.pdf`))}>
-          {status?.includes("Training Log") ? status : "↓ Training Log PDF"}
-        </Btn>
+          <Btn disabled={!!status} onClick={() => run("Microchip Card", () => asPng(mcR, `${sl}-microchip.png`))}>
+            {status?.includes("Microchip") ? status : "↓ Microchip Card"}
+          </Btn>
+          {isStallion && (
+            <Btn disabled={!!status} onClick={() => run("BSE Report", () => asPng(frt, `${sl}-bse.png`))}>
+              {status?.includes("BSE") ? status : "↓ BSE Report"}
+            </Btn>
+          )}
+          {isMare && (
+            <Btn disabled={!!status} onClick={() => run("Reproductive Record", () => asPng(mrp, `${sl}-reproductive.png`))}>
+              {status?.includes("Reproductive") ? status : "↓ Reproductive Record"}
+            </Btn>
+          )}
+          <Btn disabled={!!status} onClick={() => run("Insurance", () => asPng(ins, `${sl}-insurance.png`))}>
+            {status?.includes("Insurance") ? status : "↓ Insurance Cert"}
+          </Btn>
+          <Btn disabled={!!status} onClick={() => run("Training Log", () => asPdf([tlg], `${sl}-training-log.pdf`))}>
+            {status?.includes("Training Log") ? status : "↓ Training Log PDF"}
+          </Btn>
+        </div>
+
+        {/* Row 2: new docs */}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Btn disabled={!!status} onClick={() => run("PPE Report", () => asPdf([pp1, pp2], `${sl}-ppe-report.pdf`))}>
+            {status?.includes("PPE") ? status : "↓ PPE Report PDF"}
+          </Btn>
+          <Btn disabled={!!status} onClick={() => run("Equine Passport", () => asPng(epp, `${sl}-passport.png`))}>
+            {status?.includes("Passport") ? status : "↓ Equine Passport"}
+          </Btn>
+          <Btn disabled={!!status} onClick={() => run("Farrier History", () => asPng(fhr, `${sl}-farrier-history.png`))}>
+            {status?.includes("Farrier") ? status : "↓ Farrier History"}
+          </Btn>
+        </div>
+
+        {/* Bill of Sale — inline buyer form */}
+        <div style={{ background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 8, padding: "14px 16px" }}>
+          <div style={{ fontFamily: "var(--font-lato)", fontSize: 13, fontWeight: 700, color: "var(--teal-dark)", marginBottom: 10 }}>Bill of Sale — Buyer Details</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 140px 160px", gap: 10, marginBottom: 10 }}>
+            <div>
+              <label style={labelStyle}>Buyer&rsquo;s Full Name</label>
+              <input style={inputStyle} value={buyerName} onChange={e => setBuyerName(e.target.value)} placeholder="Full name…" />
+            </div>
+            <div>
+              <label style={labelStyle}>Buyer&rsquo;s Address</label>
+              <input style={inputStyle} value={buyerAddress} onChange={e => setBuyerAddress(e.target.value)} placeholder="Address…" />
+            </div>
+            <div>
+              <label style={labelStyle}>Sale Price ($)</label>
+              <input style={inputStyle} value={salePrice} onChange={e => setSalePrice(e.target.value)} placeholder="0" type="number" min="0" />
+            </div>
+            <div>
+              <label style={labelStyle}>Date of Sale</label>
+              <input style={inputStyle} value={saleDate} onChange={e => setSaleDate(e.target.value)} placeholder="DD/MM/YYYY" />
+            </div>
+          </div>
+          <Btn disabled={!!status} onClick={() => run("Bill of Sale", () => asPng(bos, `${sl}-bill-of-sale.png`))}>
+            {status?.includes("Bill of Sale") ? status : "↓ Bill of Sale"}
+          </Btn>
+        </div>
       </div>
 
       {/* Off-screen render targets */}
       <div style={{ position: "fixed", left: -99999, top: 0, pointerEvents: "none" }} aria-hidden>
-        <div ref={r0} style={PS}><HBCover h={horse} /></div>
-        <div ref={r1} style={PS}><HBHealthReport h={horse} /></div>
-        <div ref={r2} style={PS}><HBPreventiveCare h={horse} /></div>
-        <div ref={r3} style={PS}><HBClinicalExam h={horse} /></div>
-        <div ref={r4} style={PS}><XRayPage h={horse} pgOffset={0} /></div>
-        <div ref={r5} style={PS}><XRayPage h={horse} pgOffset={1} /></div>
+        <div ref={r0}  style={PS}><HBCover h={horse} /></div>
+        <div ref={r1}  style={PS}><HBHealthReport h={horse} /></div>
+        <div ref={r2}  style={PS}><HBPreventiveCare h={horse} /></div>
+        <div ref={r3}  style={PS}><HBClinicalExam h={horse} /></div>
+        <div ref={r4}  style={PS}><XRayPage h={horse} pgOffset={0} /></div>
+        <div ref={r5}  style={PS}><XRayPage h={horse} pgOffset={1} /></div>
         {isStallion && <div ref={frt} style={PS}><FertilityPage h={horse} /></div>}
+        {isMare     && <div ref={mrp} style={PS}><MareReproductivePage h={horse} /></div>}
         <div ref={mcR} style={PS}><MicrochipPage h={horse} /></div>
         <div ref={ins} style={PS}><InsurancePage h={horse} /></div>
         <div ref={tlg} style={PS}><TrainingLogPage h={horse} results={results} /></div>
+        <div ref={pp1} style={PS}><PPEPage1 h={horse} /></div>
+        <div ref={pp2} style={PS}><PPEPage2 h={horse} /></div>
+        <div ref={bos} style={PS}><BillOfSalePage h={horse} buyerName={buyerName} buyerAddress={buyerAddress} salePrice={salePrice} saleDate={saleDate} /></div>
+        <div ref={epp} style={PS}><EquinePassportPage h={horse} /></div>
+        <div ref={fhr} style={PS}><FarrierHistoryPage h={horse} /></div>
       </div>
     </>
   );

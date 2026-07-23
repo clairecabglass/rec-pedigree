@@ -117,7 +117,7 @@ export default async function PapersPage({ params }: { params: Promise<{ id: str
         <div style={{ ...card, gap: 14 }}>
           <div style={{ fontFamily: "var(--font-playfair)", fontSize: 18, color: "var(--teal-dark)" }}>Belmont Veterinarian Clinic — PDF Documents</div>
           <div style={{ color: "var(--text-muted)", fontFamily: "var(--font-lato)", fontSize: 13 }}>
-            Health &amp; Vet Book (6 pages: Cover · Vitals &amp; Vaccinations · Preventive Care · Clinical Exam · X-Rays ×2) · Microchip Registration · BSE / Fertility (stallions) · Insurance Certificate · Training Log PDF
+            Health Book · PPE Report · Microchip · BSE (stallions) · Reproductive Record (mares) · Insurance · Training Log · Bill of Sale · Equine Passport · Farrier History
           </div>
           <PdfDownloader
             horse={{
