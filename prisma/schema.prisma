@@ -244,6 +244,17 @@ model SpoonerBuildPhoto {
 // A version of the raw spawn-data .txt file — some builds have multiple
 // variants of the same arena/preset, so this is one-to-many rather than a
 // single field on SpoonerBuild.
+model Player {
+  id           String   @id @default(cuid())
+  ign          String   // In-game character name
+  username     String   // RedM / Discord username
+  stableName   String?
+  stablePrefix String?
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
 model SpoonerBuildTxtFile {
   id        String       @id @default(cuid())
   buildId   String

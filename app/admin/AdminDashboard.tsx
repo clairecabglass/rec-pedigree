@@ -179,6 +179,7 @@ export default function AdminDashboard({ stats, recent, initialTodos }: {
           { href: "/admin/breeding", icon: "tree" as const, label: "Breeding", desc: "Pregnancies with auto-growth tracker, plan pairings" },
           { href: "/admin/breeding/calendar", icon: "tree" as const, label: "Nursery", desc: "Growing foals, recent adults & due calendar" },
           { href: "/admin/recommended-sales", icon: "edit" as const, label: "Recommended Sales", desc: "Horses with too few clean breeding partners left" },
+          { href: "/admin/players", icon: "registry" as const, label: "Players", desc: "Player directory — IGN, username, stable info for auto-filling documents" },
           { href: "/admin/diary", icon: "edit" as const, label: "Diary & Services", desc: "Notes + favourite player services ledger" },
           { href: "/admin/spooner-builds", icon: "photo" as const, label: "Spooner Builds", desc: "Arena marker presets — photos, notes, and spawn-data .txt files" },
           { href: "/admin/horses/new", icon: "plus" as const, label: "Add Horse", desc: "Register a new horse manually" },

@@ -32,7 +32,10 @@ export default async function PapersPage({ params }: { params: Promise<{ id: str
   });
   if (!horse) notFound();
 
-  const results = await prisma.result.findMany({ where: { horseId: id }, orderBy: { date: "desc" } });
+  const [results, players] = await Promise.all([
+    prisma.result.findMany({ where: { horseId: id }, orderBy: { date: "desc" } }),
+    prisma.player.findMany({ orderBy: { ign: "asc" } }),
+  ]);
 
   const [templateDataUri, sigLab] = await Promise.all([
     toDataUri("REC Training Cert No Name.png"),
@@ -120,6 +123,7 @@ export default async function PapersPage({ params }: { params: Promise<{ id: str
             Health Book · PPE Report · Microchip · BSE (stallions) · Reproductive Record (mares) · Insurance · Training Log · Bill of Sale · Equine Passport · Farrier History
           </div>
           <PdfDownloader
+            players={players.map(p => ({ id: p.id, ign: p.ign, username: p.username, stableName: p.stableName, stablePrefix: p.stablePrefix }))}
             horse={{
               id:          horse.id,
               name:        horse.name,
