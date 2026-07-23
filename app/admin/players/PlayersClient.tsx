@@ -38,7 +38,7 @@ function PlayerForm({ initial, onSave, onCancel, saving }: {
         </div>
         <div>
           <label style={lbl}>Username *</label>
-          <input style={inp} value={form.username} onChange={set("username")} placeholder="e.g. claire_w" />
+          <input style={inp} value={form.username} onChange={set("username")} placeholder="e.g. rider99" />
         </div>
         <div>
           <label style={lbl}>Stable Name</label>

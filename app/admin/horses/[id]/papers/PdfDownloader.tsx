@@ -1528,7 +1528,7 @@ export default function PdfDownloader({ horse, results, players }: PdfDownloader
             </div>
             <div>
               <label style={labelStyle}>Username</label>
-              <input style={inputStyle} value={buyerUsername} onChange={e => setBuyerUsername(e.target.value)} placeholder="e.g. claire_w" />
+              <input style={inputStyle} value={buyerUsername} onChange={e => setBuyerUsername(e.target.value)} placeholder="e.g. rider99" />
             </div>
             <div>
               <label style={labelStyle}>Stable Name</label>
