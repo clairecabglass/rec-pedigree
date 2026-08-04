@@ -194,6 +194,18 @@ model HorseEvent {
   @@index([horseId])
 }
 
+// Multi-generation breeding plan (herd planner).
+model HerdPlan {
+  id        String   @id @default(cuid())
+  title     String
+  status    String   @default("active") // active | paused | completed | archived
+  goal      Json     // { breed, targetGen, coiCeiling, discipline, notes }
+  tree      Json?    // sparse PlanNode tree — goal horse at root, ancestors as sire/dam
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 // Admin-only diary entries. We keep a single global "general notes" row
 // keyed by the string "general" and add more keyed sections (e.g.
 // "stable-strategy") later if needed.
