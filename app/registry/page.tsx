@@ -32,8 +32,11 @@ export default async function RegistryPage() {
   // Public registry shows owned, [REC]-tagged horses. Outside/Void/Expected are
   // record-keeping only. Admins receive ALL owned horses + a toggle to show non-[REC].
   const owned = { OR: [{ ownership: { notIn: ["Outside", "Void", "Expected"] } }, { ownership: null }] };
+  const notPlaceholder = { isImportedPlaceholder: false };
   const horses = await prisma.horse.findMany({
-    where: admin ? owned : { AND: [owned, { name: { startsWith: "[REC]" } }] },
+    where: admin
+      ? { AND: [owned, notPlaceholder] }
+      : { AND: [owned, notPlaceholder, { name: { startsWith: "[REC]" } }] },
     orderBy: { name: "asc" },
     select: {
       id: true, name: true, breed: true, gender: true, coat: true,

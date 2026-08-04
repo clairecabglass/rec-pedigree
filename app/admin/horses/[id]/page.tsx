@@ -8,6 +8,8 @@ import VideoManager from "@/components/VideoManager";
 import DocumentManager from "@/components/DocumentManager";
 import ResultManager from "@/components/ResultManager";
 import PedigreeEditor from "@/components/PedigreeEditor";
+import { buildPedigreeTree, mergeJsonTree } from "@/lib/pedigree";
+import type { HorseMap } from "@/lib/pedigree";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +24,15 @@ export default async function EditHorsePage({ params }: { params: Promise<{ id: 
   });
   if (!horse) notFound();
   const results = await prisma.result.findMany({ where: { horseId: id }, orderBy: { date: "desc" } });
+
+  // Build the full pedigree tree from DB + stored JSON so all established
+  // ancestors are pre-populated when the editor opens.
+  const allHorses = await prisma.horse.findMany({
+    select: { id: true, name: true, breed: true, gender: true, coat: true, genotype: true, sireName: true, damName: true, ownership: true, isImportedPlaceholder: true },
+  });
+  const horseMap: HorseMap = new Map(allHorses.map((h) => [h.name.toLowerCase(), h]));
+  const dbTree  = buildPedigreeTree(horse.name, horseMap, 12);
+  const fullTree = mergeJsonTree(dbTree, horse.pedigreeTree);
 
   const initial = {
     id: horse.id,
@@ -116,19 +127,9 @@ export default async function EditHorsePage({ params }: { params: Promise<{ id: 
 
       <div style={card}>
         <h2 style={sectionHead}>Pedigree Editor</h2>
-        <p style={{ fontFamily: "var(--font-lato)", fontSize: 13, color: "var(--text-muted)", marginBottom: 16, marginTop: 0 }}>
-          Click any block to edit that ancestor. Use the → button to dive into deeper generations (up to 12). Click a breadcrumb to navigate back.
-        </p>
         <PedigreeEditor
           horseId={horse.id}
-          horseName={horse.name}
-          horseBreed={horse.breed}
-          horseGender={horse.gender}
-          horseCoat={horse.coat}
-          horseGenotype={horse.genotype}
-          horseSireName={horse.sireName}
-          horseDamName={horse.damName}
-          initialTree={horse.pedigreeTree}
+          initialTree={fullTree}
         />
       </div>
     </div>

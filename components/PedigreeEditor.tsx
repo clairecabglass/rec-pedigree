@@ -1,7 +1,7 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 
-// Sparse ancestor node — mirrors HorseNode but without id/inbreeding (those are computed)
+/* ---- Types ---- */
 export interface PedNode {
   name: string;
   breed?: string | null;
@@ -10,23 +10,30 @@ export interface PedNode {
   genotype?: string | null;
   sire?: PedNode | null;
   dam?: PedNode | null;
+  // id / inbreeding come from HorseNode — tolerated but ignored by editor
+  id?: string;
+  inbreeding?: boolean;
 }
 
-// Exact same palette as PedigreeTree.tsx
-const SIRE_CLR  = { bg: "var(--sire-bg)",  border: "var(--sire-border)",  text: "var(--sire-text)",  muted: "#7A9BB0" };
-const DAM_CLR   = { bg: "var(--dam-bg)",   border: "var(--dam-border)",   text: "var(--dam-text)",   muted: "#AE8099" };
-const ROOT_CLR  = { bg: "#E4E7E1",         border: "#BFC3BD",             text: "#3F5F5F",           muted: "#71807A" };
+/* ---- Exact same palette as PedigreeTree.tsx ---- */
+const SIRE_CLR = { bg: "var(--sire-bg)", border: "var(--sire-border)", text: "var(--sire-text)", muted: "#7A9BB0" };
+const DAM_CLR  = { bg: "var(--dam-bg)",  border: "var(--dam-border)",  text: "var(--dam-text)",  muted: "#AE8099" };
+const ROOT_CLR = { bg: "#E4E7E1",        border: "#BFC3BD",            text: "#3F5F5F",          muted: "#71807A" };
 
 type Slot = "root" | "sire" | "dam";
 type Step = "sire" | "dam";
 type Path = Step[];
 
-// Exact same size tables as PedigreeTree.tsx
-const NAME_SZ = [15, 13, 12, 11, 10, 9, 8, 8, 8, 8, 8];
-const META_SZ = [12, 11, 10,  9,  9, 8, 7, 7, 7, 7, 7];
+const NAME_SZ = [15, 13, 12, 11, 10,  9, 8, 8, 8, 8, 8, 8];
+const META_SZ = [12, 11, 10,  9,  9,  8, 7, 7, 7, 7, 7, 7];
 
-const WINDOW_DEPTH = 5; // gens shown at one time
-const GRID_H = 600;     // px
+const DESKTOP_H = 780;
+const MOBILE_H  = 420;
+function minRowH(depth: number) {
+  if (depth >= 7) return 15;
+  if (depth >= 5) return 20;
+  return 28;
+}
 
 function clr(slot: Slot) {
   if (slot === "sire") return SIRE_CLR;
@@ -34,10 +41,10 @@ function clr(slot: Slot) {
   return ROOT_CLR;
 }
 
-/* ---- tree helpers ---- */
+/* ---- Tree helpers ---- */
 function getAt(root: PedNode | null, path: Path): PedNode | null {
   let cur: PedNode | null = root;
-  for (const s of path) { if (!cur) return null; cur = cur[s] ?? null; }
+  for (const s of path) { if (!cur) return null; cur = (cur[s] as PedNode | null | undefined) ?? null; }
   return cur;
 }
 
@@ -45,14 +52,11 @@ function setAt(root: PedNode | null, path: Path, value: PedNode | null): PedNode
   if (path.length === 0) return value;
   const [head, ...tail] = path;
   const base: PedNode = root ?? { name: "" };
-  return { ...base, [head]: setAt(base[head] ?? null, tail, value) };
+  return { ...base, [head]: setAt((base[head] as PedNode | null | undefined) ?? null, tail, value) };
 }
 
-/* ---- grid ---- */
-interface PedCell {
-  col: number; rowStart: number; rowSpan: number;
-  node: PedNode | null; slot: Slot; relPath: Path;
-}
+/* ---- Grid ---- */
+interface PedCell { col: number; rowStart: number; rowSpan: number; node: PedNode | null; slot: Slot; relPath: Path; }
 
 function buildGrid(
   node: PedNode | null, col: number, rowStart: number, rowSpan: number,
@@ -61,65 +65,165 @@ function buildGrid(
   cells.push({ col, rowStart, rowSpan, node, slot, relPath });
   if (col >= maxDepth + 1) return;
   const half = rowSpan / 2;
-  buildGrid(node?.sire ?? null, col + 1, rowStart,        half, maxDepth, "sire", [...relPath, "sire"], cells);
-  buildGrid(node?.dam  ?? null, col + 1, rowStart + half, half, maxDepth, "dam",  [...relPath, "dam"],  cells);
+  buildGrid((node?.sire as PedNode | null | undefined) ?? null, col + 1, rowStart,        half, maxDepth, "sire", [...relPath, "sire"], cells);
+  buildGrid((node?.dam  as PedNode | null | undefined) ?? null, col + 1, rowStart + half, half, maxDepth, "dam",  [...relPath, "dam"],  cells);
 }
 
 function pathLabel(path: Path): string {
   if (path.length === 0) return "Root";
-  const map: Record<Step, string> = { sire: "Sire", dam: "Dam" };
-  return path.map((s) => map[s]).join(" → ");
+  return path.map((s) => (s === "sire" ? "Sire" : "Dam")).join(" → ");
 }
 
-/* ---- props ---- */
+/* ---- Props ---- */
 interface Props {
   horseId: string;
-  horseName: string;
-  horseBreed?: string | null;
-  horseGender?: string | null;
-  horseCoat?: string | null;
-  horseGenotype?: string | null;
-  horseSireName?: string | null;
-  horseDamName?: string | null;
-  initialTree?: unknown;
+  initialTree: PedNode | null;
 }
 
-/* ---- component ---- */
-export default function PedigreeEditor({
-  horseId, horseName, horseBreed, horseGender, horseCoat, horseGenotype,
-  horseSireName, horseDamName, initialTree,
-}: Props) {
-  const init = (): PedNode => {
-    if (initialTree && typeof initialTree === "object" && !Array.isArray(initialTree)) {
-      return initialTree as PedNode;
-    }
-    return {
-      name: horseName, breed: horseBreed, gender: horseGender,
-      coat: horseCoat, genotype: horseGenotype,
-      sire: horseSireName ? { name: horseSireName } : null,
-      dam:  horseDamName  ? { name: horseDamName  } : null,
+/* ---- Component ---- */
+export default function PedigreeEditor({ horseId, initialTree }: Props) {
+  /* ---- state ---- */
+  const [tree,         setTree]         = useState<PedNode>(() => initialTree ?? { name: "Unknown" });
+  const [windowPath,   setWindowPath]   = useState<Path>([]);   // path to current view root
+  const [depthState,   setDepthState]   = useState(4);
+  const [zoom,         setZoom]         = useState(1);
+  const [isMobile,     setIsMobile]     = useState(false);
+  const [containerW,   setContainerW]   = useState(1380);
+  const [canvasH,      setCanvasH]      = useState(DESKTOP_H);
+  const [isFs,         setIsFs]         = useState(false);
+
+  // edit state
+  const [selectedPath, setSelectedPath] = useState<Path | null>(null);
+  const [editName,     setEditName]     = useState("");
+  const [editBreed,    setEditBreed]    = useState("");
+  const [editGender,   setEditGender]   = useState("");
+  const [editCoat,     setEditCoat]     = useState("");
+  const [editGenotype, setEditGenotype] = useState("");
+  const [saving,       setSaving]       = useState(false);
+  const [savedMsg,     setSavedMsg]     = useState(false);
+
+  const wrapRef   = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const touchRef  = useRef<{ x: number; y: number; sl: number; st: number } | null>(null);
+  const pinchRef  = useRef<{ dist: number; zoom: number } | null>(null);
+
+  /* ---- effects ---- */
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const obs = new ResizeObserver(() => {
+      if (document.fullscreenElement) return;
+      setContainerW(el.clientWidth);
+      setCanvasH(el.clientHeight);
+    });
+    obs.observe(el);
+    setContainerW(el.clientWidth);
+    setCanvasH(el.clientHeight);
+    return () => obs.disconnect();
+  }, []);
+
+  useEffect(() => { setZoom(1); }, [depthState]); // eslint-disable-line
+
+  useEffect(() => {
+    if (isMobile) { setDepthState(3); setCanvasH(MOBILE_H); }
+    else          { setCanvasH(DESKTOP_H); }
+  }, [isMobile]);
+
+  useEffect(() => {
+    const onChange = () => {
+      const fs = document.fullscreenElement === wrapRef.current;
+      setIsFs(fs);
+      setTimeout(() => {
+        const el = scrollRef.current;
+        if (!el) return;
+        setContainerW(el.clientWidth);
+        setCanvasH(el.clientHeight);
+        setZoom(calcFit(depthState, el.clientHeight));
+      }, 260);
     };
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, [depthState]); // eslint-disable-line
+
+  /* ---- grid math ---- */
+  const windowRoot = getAt(tree, windowPath);
+  const maxDepth   = depthState;
+  const totalRows  = Math.pow(2, maxDepth);
+  const naturalH   = Math.max(canvasH, totalRows * minRowH(maxDepth));
+  const rowUnitH   = naturalH / totalRows;
+
+  const clampZoom = (z: number) => Math.min(3, Math.max(0.08, z));
+  const calcFit   = (d: number, h = canvasH) => {
+    const nh = Math.max(h, Math.pow(2, d) * minRowH(d));
+    return clampZoom(Math.min(1, h / nh));
   };
 
-  const [tree,           setTree]           = useState<PedNode>(init);
-  const [windowPath,     setWindowPath]     = useState<Path>([]);
-  const [selectedPath,   setSelectedPath]   = useState<Path | null>(null);
-  const [editName,       setEditName]       = useState("");
-  const [editBreed,      setEditBreed]      = useState("");
-  const [editGender,     setEditGender]     = useState("");
-  const [editCoat,       setEditCoat]       = useState("");
-  const [editGenotype,   setEditGenotype]   = useState("");
-  const [saving,         setSaving]         = useState(false);
-  const [savedMsg,       setSavedMsg]       = useState(false);
-
-  const windowRoot = getAt(tree, windowPath);
-  const totalRows  = Math.pow(2, WINDOW_DEPTH);
-  const rowUnitH   = GRID_H / totalRows;
-
   const cells: PedCell[] = [];
-  buildGrid(windowRoot, 1, 1, totalRows, WINDOW_DEPTH, "root", [], cells);
+  buildGrid(windowRoot, 1, 1, totalRows, maxDepth, "root", [], cells);
 
-  /* ---- actions ---- */
+  const colTemplate = `1.2fr repeat(${maxDepth}, 1fr)`;
+  const rowTemplate = `repeat(${totalRows}, 1fr)`;
+  const scaledW     = containerW * zoom;
+  const scaledH     = naturalH   * zoom;
+
+  /* ---- interaction handlers (same as PedigreeTree) ---- */
+  function onWheel(e: React.WheelEvent) {
+    if (e.ctrlKey || e.metaKey) { e.preventDefault(); setZoom((z) => clampZoom(z - e.deltaY * 0.002)); }
+  }
+
+  function onPanStart(e: React.MouseEvent) {
+    if ((e.target as HTMLElement).closest("button")) return;
+    const sc = scrollRef.current;
+    if (!sc) return;
+    const sx = e.clientX, sy = e.clientY, sl = sc.scrollLeft, st = sc.scrollTop;
+    sc.style.cursor = "grabbing";
+    const move = (ev: MouseEvent) => { sc.scrollLeft = sl - (ev.clientX - sx); sc.scrollTop = st - (ev.clientY - sy); };
+    const up   = () => { sc.style.cursor = "grab"; window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); };
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
+  }
+
+  function onTouchStart(e: React.TouchEvent) {
+    if (e.touches.length === 1) {
+      const t = e.touches[0], sc = scrollRef.current;
+      if (!sc) return;
+      touchRef.current = { x: t.clientX, y: t.clientY, sl: sc.scrollLeft, st: sc.scrollTop };
+      pinchRef.current = null;
+    } else if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      pinchRef.current = { dist: Math.hypot(dx, dy), zoom };
+      touchRef.current = null;
+    }
+  }
+
+  function onTouchMove(e: React.TouchEvent) {
+    if (e.touches.length === 1 && touchRef.current) {
+      const sc = scrollRef.current; if (!sc) return;
+      const t = e.touches[0];
+      sc.scrollLeft = touchRef.current.sl - (t.clientX - touchRef.current.x);
+      sc.scrollTop  = touchRef.current.st - (t.clientY - touchRef.current.y);
+    } else if (e.touches.length === 2 && pinchRef.current) {
+      e.preventDefault();
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      setZoom(clampZoom(pinchRef.current.zoom * Math.hypot(dx, dy) / pinchRef.current.dist));
+    }
+  }
+
+  async function toggleFullscreen() {
+    if (document.fullscreenElement) await document.exitFullscreen();
+    else await wrapRef.current?.requestFullscreen?.();
+  }
+
+  /* ---- edit actions ---- */
   function openCell(relPath: Path, node: PedNode | null) {
     setSelectedPath(relPath);
     setEditName(node?.name ?? "");
@@ -139,8 +243,8 @@ export default function PedigreeEditor({
       gender:   editGender.trim()   || null,
       coat:     editCoat.trim()     || null,
       genotype: editGenotype.trim() || null,
-      sire:     existing?.sire ?? null,
-      dam:      existing?.dam  ?? null,
+      sire:     (existing?.sire as PedNode | null | undefined) ?? null,
+      dam:      (existing?.dam  as PedNode | null | undefined) ?? null,
     };
     if (absPath.length === 0) {
       setTree((prev) => ({ ...prev, ...updated, sire: prev.sire, dam: prev.dam }));
@@ -163,28 +267,26 @@ export default function PedigreeEditor({
   function diveInto(relPath: Path) {
     setWindowPath([...windowPath, ...relPath]);
     setSelectedPath(null);
+    setZoom(1);
   }
 
   function navigateTo(path: Path) {
     setWindowPath(path);
     setSelectedPath(null);
+    setZoom(1);
   }
 
   async function savePedigree() {
     setSaving(true);
     try {
-      // Also sync sireName/damName to top-level fields so existing DB queries still work
-      const payload: Record<string, unknown> = { pedigreeTree: tree };
-      if (windowPath.length === 0) {
-        payload.sireName = tree.sire?.name ?? null;
-        payload.damName  = tree.dam?.name  ?? null;
-      }
-      const res = await fetch(`/api/horses/${horseId}`, {
+      // Use the dedicated pedigree endpoint which upserts all ancestor DB records
+      // so changes propagate to every other horse that shares the same ancestors.
+      const res = await fetch(`/api/horses/${horseId}/pedigree`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ tree: stripIds(tree) }),
       });
-      if (!res.ok) throw new Error("Save failed");
+      if (!res.ok) throw new Error();
       setSavedMsg(true);
     } catch {
       alert("Failed to save pedigree.");
@@ -201,70 +303,119 @@ export default function PedigreeEditor({
   }
 
   /* ---- styles ---- */
-  const btn: React.CSSProperties = {
+  const toolBtn: React.CSSProperties = {
     padding: "5px 12px", border: "1px solid var(--border)", borderRadius: 4,
     background: "white", color: "var(--teal-dark)", cursor: "pointer",
     fontSize: 12, fontFamily: "var(--font-lato)",
   };
-  const colTemplate = `1.2fr repeat(${WINDOW_DEPTH}, 1fr)`;
-  const rowTemplate  = `repeat(${totalRows}, 1fr)`;
 
+  /* ---- render ---- */
   return (
-    <div style={{ fontFamily: "var(--font-lato)" }}>
+    <div ref={wrapRef} style={isFs ? { background: "var(--cream)", height: "100vh", display: "flex", flexDirection: "column", padding: 16 } : { background: "var(--cream)" }}>
 
-      {/* Breadcrumb navigation */}
-      <div style={{ display: "flex", gap: 4, alignItems: "center", marginBottom: 10, flexWrap: "wrap" }}>
-        {crumbs.map((crumb, i) => (
-          <span key={i} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            {i > 0 && <span style={{ color: "var(--text-muted)", fontSize: 13 }}>›</span>}
-            <button
-              onClick={() => navigateTo(crumb.path)}
-              style={{
-                ...btn,
-                background: i === crumbs.length - 1 ? "var(--teal)" : "white",
-                color:      i === crumbs.length - 1 ? "white"       : "var(--teal-dark)",
-                fontWeight: i === crumbs.length - 1 ? 700           : 400,
-                padding: "4px 10px",
-              }}
-            >
-              {crumb.label}
-            </button>
-          </span>
-        ))}
-        <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--text-muted)" }}>
-          Click a cell to edit · → to dive into ancestors · breadcrumb to go back
-        </span>
-      </div>
+      {/* Breadcrumb */}
+      {crumbs.length > 1 && (
+        <div style={{ display: "flex", gap: 4, alignItems: "center", marginBottom: 8, flexWrap: "wrap" }}>
+          {crumbs.map((crumb, i) => (
+            <span key={i} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              {i > 0 && <span style={{ color: "var(--text-muted)", fontSize: 13 }}>›</span>}
+              <button
+                onClick={() => navigateTo(crumb.path)}
+                style={{
+                  ...toolBtn,
+                  background: i === crumbs.length - 1 ? "var(--teal)" : "white",
+                  color:      i === crumbs.length - 1 ? "white"       : "var(--teal-dark)",
+                  fontWeight: i === crumbs.length - 1 ? 700           : 400,
+                  padding: "3px 10px",
+                }}
+              >
+                {crumb.label}
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
 
-      {/* Pedigree grid — same look as PedigreeTree */}
-      <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden", background: "var(--cream-dark)", marginBottom: 12 }}>
-        <div style={{
-          display: "grid", gridTemplateColumns: colTemplate, gridTemplateRows: rowTemplate,
-          gap: 2, padding: 4, height: GRID_H, boxSizing: "border-box",
-        }}>
-          {cells.map((cell, i) => {
-            const isSelected = selectedPath !== null && selectedPath.join(",") === cell.relPath.join(",");
-            const isLeaf     = cell.col >= WINDOW_DEPTH + 1;
-            return (
-              <EditorCard
-                key={i}
-                cell={cell}
-                rowUnitH={rowUnitH}
-                isSelected={isSelected}
-                isLeaf={isLeaf}
-                onSelect={() => openCell(cell.relPath, cell.node)}
-                onDiveIn={!isLeaf ? () => diveInto(cell.relPath) : undefined}
-              />
-            );
-          })}
+      {/* Toolbar — identical layout to PedigreeTree */}
+      {isMobile ? (
+        <div style={{ marginBottom: 8, fontFamily: "var(--font-lato)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
+            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Gen:</span>
+            {[3, 4, 5, 6, 7].map((d) => (
+              <button key={d} onClick={() => setDepthState(d)}
+                style={{ ...toolBtn, padding: "4px 9px", fontSize: 11, background: depthState === d ? "var(--teal)" : "white", color: depthState === d ? "white" : "var(--text-muted)", fontWeight: depthState === d ? 700 : 400 }}
+              >{d}</button>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <button onClick={() => setZoom((z) => clampZoom(z - 0.15))} style={{ ...toolBtn, padding: "4px 9px", fontWeight: 700, fontSize: 13 }}>−</button>
+            <button onClick={() => setZoom(calcFit(maxDepth, canvasH))} style={{ ...toolBtn, fontSize: 11, padding: "4px 10px" }}>Fit {Math.round(zoom * 100)}%</button>
+            <button onClick={() => setZoom((z) => clampZoom(z + 0.15))} style={{ ...toolBtn, padding: "4px 9px", fontWeight: 700, fontSize: 13 }}>+</button>
+          </div>
+        </div>
+      ) : (
+        <div style={{ marginBottom: 10, display: "flex", gap: 8, alignItems: "center", fontFamily: "var(--font-lato)", fontSize: 13, flexWrap: "wrap" }}>
+          <span style={{ color: "var(--text-muted)" }}>Generations:</span>
+          {[3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((d) => (
+            <button key={d} onClick={() => setDepthState(d)}
+              style={{ ...toolBtn, background: depthState === d ? "var(--teal)" : "white", color: depthState === d ? "white" : "var(--text-muted)", fontWeight: depthState === d ? 700 : 400 }}
+            >{d}</button>
+          ))}
+          <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
+            <button onClick={() => setZoom((z) => clampZoom(z - 0.15))} style={{ ...toolBtn, padding: "5px 11px", fontWeight: 700 }}>−</button>
+            <button onClick={() => setZoom(calcFit(maxDepth, canvasH))} style={{ ...toolBtn, minWidth: 52, textAlign: "center" }} title="Click to fit view">{Math.round(zoom * 100)}%</button>
+            <button onClick={() => setZoom((z) => clampZoom(z + 0.15))} style={{ ...toolBtn, padding: "5px 11px", fontWeight: 700 }}>+</button>
+            <button onClick={toggleFullscreen} style={toolBtn}>{isFs ? "✕ Exit" : "⛶ Fullscreen"}</button>
+          </div>
+        </div>
+      )}
+      <p style={{ margin: "0 0 8px", fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-lato)" }}>
+        Click a block to edit it · use → to zoom into a branch · drag to pan · ⌘/Ctrl + scroll to zoom
+      </p>
+
+      {/* Grid — same scroll container layout as PedigreeTree */}
+      <div
+        ref={scrollRef}
+        onWheel={onWheel}
+        onMouseDown={onPanStart}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={() => { touchRef.current = null; pinchRef.current = null; }}
+        style={{
+          overflow: "auto", cursor: isMobile ? "default" : "grab",
+          border: "1px solid var(--border)", borderRadius: 8, background: "var(--cream-dark)",
+          touchAction: "none",
+          ...(isFs ? { flex: 1, minHeight: 0 } : { height: isMobile ? MOBILE_H : DESKTOP_H }),
+        }}
+      >
+        <div style={{ width: Math.max(scaledW, containerW), height: Math.max(scaledH, canvasH), position: "relative", flexShrink: 0 }}>
+          <div style={{ position: "absolute", top: 0, left: 0, width: containerW, height: naturalH, transform: `scale(${zoom})`, transformOrigin: "top left" }}>
+            <div style={{ display: "grid", gridTemplateColumns: colTemplate, gridTemplateRows: rowTemplate, gap: 2, width: "100%", height: "100%", padding: 4, boxSizing: "border-box" }}>
+              {cells.map((cell, i) => {
+                const isSelected = selectedPath !== null && selectedPath.join(",") === cell.relPath.join(",");
+                const isLeaf     = cell.col >= maxDepth + 1;
+                return (
+                  <EditorCard
+                    key={i}
+                    cell={cell}
+                    rowUnitH={rowUnitH}
+                    isSelected={isSelected}
+                    isLeaf={isLeaf}
+                    onSelect={() => openCell(cell.relPath, cell.node)}
+                    onDiveIn={!isLeaf ? () => diveInto(cell.relPath) : undefined}
+                  />
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Edit panel — appears when a cell is selected */}
+      {/* Edit panel */}
       {selectedPath !== null && (
-        <div style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 8, padding: 20, marginBottom: 12 }}>
+        <div style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 8, padding: 20, marginTop: 12 }}>
           <div style={{ fontFamily: "var(--font-playfair)", fontSize: 15, color: "var(--teal-dark)", marginBottom: 14 }}>
-            {[...windowPath, ...selectedPath].length === 0 ? "Root horse" : pathLabel([...windowPath, ...selectedPath])}
+            {[...windowPath, ...selectedPath].length === 0 ? tree.name : pathLabel([...windowPath, ...selectedPath])}
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <label style={labelSt}>
@@ -293,31 +444,25 @@ export default function PedigreeEditor({
               <input value={editGenotype} onChange={(e) => setEditGenotype(e.target.value)} style={inputSt} placeholder="e.g. Ee Aa" />
             </label>
           </div>
-          <div style={{ display: "flex", gap: 8, marginTop: 14, alignItems: "center" }}>
-            <button
-              onClick={applyEdit}
-              disabled={!editName.trim()}
-              style={{ ...btn, background: "var(--teal)", color: "white", fontWeight: 700, opacity: editName.trim() ? 1 : 0.5 }}
-            >
+          <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+            <button onClick={applyEdit} disabled={!editName.trim()}
+              style={{ ...toolBtn, background: "var(--teal)", color: "white", fontWeight: 700, opacity: editName.trim() ? 1 : 0.5 }}>
               Apply
             </button>
             {[...windowPath, ...selectedPath].length > 0 && (
-              <button onClick={removeNode} style={{ ...btn, color: "var(--inbreed-text)", borderColor: "var(--inbreed-border)" }}>
+              <button onClick={removeNode} style={{ ...toolBtn, color: "var(--inbreed-text)", borderColor: "var(--inbreed-border)" }}>
                 Remove
               </button>
             )}
-            <button onClick={() => setSelectedPath(null)} style={btn}>Cancel</button>
+            <button onClick={() => setSelectedPath(null)} style={toolBtn}>Cancel</button>
           </div>
         </div>
       )}
 
       {/* Save */}
-      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-        <button
-          onClick={savePedigree}
-          disabled={saving}
-          style={{ ...btn, background: "var(--teal-dark)", color: "white", fontWeight: 700, padding: "8px 20px", fontSize: 13, opacity: saving ? 0.6 : 1 }}
-        >
+      <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 14 }}>
+        <button onClick={savePedigree} disabled={saving}
+          style={{ ...toolBtn, background: "var(--teal-dark)", color: "white", fontWeight: 700, padding: "8px 20px", fontSize: 13, opacity: saving ? 0.6 : 1 }}>
           {saving ? "Saving…" : "Save Pedigree"}
         </button>
         {savedMsg && <span style={{ fontSize: 12, color: "var(--teal-dark)" }}>✓ Saved</span>}
@@ -326,7 +471,7 @@ export default function PedigreeEditor({
   );
 }
 
-/* ---- shared input styles ---- */
+/* ---- Shared styles ---- */
 const labelSt: React.CSSProperties = { display: "flex", flexDirection: "column", gap: 4 };
 const capSt:   React.CSSProperties = { fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em" };
 const inputSt: React.CSSProperties = {
@@ -334,6 +479,17 @@ const inputSt: React.CSSProperties = {
   fontSize: 13, fontFamily: "var(--font-lato)", background: "white",
   color: "var(--text)", width: "100%", boxSizing: "border-box",
 };
+
+/* ---- Strip computed fields before saving ---- */
+function stripIds(node: PedNode | null | undefined): PedNode | null {
+  if (!node) return null;
+  const { id: _id, inbreeding: _inb, ...rest } = node as PedNode & { id?: unknown; inbreeding?: unknown };
+  return {
+    ...rest,
+    sire: stripIds((rest.sire as PedNode | null | undefined) ?? null),
+    dam:  stripIds((rest.dam  as PedNode | null | undefined) ?? null),
+  };
+}
 
 /* ---- EditorCard ---- */
 interface CardProps {
@@ -343,36 +499,31 @@ interface CardProps {
 
 function EditorCard({ cell, rowUnitH, isSelected, isLeaf, onSelect, onDiveIn }: CardProps) {
   const { col, rowStart, rowSpan, node, slot } = cell;
-  const s       = clr(slot);
-  const nameSz  = NAME_SZ[col - 1] ?? 8;
-  const metaSz  = META_SZ[col - 1] ?? 7;
-  const cellH   = rowUnitH * rowSpan;
+  const s      = clr(slot);
+  const nameSz = NAME_SZ[col - 1] ?? 8;
+  const metaSz = META_SZ[col - 1] ?? 7;
+  const cellH  = rowUnitH * rowSpan;
   const isEmpty = !node;
-  const vPad    = col === 1 ? 10 : cellH < 18 ? 1 : cellH < 28 ? 2 : 4;
-
-  const borderStyle = isSelected
-    ? `2px solid var(--teal)`
-    : isEmpty
-    ? `1px dashed var(--border)`
-    : `1px solid ${s.border}`;
+  const vPad   = col === 1 ? 10 : cellH < 18 ? 1 : cellH < 28 ? 2 : 4;
 
   const style: React.CSSProperties = {
     gridColumn: col, gridRow: `${rowStart} / span ${rowSpan}`,
     background: isEmpty ? "transparent" : s.bg,
-    border: borderStyle, borderRadius: 4,
-    overflow: "hidden", cursor: "pointer",
-    minWidth: 0, minHeight: 0, position: "relative",
-    boxSizing: "border-box",
-    ...(col === 1 && !isEmpty ? { borderLeft: `4px solid #9AA396` } : {}),
+    border: isSelected
+      ? "2px solid var(--teal)"
+      : isEmpty
+      ? "1px dashed var(--border)"
+      : `1px solid ${s.border}`,
+    borderRadius: 4, overflow: "hidden", cursor: "pointer",
+    minWidth: 0, minHeight: 0, position: "relative", boxSizing: "border-box",
+    ...(col === 1 && !isEmpty ? { borderLeft: "4px solid #9AA396" } : {}),
   };
 
   return (
     <div style={style} onClick={onSelect} title={isEmpty ? "Click to add ancestor" : "Click to edit"}>
       {isEmpty ? (
         cellH >= 12 && (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--border)", fontSize: Math.min(nameSz, 11) }}>
-            +
-          </div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--border)", fontSize: Math.min(nameSz, 11) }}>+</div>
         )
       ) : (
         <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", padding: col === 1 ? `${vPad}px 14px` : `${vPad}px 8px`, height: "100%", gap: 1, overflow: "hidden" }}>
@@ -392,7 +543,7 @@ function EditorCard({ cell, rowUnitH, isSelected, isLeaf, onSelect, onDiveIn }: 
         </div>
       )}
 
-      {/* Dive-in button — small arrow in the corner */}
+      {/* Dive-in arrow */}
       {!isLeaf && !isEmpty && onDiveIn && cellH >= 20 && (
         <button
           onClick={(e) => { e.stopPropagation(); onDiveIn(); }}
