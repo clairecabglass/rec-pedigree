@@ -7,6 +7,7 @@ import PhotoManager from "@/components/PhotoManager";
 import VideoManager from "@/components/VideoManager";
 import DocumentManager from "@/components/DocumentManager";
 import ResultManager from "@/components/ResultManager";
+import PedigreeEditor from "@/components/PedigreeEditor";
 
 export const dynamic = "force-dynamic";
 
@@ -111,6 +112,24 @@ export default async function EditHorsePage({ params }: { params: Promise<{ id: 
       <div style={card}>
         <h2 style={sectionHead}>Show Results / Achievements</h2>
         <ResultManager horseId={horse.id} initial={results.map((r) => ({ id: r.id, event: r.event, placement: r.placement, date: r.date ? r.date.toISOString() : null, notes: r.notes }))} />
+      </div>
+
+      <div style={card}>
+        <h2 style={sectionHead}>Pedigree Editor</h2>
+        <p style={{ fontFamily: "var(--font-lato)", fontSize: 13, color: "var(--text-muted)", marginBottom: 16, marginTop: 0 }}>
+          Click any block to edit that ancestor. Use the → button to dive into deeper generations (up to 12). Click a breadcrumb to navigate back.
+        </p>
+        <PedigreeEditor
+          horseId={horse.id}
+          horseName={horse.name}
+          horseBreed={horse.breed}
+          horseGender={horse.gender}
+          horseCoat={horse.coat}
+          horseGenotype={horse.genotype}
+          horseSireName={horse.sireName}
+          horseDamName={horse.damName}
+          initialTree={horse.pedigreeTree}
+        />
       </div>
     </div>
   );

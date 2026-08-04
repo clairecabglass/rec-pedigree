@@ -22,5 +22,6 @@ export function sanitizeHorseInput(body: Record<string, unknown>) {
   if ("hasCustomCoat" in body) data.hasCustomCoat = Boolean(body.hasCustomCoat);
   if ("isImportedPlaceholder" in body) data.isImportedPlaceholder = Boolean(body.isImportedPlaceholder);
   if ("dob" in body) data.dob = body.dob ? new Date(body.dob as string) : null;
+  if ("pedigreeTree" in body) data.pedigreeTree = body.pedigreeTree ?? null;
   return data;
 }

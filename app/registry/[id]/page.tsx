@@ -13,7 +13,7 @@ import PhotoGallery from "@/components/PhotoGallery";
 import HorseHero from "@/components/HorseHero";
 import BreedingHistory from "./BreedingHistory";
 import HorseTimeline from "./HorseTimeline";
-import { buildPedigreeTree, findDuplicates, pedigreeDepth, inbreedingCoefficient } from "@/lib/pedigree";
+import { buildPedigreeTree, mergeJsonTree, findDuplicates, pedigreeDepth, inbreedingCoefficient } from "@/lib/pedigree";
 import type { HorseMap } from "@/lib/pedigree";
 import { isAdminLoggedIn } from "@/lib/auth";
 import { getCoatSwatch } from "@/lib/coatSwatch";
@@ -92,7 +92,8 @@ export default async function HorsePage({ params }: { params: Promise<{ id: stri
   });
   const horseMap: HorseMap = new Map(allHorses.map((h) => [h.name.toLowerCase(), h]));
   // Pedigree data for Generations detail, but not for displaying the tree itself on this page
-  const tree = buildPedigreeTree(horse.name, horseMap, 10);
+  const rawTree = buildPedigreeTree(horse.name, horseMap, 10);
+  const tree = mergeJsonTree(rawTree, horse.pedigreeTree);
   const dupes = findDuplicates(tree);
   const generations = pedigreeDepth(horse.name, horseMap);
   const coi = inbreedingCoefficient(tree);

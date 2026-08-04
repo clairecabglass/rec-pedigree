@@ -116,6 +116,42 @@ export function pedigreeDepth(
   return depth;
 }
 
+/**
+ * Merge a stored pedigreeTree JSON (sparse, editor-managed) into a DB-built tree.
+ * For any ancestor not found in the DB (id === name), use the JSON tree's data instead.
+ */
+export function mergeJsonTree(dbNode: HorseNode | null, jsonNode: unknown): HorseNode | null {
+  const json = jsonNode as { name?: string; breed?: string | null; gender?: string | null; coat?: string | null; genotype?: string | null; sire?: unknown; dam?: unknown } | null | undefined;
+  if (!dbNode && !json?.name) return null;
+
+  // dbNode found in DB when its id is a CUID (not equal to its name)
+  const dbHasRecord = dbNode && dbNode.id !== dbNode.name;
+
+  if (dbHasRecord) {
+    return {
+      ...dbNode,
+      sire: mergeJsonTree(dbNode.sire ?? null, json?.sire ?? null),
+      dam:  mergeJsonTree(dbNode.dam  ?? null, json?.dam  ?? null),
+    };
+  }
+
+  // Not in DB — use JSON node if available
+  if (json?.name) {
+    return {
+      id:       json.name,
+      name:     json.name,
+      breed:    json.breed   ?? dbNode?.breed   ?? null,
+      gender:   json.gender  ?? dbNode?.gender  ?? null,
+      coat:     json.coat    ?? dbNode?.coat     ?? null,
+      genotype: json.genotype ?? dbNode?.genotype ?? null,
+      sire: mergeJsonTree(dbNode?.sire ?? null, json.sire ?? null),
+      dam:  mergeJsonTree(dbNode?.dam  ?? null, json.dam  ?? null),
+    };
+  }
+
+  return dbNode;
+}
+
 export function getAllNames(node: HorseNode | null | undefined): string[] {
   if (!node) return [];
   return [node.name, ...getAllNames(node.sire), ...getAllNames(node.dam)];

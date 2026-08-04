@@ -68,6 +68,9 @@ model Horse {
   mareBreedingPlans     BreedingPlan[] @relation("MareBreedingPlans")
   stallionBreedingPlans BreedingPlan[] @relation("StallionBreedingPlans")
 
+  // Sparse ancestor tree — up to 12 generations, stored as PedNode JSON.
+  pedigreeTree Json?
+
   isImportedPlaceholder Boolean @default(false)
   isCustomHorse         Boolean @default(false) // base horse created in the stable with custom traits
   hasCustomCoat         Boolean @default(false) // carries a custom coat (10% pass chance to foal)
