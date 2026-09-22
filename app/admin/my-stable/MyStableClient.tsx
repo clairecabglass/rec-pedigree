@@ -34,6 +34,8 @@ interface Pregnancy {
 type ViewMode = "list" | "gallery";
 type MaturityFilter = "all" | "adults" | "foals";
 
+const CAPACITY = 150;
+
 export default function MyStableClient({ horses, pregnancies }: { horses: StableHorse[]; pregnancies: Pregnancy[] }) {
   const router = useRouter();
 
@@ -149,13 +151,31 @@ export default function MyStableClient({ horses, pregnancies }: { horses: Stable
   }
 
   const counts = useMemo(() => {
-    const out = { Athena: 0, Lucille: 0 };
+    const out = { Athena: 0, Lucille: 0, AthenaFoals: 0, LucilleFoals: 0 };
     for (const h of horses) {
-      if (h.assignedCharacter === "Athena Redfield") out.Athena++;
-      else if (h.assignedCharacter === "Lucille") out.Lucille++;
+      const isFoal = !!h.lifeStage && (FOAL_STAGES as readonly string[]).includes(h.lifeStage);
+      if (h.assignedCharacter === "Athena Redfield") {
+        out.Athena++;
+        if (isFoal) out.AthenaFoals++;
+      } else if (h.assignedCharacter === "Lucille") {
+        out.Lucille++;
+        if (isFoal) out.LucilleFoals++;
+      }
     }
     return out;
   }, [horses]);
+
+  /* ---------- Foal reserve (persisted to localStorage) ---------- */
+  const [foalReserve, setFoalReserve] = useState<number>(10);
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("stableCapacity_foalReserve");
+      if (stored) setFoalReserve(parseInt(stored, 10) || 10);
+    } catch { /* ok */ }
+  }, []);
+  useEffect(() => {
+    try { localStorage.setItem("stableCapacity_foalReserve", String(foalReserve)); } catch { /* ok */ }
+  }, [foalReserve]);
 
   /* ---------- Mutations ---------- */
   async function setHorseCharacter(id: string, next: Character) {
@@ -202,6 +222,17 @@ export default function MyStableClient({ horses, pregnancies }: { horses: Stable
           <ViewBtn label="Gallery" Icon={LayoutGrid} active={view === "gallery"} onClick={() => setView("gallery")} />
         </div>
       </div>
+
+      {/* ===== Capacity panel ===== */}
+      <CapacityPanel
+        athena={counts.Athena}
+        lucille={counts.Lucille}
+        athenaFoals={counts.AthenaFoals}
+        lucilleFoals={counts.LucilleFoals}
+        foalReserve={foalReserve}
+        onFoalReserveChange={setFoalReserve}
+        pregnancyCount={pregnancies.length}
+      />
 
       {/* ===== Character tabs ===== */}
       <div className="mb-3 flex flex-wrap gap-2">
@@ -938,6 +969,116 @@ function CompleteBirthModal({ pregnancy, onClose, onComplete }: {
             <Baby size={14} strokeWidth={2.4} /> {saving ? "Saving…" : "Complete Birth"}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ====================================================================== */
+/*                          Capacity Panel                                 */
+/* ====================================================================== */
+
+function CapacityPanel({
+  athena, lucille, athenaFoals, lucilleFoals, foalReserve, onFoalReserveChange, pregnancyCount,
+}: {
+  athena: number; lucille: number;
+  athenaFoals: number; lucilleFoals: number;
+  foalReserve: number; onFoalReserveChange: (n: number) => void;
+  pregnancyCount: number;
+}) {
+  const rows = [
+    { label: "Athena Redfield", total: athena, foals: athenaFoals, tone: "var(--teal)" },
+    { label: "Lucille",         total: lucille, foals: lucilleFoals, tone: "var(--sage-text)" },
+  ];
+
+  return (
+    <div className="mb-5 rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--white)" }}>
+      {/* Header row */}
+      <div style={{ background: "var(--cream-dark)", borderBottom: "1px solid var(--border)", padding: "10px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+        <span style={{ fontFamily: "var(--font-lato)", fontSize: 11, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--text-muted)" }}>
+          Character Capacity · {CAPACITY} slots each
+        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <label style={{ fontFamily: "var(--font-lato)", fontSize: 12, color: "var(--text-muted)" }}>
+            Reserve for foals:
+          </label>
+          <input
+            type="number"
+            min={0}
+            max={50}
+            value={foalReserve}
+            onChange={(e) => onFoalReserveChange(Math.max(0, Math.min(50, parseInt(e.target.value) || 0)))}
+            style={{
+              width: 56, padding: "4px 8px", borderRadius: 6, border: "1px solid var(--border)",
+              fontFamily: "var(--font-lato)", fontSize: 13, color: "var(--teal-dark)", textAlign: "center",
+              background: "var(--white)",
+            }}
+          />
+          {pregnancyCount > 0 && (
+            <span style={{ fontFamily: "var(--font-lato)", fontSize: 11, color: "var(--teal)", background: "var(--teal-muted)", border: "1px solid var(--teal-light)", borderRadius: 999, padding: "2px 8px" }}>
+              {pregnancyCount} expecting
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Bars */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
+        {rows.map((r, i) => {
+          const pct = Math.min(100, (r.total / CAPACITY) * 100);
+          const usedWithReserve = r.total + foalReserve;
+          const free = CAPACITY - usedWithReserve;
+          const over = free < 0;
+          const warn = !over && free <= 10;
+          const statusColor = over ? "#C05050" : warn ? "#B87A00" : "var(--sage-text)";
+          const barColor = over ? "#C05050" : warn ? "#E8B894" : r.tone;
+
+          return (
+            <div key={r.label} style={{
+              padding: "16px 20px",
+              borderLeft: i === 1 ? "1px solid var(--border)" : undefined,
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+                <span style={{ fontFamily: "var(--font-playfair)", fontSize: 16, color: "var(--teal-dark)" }}>{r.label}</span>
+                <span style={{ fontFamily: "var(--font-lato)", fontSize: 13, fontWeight: 700, color: over ? "#C05050" : "var(--teal-dark)" }}>
+                  {r.total} <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>/ {CAPACITY}</span>
+                </span>
+              </div>
+
+              {/* Progress bar */}
+              <div style={{ height: 8, borderRadius: 999, background: "var(--cream-dark)", overflow: "hidden", marginBottom: 10 }}>
+                {/* Foal reserve overlay */}
+                <div style={{ position: "relative", height: "100%", width: `${pct}%`, background: barColor, borderRadius: 999, transition: "width 0.3s" }}>
+                  {r.foals > 0 && (
+                    <div style={{
+                      position: "absolute", right: 0, top: 0, height: "100%",
+                      width: `${Math.min(100, (r.foals / r.total) * 100)}%`,
+                      background: "var(--gold)", borderRadius: "0 999px 999px 0",
+                    }} />
+                  )}
+                </div>
+              </div>
+
+              {/* Reserve indicator */}
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                {r.foals > 0 && (
+                  <span style={{ fontFamily: "var(--font-lato)", fontSize: 11, color: "var(--sand-text)" }}>
+                    <span style={{ display: "inline-block", width: 8, height: 8, background: "var(--gold)", borderRadius: 2, marginRight: 4, verticalAlign: "middle" }} />
+                    {r.foals} young stock
+                  </span>
+                )}
+                <span style={{ fontFamily: "var(--font-lato)", fontSize: 11, color: statusColor, fontWeight: over || warn ? 700 : 400 }}>
+                  {over
+                    ? `⚠ ${Math.abs(free)} over limit (incl. ${foalReserve} reserved)`
+                    : warn
+                    ? `${free} free (incl. ${foalReserve} reserved) — almost full`
+                    : `${free} free (incl. ${foalReserve} reserved)`
+                  }
+                </span>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
