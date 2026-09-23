@@ -272,18 +272,12 @@ function RECHeader({ title, logoSrc }: { title: string; logoSrc?: string }) {
   return (
     <div style={{ marginBottom: 22 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        {/* Left: logo image or text fallback */}
         {logoSrc
           ? <img src={logoSrc} alt="Redfield Equestrian Centre" style={{ height: 120, objectFit: "contain" }} />
-          : <div>
-              <div style={{ fontFamily: "var(--font-playfair)", fontSize: 42, fontWeight: 700, letterSpacing: "0.1em", color: TEAL_DARK, lineHeight: 1 }}>REC</div>
-              <div style={{ fontFamily: "var(--font-lato)", fontSize: 13, letterSpacing: "0.14em", color: MUTED, textTransform: "uppercase", marginTop: 4 }}>Redfield Equestrian Centre</div>
-            </div>
+          : <div style={{ width: 120 }} />
         }
-        {/* Centre: title */}
         <div style={{ fontFamily: "var(--font-lato)", fontSize: 24, fontWeight: 900, letterSpacing: "0.07em", color: TEXT, textAlign: "center" }}>{title}</div>
-        {/* Right: spacer to balance layout */}
-        <div style={{ width: 80 }} />
+        <div style={{ width: 120 }} />
       </div>
       <div style={{ height: 2, background: TEAL, marginTop: 16 }} />
     </div>
@@ -773,14 +767,14 @@ function FertilityPage({ h }: { h: PdfHorse }) {
 }
 
 // ─── INSURANCE ─────────────────────────────────────────────────────────────────
-function InsurancePage({ h }: { h: PdfHorse }) {
+function InsurancePage({ h, logoSrc }: { h: PdfHorse; logoSrc?: string }) {
   const policy = policyNum(h.id); const today = fmtDate(new Date()); const expiry = fmtDate(new Date(Date.now() + 365 * 864e5));
   const mortality = `$${Math.round((15000 + seed(h.id, 30) * 35000) / 1000) * 1000}`;
   const surgical  = `$${Math.round((8000  + seed(h.id, 31) * 12000) / 1000) * 1000}`;
   const liability = `$${Math.round((50000 + seed(h.id, 32) * 100000) / 1000) * 1000}`;
   return (
     <div style={{ ...base, display: "flex", flexDirection: "column" }}>
-      <RECHeader title="CERTIFICATE OF INSURANCE" />
+      <RECHeader title="CERTIFICATE OF INSURANCE" logoSrc={logoSrc} />
       <div style={{ textAlign: "center", marginBottom: 36 }}>
         <div style={{ fontFamily: "var(--font-playfair)", fontSize: 28, color: TEXT }}>Equine Mortality &amp; Liability Cover</div>
         <div style={{ fontFamily: "var(--font-lato)", fontSize: 14, color: MUTED, marginTop: 8 }}>Policy No: <span style={{ fontWeight: 700, color: TEAL_DARK, letterSpacing: "0.1em" }}>{policy}</span></div>
@@ -1214,11 +1208,11 @@ function buildFarrier(id: string) {
   return { interval, farrier, setup, rows, nextDue };
 }
 
-function FarrierHistoryPage({ h }: { h: PdfHorse }) {
+function FarrierHistoryPage({ h, logoSrc }: { h: PdfHorse; logoSrc?: string }) {
   const f = buildFarrier(h.id); const today = fmtDate(new Date());
   return (
     <div style={base}>
-      <RECHeader title="FARRIERY RECORD" />
+      <RECHeader title="FARRIERY RECORD" logoSrc={logoSrc} />
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0 36px", marginBottom: 10 }}>
         {([["Horse", h.name], ["Breed", h.breed], ["Gender", h.gender], ["Foal Date", h.dob ? fmtDate(h.dob) : null], ["Height", h.height ? `${h.height} hh` : null], ["Stable", h.stablePrefix || "Redfield EC"]] as [string, string | null][]).map(([lbl, val]) => <LabelVal key={lbl} label={lbl} value={val} />)}
       </div>
@@ -1559,11 +1553,11 @@ export default function PdfDownloader({ horse, results, players, xrayImages, tem
         <div ref={r5}  style={PS}><XRayPage h={horse} pgOffset={1} images={xrayImages} /></div>
         {isStallion && <div ref={frt} style={PS}><FertilityPage h={horse} /></div>}
         {isMare     && <div ref={mrp} style={PS}><MareReproductivePage h={horse} /></div>}
-        <div ref={ins} style={PS}><InsurancePage h={horse} /></div>
+        <div ref={ins} style={PS}><InsurancePage h={horse} logoSrc={logoDataUri} /></div>
         <div ref={pp1} style={PS}><PPEPage1 h={horse} /></div>
         <div ref={pp2} style={PS}><PPEPage2 h={horse} /></div>
         <div ref={bos} style={PS}><BillOfSalePage h={horse} buyerIgn={buyerIgn} buyerUsername={buyerUsername} buyerStable={buyerStable} mpLink={mpLink} salePrice={salePrice} saleDate={saleDate} /></div>
-        <div ref={fhr} style={PS}><FarrierHistoryPage h={horse} /></div>
+        <div ref={fhr} style={PS}><FarrierHistoryPage h={horse} logoSrc={logoDataUri} /></div>
         <div ref={tlg}  style={PS}><CompetitionRecordPage h={horse} results={results} pgOffset={0} logoSrc={logoDataUri} /></div>
         <div ref={tlg2} style={PS}><CompetitionRecordPage h={horse} results={results} pgOffset={1} logoSrc={logoDataUri} /></div>
         {/* Cert PNGs for ZIP */}
