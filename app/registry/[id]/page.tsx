@@ -194,6 +194,7 @@ export default async function HorsePage({ params }: { params: Promise<{ id: stri
     ["Base Stats", horse.baseStats],
     ["Height", horse.height],
     ["Discipline", horse.discipline],
+    ["Training", horse.trainingExp != null ? `${horse.trainingExp.toLocaleString()} exp` : null],
     ["Microchip / Reg #", horse.microchip ?? horse.regNumber],
     ["Foal Date", horse.dob ? new Date(horse.dob).toLocaleDateString("en-GB") : null],
     ["Generations", generations > 0 ? String(generations) : null],
