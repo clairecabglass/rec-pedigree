@@ -276,7 +276,7 @@ function RECHeader({ title, logoSrc }: { title: string; logoSrc?: string }) {
           ? <img src={logoSrc} alt="Redfield Equestrian Centre" style={{ height: 120, objectFit: "contain" }} />
           : <div style={{ width: 120 }} />
         }
-        <div style={{ fontFamily: "var(--font-lato)", fontSize: 24, fontWeight: 900, letterSpacing: "0.07em", color: TEXT, textAlign: "center" }}>{title}</div>
+        <div style={{ fontFamily: "var(--font-lato)", fontSize: 26, fontWeight: 900, letterSpacing: "0.07em", color: TEXT, textAlign: "center" }}>{title}</div>
         <div style={{ width: 120 }} />
       </div>
       <div style={{ height: 2, background: TEAL, marginTop: 16 }} />
@@ -295,7 +295,7 @@ function PageHeader({ title }: { title: string }) {
             <div style={{ fontFamily: "var(--font-lato)", fontSize: 13, color: MUTED }}>Veterinarian Clinic</div>
           </div>
         </div>
-        <div style={{ fontFamily: "var(--font-lato)", fontSize: 24, fontWeight: 900, letterSpacing: "0.07em", color: TEXT, textAlign: "center" }}>{title}</div>
+        <div style={{ fontFamily: "var(--font-lato)", fontSize: 26, fontWeight: 900, letterSpacing: "0.07em", color: TEXT, textAlign: "center" }}>{title}</div>
         <div style={{ width: 72, height: 72, borderRadius: "50%", border: `2px solid ${TEAL}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <CrossIcon size={34} />
         </div>
@@ -307,7 +307,7 @@ function PageHeader({ title }: { title: string }) {
 
 function Bar({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ background: TEAL, color: WHITE, fontFamily: "var(--font-lato)", fontWeight: 900, fontSize: 14, letterSpacing: "0.08em", padding: "8px 16px", marginBottom: 12 }}>
+    <div style={{ background: TEAL, color: WHITE, fontFamily: "var(--font-lato)", fontWeight: 900, fontSize: 16, letterSpacing: "0.08em", padding: "10px 16px", marginBottom: 14 }}>
       {children}
     </div>
   );
@@ -315,9 +315,9 @@ function Bar({ children }: { children: React.ReactNode }) {
 
 function LabelVal({ label, value }: { label: string; value: string | null | undefined }) {
   return (
-    <div style={{ display: "flex", gap: 8, alignItems: "baseline", marginBottom: 10 }}>
-      <span style={{ fontFamily: "var(--font-lato)", fontSize: 12, fontWeight: 700, letterSpacing: "0.07em", color: MUTED, textTransform: "uppercase", whiteSpace: "nowrap" }}>{label}:</span>
-      <span style={{ fontFamily: "var(--font-lato)", fontSize: 15, color: TEXT, borderBottom: `1px solid ${TEAL_LIGHT}`, flexGrow: 1 }}>{value || "—"}</span>
+    <div style={{ display: "flex", gap: 8, alignItems: "baseline", marginBottom: 12 }}>
+      <span style={{ fontFamily: "var(--font-lato)", fontSize: 13, fontWeight: 700, letterSpacing: "0.07em", color: MUTED, textTransform: "uppercase", whiteSpace: "nowrap" }}>{label}:</span>
+      <span style={{ fontFamily: "var(--font-lato)", fontSize: 17, color: TEXT, borderBottom: `1px solid ${TEAL_LIGHT}`, flexGrow: 1 }}>{value || "—"}</span>
     </div>
   );
 }
@@ -736,28 +736,28 @@ function FertilityPage({ h }: { h: PdfHorse }) {
           <Bar>Laboratory Analysis</Bar>
           {[["Ejaculate Volume", `${b.vol} mL`], ["Sperm Concentration", `${b.conc} million/mL`], ["Total Sperm Count", `${b.total} million`], ["Progressive Motility", `${b.progMot}%`], ["Total Motility", `${b.totalMot}%`], ["Normal Morphology", `${b.morphNorm}%`], ["Abnormal Morphology", `${b.morphAbn}%`]].map(([lbl, val]) => (
             <div key={lbl} style={{ display: "flex", borderBottom: `1px solid ${TEAL_LIGHT}`, padding: "9px 0" }}>
-              <span style={{ fontFamily: "var(--font-lato)", fontSize: 12, fontWeight: 700, color: MUTED, textTransform: "uppercase", minWidth: 230 }}>{lbl}</span>
-              <span style={{ fontFamily: "var(--font-lato)", fontSize: 15, color: TEXT }}>{val}</span>
+              <span style={{ fontFamily: "var(--font-lato)", fontSize: 13, fontWeight: 700, color: MUTED, textTransform: "uppercase", minWidth: 240 }}>{lbl}</span>
+              <span style={{ fontFamily: "var(--font-lato)", fontSize: 16, color: TEXT }}>{val}</span>
             </div>
           ))}
         </div>
         <div>
           <Bar>Reproductive Examination</Bar>
           {[["Left Testicle", `${b.lLen} × ${(parseFloat(b.lLen) * 0.85).toFixed(1)} cm`], ["Right Testicle", `${b.rLen} × ${(parseFloat(b.rLen) * 0.85).toFixed(1)} cm`], ["Symmetry & Firmness", "Symmetrical, firm, uniform texture"], ["Epididymis", "Smooth, non-painful bilaterally"], ["Prepuce & Shaft", "Clean, no lesions"], ["Accessory Sex Glands", "Normal on rectal palpation"], ["Lesions / Abnormalities", "None observed"], ["Collection Method", "Artificial mare / phantom"]].map(([lbl, val]) => (
-            <div key={lbl} style={{ display: "flex", borderBottom: `1px solid ${TEAL_LIGHT}`, padding: "9px 0" }}>
-              <span style={{ fontFamily: "var(--font-lato)", fontSize: 12, fontWeight: 700, color: MUTED, textTransform: "uppercase", minWidth: 230 }}>{lbl}</span>
-              <span style={{ fontFamily: "var(--font-lato)", fontSize: 14, color: TEXT, fontStyle: "italic" }}>{val}</span>
+            <div key={lbl} style={{ display: "flex", borderBottom: `1px solid ${TEAL_LIGHT}`, padding: "10px 0" }}>
+              <span style={{ fontFamily: "var(--font-lato)", fontSize: 13, fontWeight: 700, color: MUTED, textTransform: "uppercase", minWidth: 240 }}>{lbl}</span>
+              <span style={{ fontFamily: "var(--font-lato)", fontSize: 16, color: TEXT, fontStyle: "italic" }}>{val}</span>
             </div>
           ))}
         </div>
       </div>
       <Bar>Assessment</Bar>
-      <div style={{ fontFamily: "var(--font-lato)", fontSize: 15, display: "flex", gap: 36, marginBottom: 12 }}>
+      <div style={{ fontFamily: "var(--font-lato)", fontSize: 17, display: "flex", gap: 36, marginBottom: 14 }}>
         <span style={{ fontWeight: 700, color: GREEN_OK }}>☑ FERTILE</span>
         <span style={{ color: MUTED }}>☐ SUBFERTILE</span>
         <span style={{ color: MUTED }}>☐ INFERTILE</span>
       </div>
-      <div style={{ fontFamily: "var(--font-lato)", fontSize: 13, color: MUTED, fontStyle: "italic", marginBottom: 20 }}>Cleared for full breeding use. Continue routine conditioning programme and balanced nutrition. Annual BSE recheck recommended.</div>
+      <div style={{ fontFamily: "var(--font-lato)", fontSize: 15, color: MUTED, fontStyle: "italic", marginBottom: 20 }}>Cleared for full breeding use. Continue routine conditioning programme and balanced nutrition. Annual BSE recheck recommended.</div>
       <div style={{ display: "flex", gap: 32, alignItems: "flex-end" }}>
         <div style={{ flex: 1, fontFamily: "Georgia, serif", fontSize: 14, fontStyle: "italic", color: TEXT, lineHeight: 1.8, borderBottom: `1px solid ${TEAL_LIGHT}` }}>All findings within normal limits. Semen quality and reproductive anatomy are consistent with excellent breeding potential.</div>
         <SignBlock date={today} />
