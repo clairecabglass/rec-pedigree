@@ -176,6 +176,7 @@ export default function AdminDashboard({ stats, recent, initialTodos }: {
           { href: "/admin/homepage", icon: "edit" as const, label: "Edit Homepage", desc: "Announcement banner, hero text, CTAs, news block, feature cards" },
           { href: "/admin/activity", icon: "registry" as const, label: "Activity Log", desc: "Recent changes, pregnancies, results, and timeline events" },
           { href: "/admin/my-stable", icon: "registry" as const, label: "My Stable", desc: "Owned horses + character assignment (Athena / Lucille)" },
+          { href: "/admin/training", icon: "registry" as const, label: "Bulk Training", desc: "Select horses and add EXP in one go after a training session" },
           { href: "/admin/breeding", icon: "tree" as const, label: "Breeding", desc: "Pregnancies with auto-growth tracker, plan pairings" },
           { href: "/admin/breeding/planner", icon: "tree" as const, label: "Herd Planner", desc: "Plan multi-gen breeding programmes with COI tracking and acquisition requirements" },
           { href: "/admin/breeding/calendar", icon: "tree" as const, label: "Nursery", desc: "Growing foals, recent adults & due calendar" },
