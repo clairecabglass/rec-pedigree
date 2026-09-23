@@ -75,8 +75,14 @@ export default function CogginsClient({ id, name, breed, gender, dob, regNumber,
     if (!certRef.current) return;
     setLoading(true);
     try {
-      await toPng(certRef.current, { pixelRatio: 2, cacheBust: true });
-      const dataUrl = await toPng(certRef.current, { pixelRatio: 2, cacheBust: true });
+      // Run once to warm font/image caches, then capture for real
+      await toPng(certRef.current, { pixelRatio: 3, cacheBust: true });
+      const dataUrl = await toPng(certRef.current, {
+        pixelRatio: 3,
+        cacheBust: true,
+        canvasWidth: CERT_W * 3,
+        style: { transform: "none" }, // capture at true size, not preview-scaled
+      });
       const a = document.createElement("a");
       a.href = dataUrl;
       a.download = `${slug(name)}-coggins.png`;
@@ -106,8 +112,8 @@ export default function CogginsClient({ id, name, breed, gender, dob, regNumber,
             {loading ? "Generating…" : "↓ Download PNG"}
           </button>
         </div>
-        <div style={{ width: CERT_W * PREVIEW_SCALE, height: CERT_H * PREVIEW_SCALE, overflow: "hidden", border: "1px solid var(--border)", borderRadius: 8 }}>
-          <div style={{ transform: `scale(${PREVIEW_SCALE})`, transformOrigin: "top left", width: CERT_W, height: CERT_H }}>
+        <div style={{ width: CERT_W * PREVIEW_SCALE, overflow: "hidden", border: "1px solid var(--border)", borderRadius: 8 }}>
+          <div style={{ transform: `scale(${PREVIEW_SCALE})`, transformOrigin: "top left", width: CERT_W, minHeight: CERT_H }}>
             <CertBody ref={certRef} id={id} name={name} breed={breed} gender={gender} dob={dob} regNumber={regNumber} coat={coat} />
           </div>
         </div>
@@ -191,7 +197,7 @@ export const CertBody = forwardRef<HTMLDivElement, Props>(function CertBody(
   }
 
   return (
-    <div ref={ref} style={{ width: CERT_W, height: CERT_H, background: "#fff", boxSizing: "border-box", fontFamily: lato, color: TEXT, overflow: "hidden" }}>
+    <div ref={ref} style={{ width: CERT_W, minHeight: CERT_H, background: "#fff", boxSizing: "border-box", fontFamily: lato, color: TEXT, display: "flex", flexDirection: "column" }}>
 
       {/* Header */}
       <div style={{ background: TEAL_DARK, padding: "24px 36px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -330,7 +336,7 @@ export const CertBody = forwardRef<HTMLDivElement, Props>(function CertBody(
       </div>
 
       {/* Footer */}
-      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: TEAL_DARK, padding: "10px 36px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div style={{ marginTop: "auto", background: TEAL_DARK, padding: "10px 36px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ fontFamily: lato, fontSize: 10, color: MUTED }}>
           Belmont Laboratory · 14 Westridge Road · Southern Territories · The Rift
         </div>

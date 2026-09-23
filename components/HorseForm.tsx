@@ -28,6 +28,7 @@ interface HorseData {
   genotype?: string;
   eyeColor?: string;
   baseStats?: string;
+  trainingExp?: number;
   description?: string;
   ownerName?: string;
   ownerCharacter?: string;
@@ -466,6 +467,21 @@ export default function HorseForm({ initial, mode }: { initial?: HorseData; mode
         <Text k="height" label="Height" ph="e.g. 17.3" />
         <Text k="baseStats" label="Base Stats" ph="e.g. 77-7767" />
         <Text k="discipline" label="Discipline" ph="e.g. Show Jumping" />
+        <div>
+          <label style={labelStyle}>Training EXP</label>
+          <input
+            type="number" min={0} step={1}
+            value={data.trainingExp ?? 0}
+            onChange={(e) => set("trainingExp", e.target.value)}
+            style={fieldStyle}
+            placeholder="0"
+          />
+          {(data.trainingExp ?? 0) < 2000 && (
+            <p style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-lato)", marginTop: 3 }}>
+              Below 2,000 — considered untrained
+            </p>
+          )}
+        </div>
         <Text k="videoUrl" label="Video Link" ph="YouTube / clip URL" />
         <Area k="achievements" label="Competition Placements / Achievements" rows={2} ph="Top-4 in-game placements, titles…" />
       </Section>
