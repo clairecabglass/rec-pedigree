@@ -1014,90 +1014,6 @@ function PPEPage2({ h }: { h: PdfHorse }) {
   );
 }
 
-// ─── BILL OF SALE ─────────────────────────────────────────────────────────────
-interface BillOfSaleProps { h: PdfHorse; buyerIgn: string; buyerUsername: string; buyerStable: string; mpLink: string; salePrice: string; saleDate: string; }
-function BillOfSalePage({ h, buyerIgn, buyerUsername, buyerStable, mpLink, salePrice, saleDate }: BillOfSaleProps) {
-  const chip   = chipNumber(h.microchip, h.id);
-  const seller = h.ownerName || h.stablePrefix || "Redfield Equestrian Centre";
-  const agrNum = `REC-${new Date().getFullYear()}-${Array.from({ length: 5 }, (_, i) => Math.floor(seed(h.id, i + 50) * 10)).join("")}`;
-  const blankLine = "___________________________________";
-  return (
-    <div style={{ ...base, display: "flex", flexDirection: "column" }}>
-      {/* Watermark */}
-      <div style={{ position: "absolute", top: "38%", left: "50%", transform: "translate(-50%,-50%) rotate(-22deg)", opacity: 0.035, fontFamily: "var(--font-playfair)", fontSize: 130, color: TEAL_DARK, whiteSpace: "nowrap", pointerEvents: "none" }}>BILL OF SALE</div>
-
-      {/* Header */}
-      <div style={{ textAlign: "center", marginBottom: 14 }}>
-        <div style={{ fontFamily: "var(--font-lato)", fontSize: 13, fontWeight: 700, color: MUTED, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 8 }}>Redfield Equestrian Centre</div>
-        <div style={{ fontFamily: "var(--font-playfair)", fontSize: 48, color: TEAL_DARK }}>BILL OF SALE</div>
-        <div style={{ fontFamily: "var(--font-playfair)", fontSize: 20, color: MUTED }}>Purchase Agreement — Equine</div>
-      </div>
-      <div style={{ height: 3, background: TEAL, marginBottom: 6 }} />
-      <div style={{ height: 1, background: TEAL_LIGHT, marginBottom: 28 }} />
-
-      <div style={{ fontFamily: "var(--font-lato)", fontSize: 14, color: TEXT, lineHeight: 2, marginBottom: 26 }}>
-        This Bill of Sale and Purchase Agreement (Agreement No.&nbsp;<strong style={{ color: TEAL_DARK }}>{agrNum}</strong>) is entered into on&nbsp;<strong>{saleDate || fmtDate(new Date())}</strong>, between the Seller and the Buyer identified below, for the sale and transfer of ownership of the equine described herein.
-      </div>
-
-      {/* Parties */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 56px", marginBottom: 28 }}>
-        <div>
-          <Bar>Seller</Bar>
-          <LabelVal label="Stable / Name"    value={seller} />
-          <LabelVal label="Stable Prefix"    value={h.stablePrefix || "REC"} />
-          <LabelVal label="Contact"          value="rec@therift.com" />
-        </div>
-        <div>
-          <Bar>Buyer</Bar>
-          <LabelVal label="Character Name (IGN)" value={buyerIgn     || blankLine} />
-          <LabelVal label="Username"             value={buyerUsername ? `@${buyerUsername}` : blankLine} />
-          <LabelVal label="Stable"               value={buyerStable  || blankLine} />
-          <LabelVal label="MP Listing"           value={mpLink       || blankLine} />
-        </div>
-      </div>
-
-      {/* Horse */}
-      <Bar>Animal Description</Bar>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0 36px", marginBottom: 28 }}>
-        {([["Name", h.name], ["Breed", h.breed], ["Gender", h.gender], ["Coat / Colour", h.coat], ["Foal Date", h.dob ? fmtDate(h.dob) : null], ["Reg. Number", h.regNumber], ["Microchip (ISO)", chip], ["Height", h.height ? `${h.height} hh` : null], ["Seller's Stable", h.stablePrefix || "Redfield EC"]] as [string, string | null][]).map(([lbl, val]) => <LabelVal key={lbl} label={lbl} value={val} />)}
-      </div>
-
-      {/* Terms */}
-      <Bar>Purchase Price &amp; Terms</Bar>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 56px", marginBottom: 28 }}>
-        <div>
-          <div style={{ marginBottom: 18 }}>
-            <div style={{ fontFamily: "var(--font-lato)", fontSize: 12, fontWeight: 700, color: MUTED, textTransform: "uppercase", marginBottom: 8 }}>Agreed Sale Price</div>
-            <div style={{ fontFamily: "var(--font-playfair)", fontSize: 36, color: TEAL_DARK, borderBottom: `2px solid ${TEAL}`, paddingBottom: 6 }}>{salePrice ? `$${Number(salePrice).toLocaleString()}` : "$ _____________"}</div>
-          </div>
-          <LabelVal label="Payment Method" value={blankLine} />
-          <LabelVal label="Payment Date"   value={blankLine} />
-        </div>
-        <div style={{ fontFamily: "var(--font-lato)", fontSize: 13, color: TEXT, lineHeight: 2 }}>
-          <div style={{ marginBottom: 10 }}><strong>1.</strong> The animal is sold as-is on the date of this agreement. The Seller makes no warranty of future soundness or health.</div>
-          <div style={{ marginBottom: 10 }}><strong>2.</strong> Risk of loss and responsibility for care pass to the Buyer upon delivery or collection of the animal.</div>
-          <div><strong>3.</strong> The Seller warrants lawful ownership and authority to sell. Title transfers to the Buyer upon receipt of full payment.</div>
-        </div>
-      </div>
-
-      {/* Signatures */}
-      <div style={{ marginTop: "auto" }}>
-        <Bar>Signatures</Bar>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0 40px" }}>
-          {([[`Seller — ${seller}`, ""], [`Buyer — ${buyerIgn || blankLine}`, buyerUsername ? `@${buyerUsername}` : ""], ["Witness", ""]] as [string, string][]).map(([role, sub]) => (
-            <div key={role}>
-              <div style={{ height: 72, borderBottom: `2px solid ${TEXT}`, marginBottom: 10 }} />
-              <div style={{ fontFamily: "var(--font-lato)", fontSize: 13, fontWeight: 700, color: TEXT, marginBottom: 3 }}>{role}</div>
-              {sub && <div style={{ fontFamily: "var(--font-lato)", fontSize: 12, color: MUTED }}>{sub}</div>}
-              <div style={{ fontFamily: "var(--font-lato)", fontSize: 12, color: MUTED, marginTop: 6 }}>Date: {saleDate || "___________"}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ─── MARE REPRODUCTIVE RECORD ─────────────────────────────────────────────────
 function buildReproductive(id: string, dob: string | null) {
   const ageYears = dob ? Math.floor((Date.now() - new Date(dob).getTime()) / (365.25 * 864e5)) : 7;
@@ -1192,61 +1108,6 @@ function MareReproductivePage({ h }: { h: PdfHorse }) {
   );
 }
 
-// ─── FARRIER HISTORY ──────────────────────────────────────────────────────────
-function buildFarrier(id: string) {
-  const interval   = intBetween(id, 500, 35, 49);
-  const farrier    = "E. Morrison (RFA)";
-  const setup      = pick(id, 501, ["Barefoot — trimmed and balanced", "Steel keg shoes — front pair", "Steel keg shoes — all four", "Aluminum wide-web — front pair", "Hind shoes only — steel keg"]);
-  const notePool   = ["Good hoof growth. Balanced trim. No concerns.", "Minor flare on RF corrected. Wall integrity maintained.", "Hoof wall in excellent condition. Reset went well.", "Slight bruising on LF sole — monitor. Pad not required.", "Normal growth and wear. All four walls in good condition.", "Excellent wall thickness. Shoe fit well. No hot spots.", "LH shoe loose — re-set with additional clinch. Resolved.", "Even wear pattern. Hoof quality consistent.", "Good hoof quality. Mild thrush LH — treated with Thrushbuster.", "Short shoeing interval due to show schedule. No issues."];
-  const typePool   = ["Full Reset (4 shoes)", "Trim & Balance", "Front Reset (2 shoes)", "Trim only", "Hind Reset (2 shoes)", "Full Reset — concave plates"];
-  const rows       = Array.from({ length: 10 }, (_, i) => ({
-    date: fmtDate(new Date(Date.now() - interval * (i + 1) * 864e5)),
-    type: pick(id, 510 + i, typePool),
-    notes: pick(id, 520 + i, notePool),
-  }));
-  const nextDue    = fmtDate(new Date(Date.now() + interval * 864e5));
-  return { interval, farrier, setup, rows, nextDue };
-}
-
-function FarrierHistoryPage({ h, logoSrc }: { h: PdfHorse; logoSrc?: string }) {
-  const f = buildFarrier(h.id); const today = fmtDate(new Date());
-  return (
-    <div style={base}>
-      <RECHeader title="FARRIERY RECORD" logoSrc={logoSrc} />
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0 36px", marginBottom: 10 }}>
-        {([["Horse", h.name], ["Breed", h.breed], ["Gender", h.gender], ["Foal Date", h.dob ? fmtDate(h.dob) : null], ["Height", h.height ? `${h.height} hh` : null], ["Stable", h.stablePrefix || "Redfield EC"]] as [string, string | null][]).map(([lbl, val]) => <LabelVal key={lbl} label={lbl} value={val} />)}
-      </div>
-      <div style={{ height: 1, background: TEAL_LIGHT, marginBottom: 16 }} />
-
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 48px", marginBottom: 20 }}>
-        <div>
-          <Bar>Current Setup</Bar>
-          {[["Registered Farrier", f.farrier], ["Qualifications", "Registered Farriery Association (RFA)"], ["Current Shoeing", f.setup], ["Trim Interval", `${f.interval} days`], ["Next Appointment Due", f.nextDue]].map(([lbl, val]) => (
-            <div key={lbl} style={{ display: "flex", borderBottom: `1px solid ${TEAL_LIGHT}`, padding: "10px 0" }}>
-              <span style={{ fontFamily: "var(--font-lato)", fontSize: 12, fontWeight: 700, color: MUTED, textTransform: "uppercase", minWidth: 230 }}>{lbl}</span>
-              <span style={{ fontFamily: "var(--font-lato)", fontSize: 14, color: TEXT, fontStyle: "italic" }}>{val}</span>
-            </div>
-          ))}
-        </div>
-        <div>
-          <Bar>Hoof Notes</Bar>
-          <div style={{ fontFamily: "var(--font-lato)", fontSize: 13, color: TEXT, lineHeight: 1.8, fontStyle: "italic", borderLeft: `3px solid ${TEAL}`, paddingLeft: 14 }}>
-            {pick(h.id, 530, ["Hooves are well-balanced with good wall thickness. No chronic issues identified. Hoof quality has been consistently good under current management.", "Hoof quality generally good. Minor tendency for flaring on RF — managed through regular trimming intervals. No corrective shoeing required.", "Excellent hoof quality maintained on a strict 6-week schedule. Barefoot transition completed successfully — hoof wall has hardened well.", "Good hoof health throughout the record period. Some seasonal softening in wet months — monitored. No pathological changes."])}
-          </div>
-        </div>
-      </div>
-
-      <Bar>Appointment History</Bar>
-      <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 28, fontFamily: "var(--font-lato)", fontSize: 13 }}>
-        <thead><tr style={{ background: "rgba(135,155,149,0.14)" }}>{["Date", "Service Performed", "Notes"].map(col => <th key={col} style={{ border: `1px solid ${TEAL_LIGHT}`, padding: "9px 14px", color: MUTED, fontWeight: 700, fontSize: 11, textTransform: "uppercase", textAlign: "left" }}>{col}</th>)}</tr></thead>
-        <tbody>{f.rows.map((row, i) => <tr key={i} style={{ background: i % 2 === 0 ? WHITE : "rgba(135,155,149,0.04)" }}><td style={{ border: `1px solid ${TEAL_LIGHT}`, padding: "10px 14px", color: TEXT, whiteSpace: "nowrap" }}>{row.date}</td><td style={{ border: `1px solid ${TEAL_LIGHT}`, padding: "10px 14px", color: TEXT, fontWeight: 700 }}>{row.type}</td><td style={{ border: `1px solid ${TEAL_LIGHT}`, padding: "10px 14px", color: MUTED, fontStyle: "italic" }}>{row.notes}</td></tr>)}</tbody>
-      </table>
-
-      <div style={{ fontFamily: "var(--font-lato)", fontSize: 13, color: MUTED, fontStyle: "italic" }}>Record maintained by {f.farrier} in partnership with Redfield Equestrian Centre. Last updated: {today}.</div>
-    </div>
-  );
-}
-
 // ─── Capture / download helpers ────────────────────────────────────────────────
 const RATIO = 2;
 
@@ -1289,7 +1150,6 @@ async function asPdfBlob(refs: React.RefObject<HTMLDivElement | null>[]): Promis
 export interface PdfDownloaderProps {
   horse: PdfHorse;
   results: PdfResult[];
-  players: PdfPlayer[];
   xrayImages: string[];
   templateDataUri: string;
   sigLab: string;
@@ -1311,7 +1171,7 @@ const inputStyle: React.CSSProperties = {
   width: "100%", boxSizing: "border-box",
 };
 
-export default function PdfDownloader({ horse, results, players, xrayImages, templateDataUri, sigLab, logoDataUri, tree, dupes, allHorsesJson }: PdfDownloaderProps) {
+export default function PdfDownloader({ horse, results, xrayImages, templateDataUri, sigLab, logoDataUri, tree, dupes, allHorsesJson }: PdfDownloaderProps) {
   // Health book
   const r0  = useRef<HTMLDivElement>(null);
   const r1  = useRef<HTMLDivElement>(null);
@@ -1325,9 +1185,7 @@ export default function PdfDownloader({ horse, results, players, xrayImages, tem
   // New docs
   const pp1 = useRef<HTMLDivElement>(null);
   const pp2 = useRef<HTMLDivElement>(null);
-  const bos = useRef<HTMLDivElement>(null);
   const mrp = useRef<HTMLDivElement>(null);
-  const fhr = useRef<HTMLDivElement>(null);
   const tlg  = useRef<HTMLDivElement>(null);
   const tlg2 = useRef<HTMLDivElement>(null);
   // Cert PNGs (for ZIP)
@@ -1336,25 +1194,9 @@ export default function PdfDownloader({ horse, results, players, xrayImages, tem
   const trainingRef = useRef<HTMLDivElement>(null);
   const pedRef      = useRef<HTMLDivElement>(null);
 
-  const [status, setStatus]             = useState<string | null>(null);
-  const [selectedPlayer, setSelectedPlayer] = useState<string>("");
-  const [buyerIgn, setBuyerIgn]         = useState("");
-  const [buyerUsername, setBuyerUsername] = useState("");
-  const [buyerStable, setBuyerStable]   = useState("");
-  const [mpLink, setMpLink]             = useState("");
-  const [salePrice, setSalePrice]       = useState("");
-  const [saleDate, setSaleDate]         = useState(fmtDate(new Date()));
+  const [status, setStatus] = useState<string | null>(null);
 
-  function applyPlayer(id: string) {
-    setSelectedPlayer(id);
-    const p = players.find(x => x.id === id);
-    if (!p) return;
-    setBuyerIgn(p.ign);
-    setBuyerUsername(p.username);
-    setBuyerStable(p.stableName || "");
-  }
-
-  const sl         = horseSlug(horse.name);
+  const sl = horseSlug(horse.name);
   const isStallion = horse.gender === "Stallion";
   const isMare     = horse.gender === "Mare";
 
@@ -1374,12 +1216,6 @@ export default function PdfDownloader({ horse, results, players, xrayImages, tem
   }
 
   const PS: React.CSSProperties = { width: PW, height: PH, flexShrink: 0 };
-
-  const labelStyle: React.CSSProperties = {
-    fontFamily: "var(--font-lato)", fontSize: 11, fontWeight: 700,
-    color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em",
-    display: "block", marginBottom: 4,
-  };
 
   return (
     <>
@@ -1412,9 +1248,6 @@ export default function PdfDownloader({ horse, results, players, xrayImages, tem
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <Btn disabled={!!status} onClick={() => run("PPE Report", () => asPdf([pp1, pp2], `${sl}-ppe-report.pdf`))}>
             {status?.includes("PPE") ? status : "↓ PPE Report PDF"}
-          </Btn>
-          <Btn disabled={!!status} onClick={() => run("Farrier History", () => asPng(fhr, `${sl}-farrier-history.png`))}>
-            {status?.includes("Farrier") ? status : "↓ Farrier History"}
           </Btn>
         </div>
 
@@ -1463,9 +1296,6 @@ export default function PdfDownloader({ horse, results, players, xrayImages, tem
               const tlgBlob = await asPdfBlob(results.length > 14 ? [tlg, tlg2] : [tlg]);
               if (tlgBlob) folder.file(`${sl}-competition-record.pdf`, tlgBlob);
 
-              setStatus("Generating Farrier History…");
-              const fhrUrl = await capture(fhr);
-              if (fhrUrl) { const r = await fetch(fhrUrl); folder.file(`${sl}-farrier-history.png`, await r.blob()); }
 
               if (isStallion) {
                 setStatus("Generating BSE Report…");
@@ -1489,58 +1319,6 @@ export default function PdfDownloader({ horse, results, players, xrayImages, tem
           </Btn>
         </div>
 
-        {/* Bill of Sale — buyer form */}
-        <div style={{ background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 8, padding: "18px 20px" }}>
-          <div style={{ fontFamily: "var(--font-playfair)", fontSize: 16, color: "var(--teal-dark)", marginBottom: 14 }}>Bill of Sale — Buyer Details</div>
-
-          {/* Player picker */}
-          {players.length > 0 && (
-            <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle}>Quick-fill from player directory</label>
-              <select
-                style={{ ...inputStyle, color: selectedPlayer ? "var(--text)" : "var(--text-muted)" }}
-                value={selectedPlayer}
-                onChange={e => applyPlayer(e.target.value)}
-              >
-                <option value="">Select a player…</option>
-                {players.map(p => (
-                  <option key={p.id} value={p.id}>{p.ign} (@{p.username}){p.stableName ? ` — ${p.stableName}` : ""}</option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
-            <div>
-              <label style={labelStyle}>Character Name (IGN)</label>
-              <input style={inputStyle} value={buyerIgn} onChange={e => setBuyerIgn(e.target.value)} placeholder="e.g. Elara Ashwood" />
-            </div>
-            <div>
-              <label style={labelStyle}>Username</label>
-              <input style={inputStyle} value={buyerUsername} onChange={e => setBuyerUsername(e.target.value)} placeholder="e.g. rider99" />
-            </div>
-            <div>
-              <label style={labelStyle}>Stable Name</label>
-              <input style={inputStyle} value={buyerStable} onChange={e => setBuyerStable(e.target.value)} placeholder="e.g. Ashwood Stables" />
-            </div>
-            <div>
-              <label style={labelStyle}>MP Listing Link</label>
-              <input style={inputStyle} value={mpLink} onChange={e => setMpLink(e.target.value)} placeholder="e.g. forum.therift.com/…" />
-            </div>
-            <div>
-              <label style={labelStyle}>Sale Price ($)</label>
-              <input style={inputStyle} value={salePrice} onChange={e => setSalePrice(e.target.value)} placeholder="0" type="number" min="0" />
-            </div>
-            <div>
-              <label style={labelStyle}>Date of Sale</label>
-              <input style={inputStyle} value={saleDate} onChange={e => setSaleDate(e.target.value)} placeholder="DD/MM/YYYY" />
-            </div>
-          </div>
-
-          <Btn disabled={!!status} onClick={() => run("Bill of Sale", () => asPng(bos, `${sl}-bill-of-sale.png`))}>
-            {status?.includes("Bill of Sale") ? status : "↓ Bill of Sale"}
-          </Btn>
-        </div>
       </div>
 
       {/* Off-screen render targets */}
@@ -1556,8 +1334,7 @@ export default function PdfDownloader({ horse, results, players, xrayImages, tem
         <div ref={ins} style={PS}><InsurancePage h={horse} logoSrc={logoDataUri} /></div>
         <div ref={pp1} style={PS}><PPEPage1 h={horse} /></div>
         <div ref={pp2} style={PS}><PPEPage2 h={horse} /></div>
-        <div ref={bos} style={PS}><BillOfSalePage h={horse} buyerIgn={buyerIgn} buyerUsername={buyerUsername} buyerStable={buyerStable} mpLink={mpLink} salePrice={salePrice} saleDate={saleDate} /></div>
-        <div ref={fhr} style={PS}><FarrierHistoryPage h={horse} logoSrc={logoDataUri} /></div>
+
         <div ref={tlg}  style={PS}><CompetitionRecordPage h={horse} results={results} pgOffset={0} logoSrc={logoDataUri} /></div>
         <div ref={tlg2} style={PS}><CompetitionRecordPage h={horse} results={results} pgOffset={1} logoSrc={logoDataUri} /></div>
         {/* Cert PNGs for ZIP */}

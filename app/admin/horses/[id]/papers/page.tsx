@@ -34,9 +34,8 @@ export default async function PapersPage({ params }: { params: Promise<{ id: str
   });
   if (!horse) notFound();
 
-  const [results, players, allHorses] = await Promise.all([
+  const [results, allHorses] = await Promise.all([
     prisma.result.findMany({ where: { horseId: id }, orderBy: { date: "desc" } }),
-    prisma.player.findMany({ orderBy: { ign: "asc" } }),
     prisma.horse.findMany({ select: { id: true, name: true, breed: true, gender: true, coat: true, genotype: true, sireName: true, damName: true, ownership: true, isImportedPlaceholder: true, regNumber: true, stablePrefix: true, breedingFee: true, breedingPolicies: true, price: true, saleDescription: true, saleContact: true } }),
   ]);
 
@@ -143,7 +142,6 @@ export default async function PapersPage({ params }: { params: Promise<{ id: str
             tree={tree}
             dupes={dupes}
             allHorsesJson={allHorsesJson}
-            players={players.map(p => ({ id: p.id, ign: p.ign, username: p.username, stableName: p.stableName, stablePrefix: p.stablePrefix }))}
             horse={{
               id:          horse.id,
               name:        horse.name,
