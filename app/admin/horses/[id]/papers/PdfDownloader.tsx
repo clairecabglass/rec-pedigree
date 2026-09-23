@@ -274,7 +274,7 @@ function RECHeader({ title, logoSrc }: { title: string; logoSrc?: string }) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         {/* Left: logo image or text fallback */}
         {logoSrc
-          ? <img src={logoSrc} alt="Redfield Equestrian Centre" style={{ height: 80, objectFit: "contain" }} />
+          ? <img src={logoSrc} alt="Redfield Equestrian Centre" style={{ height: 120, objectFit: "contain" }} />
           : <div>
               <div style={{ fontFamily: "var(--font-playfair)", fontSize: 42, fontWeight: 700, letterSpacing: "0.1em", color: TEAL_DARK, lineHeight: 1 }}>REC</div>
               <div style={{ fontFamily: "var(--font-lato)", fontSize: 13, letterSpacing: "0.14em", color: MUTED, textTransform: "uppercase", marginTop: 4 }}>Redfield Equestrian Centre</div>
