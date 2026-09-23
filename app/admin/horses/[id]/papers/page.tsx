@@ -45,9 +45,10 @@ export default async function PapersPage({ params }: { params: Promise<{ id: str
   const dupes = [...findDuplicates(tree)];
   const allHorsesJson = JSON.stringify(allHorses.map((h) => ({ id: h.id, name: h.name })));
 
-  const [templateDataUri, sigLab, xray1, xray2, xray3, xray4] = await Promise.all([
+  const [templateDataUri, sigLab, logoDataUri, xray1, xray2, xray3, xray4] = await Promise.all([
     toDataUri("REC Training Cert No Name.png"),
     toDataUri("lab-analyst.png"),
+    toDataUri("logo-full.png"),
     toDataUri("skull.jpg",   "xray"),
     toDataUri("stifle.jpg",  "xray"),
     toDataUri("foot.jpg",    "xray"),
@@ -138,6 +139,7 @@ export default async function PapersPage({ params }: { params: Promise<{ id: str
             xrayImages={[xray1, xray2, xray3, xray4]}
             templateDataUri={templateDataUri}
             sigLab={sigLab}
+            logoDataUri={logoDataUri}
             tree={tree}
             dupes={dupes}
             allHorsesJson={allHorsesJson}

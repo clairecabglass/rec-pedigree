@@ -268,6 +268,28 @@ function CrossIcon({ size = 28, color = TEAL }: { size?: number; color?: string 
   );
 }
 
+function RECHeader({ title, logoSrc }: { title: string; logoSrc?: string }) {
+  return (
+    <div style={{ marginBottom: 22 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        {/* Left: logo image or text fallback */}
+        {logoSrc
+          ? <img src={logoSrc} alt="Redfield Equestrian Centre" style={{ height: 80, objectFit: "contain" }} />
+          : <div>
+              <div style={{ fontFamily: "var(--font-playfair)", fontSize: 42, fontWeight: 700, letterSpacing: "0.1em", color: TEAL_DARK, lineHeight: 1 }}>REC</div>
+              <div style={{ fontFamily: "var(--font-lato)", fontSize: 13, letterSpacing: "0.14em", color: MUTED, textTransform: "uppercase", marginTop: 4 }}>Redfield Equestrian Centre</div>
+            </div>
+        }
+        {/* Centre: title */}
+        <div style={{ fontFamily: "var(--font-lato)", fontSize: 24, fontWeight: 900, letterSpacing: "0.07em", color: TEXT, textAlign: "center" }}>{title}</div>
+        {/* Right: spacer to balance layout */}
+        <div style={{ width: 80 }} />
+      </div>
+      <div style={{ height: 2, background: TEAL, marginTop: 16 }} />
+    </div>
+  );
+}
+
 function PageHeader({ title }: { title: string }) {
   return (
     <div style={{ marginBottom: 22 }}>
@@ -320,25 +342,6 @@ function SignBlock({ date, sigName = "E. Harlow", line2 = VET, line3 = "Belmont 
 
 function PgNum({ n }: { n: number }) {
   return <div style={{ position: "absolute", bottom: 30, right: PAD, fontFamily: "var(--font-lato)", fontSize: 13, color: MUTED, fontWeight: 700 }}>{n}</div>;
-}
-
-function RECHeader({ title }: { title: string }) {
-  return (
-    <div style={{ marginBottom: 22 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div>
-          <div style={{ fontFamily: "var(--font-playfair)", fontSize: 36, fontStyle: "italic", color: TEAL_DARK, lineHeight: 1 }}>REC</div>
-          <div style={{ fontFamily: "var(--font-lato)", fontSize: 12, color: MUTED, letterSpacing: "0.14em", textTransform: "uppercase" }}>Redfield Equestrian Centre</div>
-        </div>
-        <div style={{ fontFamily: "var(--font-lato)", fontSize: 24, fontWeight: 900, letterSpacing: "0.07em", color: TEXT, textAlign: "center" }}>{title}</div>
-        <div style={{ width: 72, height: 72, borderRadius: "50%", border: `2px solid ${TEAL}`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3 }}>
-          <div style={{ fontFamily: "var(--font-playfair)", fontSize: 22, color: TEAL_DARK, fontStyle: "italic", lineHeight: 1 }}>REC</div>
-          <div style={{ fontFamily: "var(--font-lato)", fontSize: 8, color: MUTED, letterSpacing: "0.08em" }}>EST. THE RIFT</div>
-        </div>
-      </div>
-      <div style={{ height: 2, background: TEAL, marginTop: 16 }} />
-    </div>
-  );
 }
 
 const base: React.CSSProperties = { width: PW, height: PH, background: BG, position: "relative", overflow: "hidden", padding: PAD, boxSizing: "border-box" };
@@ -860,7 +863,7 @@ function InsurancePage({ h }: { h: PdfHorse }) {
 }
 
 // ─── COMPETITION RECORD ────────────────────────────────────────────────────────
-function CompetitionRecordPage({ h, results, pgOffset }: { h: PdfHorse; results: PdfResult[]; pgOffset: number }) {
+function CompetitionRecordPage({ h, results, pgOffset, logoSrc }: { h: PdfHorse; results: PdfResult[]; pgOffset: number; logoSrc?: string }) {
   const today = fmtDate(new Date());
   const PER_PAGE = 14;
   const rows = Array.from({ length: PER_PAGE }, (_, i) => results[pgOffset * PER_PAGE + i] ?? null);
@@ -869,7 +872,7 @@ function CompetitionRecordPage({ h, results, pgOffset }: { h: PdfHorse; results:
 
   return (
     <div style={base}>
-      <PageHeader title="COMPETITION RECORD" />
+      <RECHeader title="COMPETITION RECORD" logoSrc={logoSrc} />
 
       {/* Horse info */}
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", gap: "0 28px", marginBottom: 24 }}>
@@ -1346,6 +1349,7 @@ export interface PdfDownloaderProps {
   xrayImages: string[];
   templateDataUri: string;
   sigLab: string;
+  logoDataUri?: string;
   tree: HorseNode | null;
   dupes: string[];
   allHorsesJson: string;
@@ -1363,7 +1367,7 @@ const inputStyle: React.CSSProperties = {
   width: "100%", boxSizing: "border-box",
 };
 
-export default function PdfDownloader({ horse, results, players, xrayImages, templateDataUri, sigLab, tree, dupes, allHorsesJson }: PdfDownloaderProps) {
+export default function PdfDownloader({ horse, results, players, xrayImages, templateDataUri, sigLab, logoDataUri, tree, dupes, allHorsesJson }: PdfDownloaderProps) {
   // Health book
   const r0  = useRef<HTMLDivElement>(null);
   const r1  = useRef<HTMLDivElement>(null);
@@ -1618,8 +1622,8 @@ export default function PdfDownloader({ horse, results, players, xrayImages, tem
         <div ref={pp2} style={PS}><PPEPage2 h={horse} /></div>
         <div ref={bos} style={PS}><BillOfSalePage h={horse} buyerIgn={buyerIgn} buyerUsername={buyerUsername} buyerStable={buyerStable} mpLink={mpLink} salePrice={salePrice} saleDate={saleDate} /></div>
         <div ref={fhr} style={PS}><FarrierHistoryPage h={horse} /></div>
-        <div ref={tlg}  style={PS}><CompetitionRecordPage h={horse} results={results} pgOffset={0} /></div>
-        <div ref={tlg2} style={PS}><CompetitionRecordPage h={horse} results={results} pgOffset={1} /></div>
+        <div ref={tlg}  style={PS}><CompetitionRecordPage h={horse} results={results} pgOffset={0} logoSrc={logoDataUri} /></div>
+        <div ref={tlg2} style={PS}><CompetitionRecordPage h={horse} results={results} pgOffset={1} logoSrc={logoDataUri} /></div>
         {/* Cert PNGs for ZIP */}
         <div ref={ecgcRef} style={{ width: 1240, height: 1754, flexShrink: 0 }}>
           <EcgcCertBody name={horse.name} breed={horse.breed ?? ""} gender={horse.gender ?? ""} dob={horse.dob ?? ""}
