@@ -1416,17 +1416,26 @@ async function asPng(ref: React.RefObject<HTMLDivElement | null>, filename: stri
 }
 
 async function asPdf(refs: React.RefObject<HTMLDivElement | null>[], filename: string) {
+  const blob = await asPdfBlob(refs);
+  if (!blob) return;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function asPdfBlob(refs: React.RefObject<HTMLDivElement | null>[]): Promise<Blob | null> {
   const pages: string[] = [];
   for (const ref of refs) {
     const img = await capture(ref);
     if (img) { pages.push(img); await new Promise<void>(r => setTimeout(r, 250)); }
   }
+  if (pages.length === 0) return null;
   const mod = await import("jspdf");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const JsPDF: any = (mod as any).jsPDF ?? (mod as any).default;
   const doc = new JsPDF({ format: "a4", unit: "mm", orientation: "portrait" });
   pages.forEach((img, i) => { if (i > 0) doc.addPage(); doc.addImage(img, "PNG", 0, 0, 210, 297); });
-  doc.save(filename);
+  return doc.output("blob") as Blob;
 }
 
 // ─── Main component ────────────────────────────────────────────────────────────
@@ -1534,6 +1543,56 @@ export default function PdfDownloader({ horse, results, players, xrayImages }: P
           </Btn>
           <Btn disabled={!!status} onClick={() => run("Farrier History", () => asPng(fhr, `${sl}-farrier-history.png`))}>
             {status?.includes("Farrier") ? status : "↓ Farrier History"}
+          </Btn>
+        </div>
+
+        {/* ZIP all vet docs */}
+        <div>
+          <Btn disabled={!!status} onClick={async () => {
+            run("ZIP", async () => {
+              const { default: JSZip } = await import("jszip");
+              const zip = new JSZip();
+              const folder = zip.folder(sl) ?? zip;
+
+              setStatus("Generating Health Book…");
+              const hbBlob = await asPdfBlob([r0, r1, r2, r3, r4, r5]);
+              if (hbBlob) folder.file(`${sl}-health-book.pdf`, hbBlob);
+
+              setStatus("Generating PPE Report…");
+              const ppeBlob = await asPdfBlob([pp1, pp2]);
+              if (ppeBlob) folder.file(`${sl}-ppe-report.pdf`, ppeBlob);
+
+              setStatus("Generating Microchip…");
+              const mcUrl = await capture(mcR);
+              if (mcUrl) { const r = await fetch(mcUrl); folder.file(`${sl}-microchip.png`, await r.blob()); }
+
+              setStatus("Generating Insurance…");
+              const insUrl = await capture(ins);
+              if (insUrl) { const r = await fetch(insUrl); folder.file(`${sl}-insurance.png`, await r.blob()); }
+
+              setStatus("Generating Farrier History…");
+              const fhrUrl = await capture(fhr);
+              if (fhrUrl) { const r = await fetch(fhrUrl); folder.file(`${sl}-farrier-history.png`, await r.blob()); }
+
+              if (isStallion) {
+                setStatus("Generating BSE Report…");
+                const bseUrl = await capture(frt);
+                if (bseUrl) { const r = await fetch(bseUrl); folder.file(`${sl}-bse.png`, await r.blob()); }
+              }
+              if (isMare) {
+                setStatus("Generating Reproductive Record…");
+                const mrpUrl = await capture(mrp);
+                if (mrpUrl) { const r = await fetch(mrpUrl); folder.file(`${sl}-reproductive.png`, await r.blob()); }
+              }
+
+              setStatus("Building ZIP…");
+              const zipBlob = await zip.generateAsync({ type: "blob" });
+              const url = URL.createObjectURL(zipBlob);
+              const a = document.createElement("a"); a.href = url; a.download = `${sl}-vet-documents.zip`; a.click();
+              URL.revokeObjectURL(url);
+            });
+          }}>
+            {status?.includes("ZIP") || status?.includes("Health Book") || status?.includes("PPE") || status?.includes("Micro") || status?.includes("Insurance") || status?.includes("Farrier") || status?.includes("BSE") || status?.includes("Repro") || status?.includes("Building") ? status : "↓ ZIP All Vet Docs"}
           </Btn>
         </div>
 

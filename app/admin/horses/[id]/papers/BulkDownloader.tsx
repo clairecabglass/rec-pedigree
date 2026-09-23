@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { toPng } from "html-to-image";
+import JSZip from "jszip";
 import { CertBody as CogginsCertBody } from "../coggins/CogginsClient";
 import { CertBody as TrainingCertBody } from "../training-cert/TrainingCertClient";
 import { CertBody as EcgcCertBody, parseGeno, buildRows, buildInterpretation } from "../genetics-cert/GeneticsCertClient";
@@ -26,6 +27,21 @@ interface Props {
   sigLab: string;
 }
 
+async function capture(ref: React.RefObject<HTMLDivElement | null>): Promise<string | null> {
+  if (!ref.current) return null;
+  await toPng(ref.current, { pixelRatio: 2, cacheBust: true });
+  return toPng(ref.current, { pixelRatio: 2, cacheBust: true });
+}
+
+function dataUrlToBlob(dataUrl: string): Blob {
+  const [header, data] = dataUrl.split(",");
+  const mime = header.match(/:(.*?);/)?.[1] ?? "image/png";
+  const bytes = atob(data);
+  const buf = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) buf[i] = bytes.charCodeAt(i);
+  return new Blob([buf], { type: mime });
+}
+
 export default function BulkDownloader({ id, name, breed, gender, dob, regNumber, coat, genotype, templateDataUri, sigLab }: Props) {
   const ecgcRef     = useRef<HTMLDivElement>(null);
   const cogginsRef  = useRef<HTMLDivElement>(null);
@@ -33,34 +49,42 @@ export default function BulkDownloader({ id, name, breed, gender, dob, regNumber
 
   const [status, setStatus] = useState<string | null>(null);
 
-  const geno        = parseGeno(genotype);
-  const rows        = buildRows(geno, coat);
+  const geno           = parseGeno(genotype);
+  const rows           = buildRows(geno, coat);
   const interpretation = buildInterpretation(geno, coat, name);
-  const testDate    = new Date().toLocaleDateString("en-GB");
-  const baseRows    = rows.slice(0, 2);
-  const diluteRows  = rows.slice(2, 11);
-  const patternRows = rows.slice(11);
+  const testDate       = new Date().toLocaleDateString("en-GB");
+  const baseRows       = rows.slice(0, 2);
+  const diluteRows     = rows.slice(2, 11);
+  const patternRows    = rows.slice(11);
+  const sl             = slugify(name);
 
-  async function capture(ref: React.RefObject<HTMLDivElement | null>, label: string) {
-    if (!ref.current) return;
-    await toPng(ref.current, { pixelRatio: 2, cacheBust: true });
-    return toPng(ref.current, { pixelRatio: 2, cacheBust: true });
-  }
+  async function handleZip() {
+    setStatus("Generating certificates…");
+    const zip = new JSZip();
+    const folder = zip.folder(sl) ?? zip;
 
-  async function handleBulkDownload() {
     setStatus("Generating ECGC…");
-    const ecgcUrl = await capture(ecgcRef, "ecgc");
-    if (ecgcUrl) { const a = document.createElement("a"); a.href = ecgcUrl; a.download = `${slugify(name)}-genetics-cert.png`; a.click(); }
-    await new Promise(r => setTimeout(r, 600));
+    const ecgcUrl = await capture(ecgcRef);
+    if (ecgcUrl) folder.file(`${sl}-genetics-cert.png`, dataUrlToBlob(ecgcUrl));
+    await new Promise(r => setTimeout(r, 400));
 
     setStatus("Generating Coggins…");
-    const cogginsUrl = await capture(cogginsRef, "coggins");
-    if (cogginsUrl) { const a = document.createElement("a"); a.href = cogginsUrl; a.download = `${slugify(name)}-coggins.png`; a.click(); }
-    await new Promise(r => setTimeout(r, 600));
+    const cogginsUrl = await capture(cogginsRef);
+    if (cogginsUrl) folder.file(`${sl}-coggins.png`, dataUrlToBlob(cogginsUrl));
+    await new Promise(r => setTimeout(r, 400));
 
     setStatus("Generating Training Cert…");
-    const trainingUrl = await capture(trainingRef, "training");
-    if (trainingUrl) { const a = document.createElement("a"); a.href = trainingUrl; a.download = `${slugify(name)}-training-cert.png`; a.click(); }
+    const trainingUrl = await capture(trainingRef);
+    if (trainingUrl) folder.file(`${sl}-training-cert.png`, dataUrlToBlob(trainingUrl));
+
+    setStatus("Building ZIP…");
+    const blob = await zip.generateAsync({ type: "blob" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${sl}-certificates.zip`;
+    a.click();
+    URL.revokeObjectURL(url);
 
     setStatus(null);
   }
@@ -68,7 +92,7 @@ export default function BulkDownloader({ id, name, breed, gender, dob, regNumber
   return (
     <>
       <button
-        onClick={handleBulkDownload}
+        onClick={handleZip}
         disabled={!!status}
         style={{
           background: status ? "var(--border)" : "var(--teal-dark)",
@@ -78,7 +102,7 @@ export default function BulkDownloader({ id, name, breed, gender, dob, regNumber
           opacity: status ? 0.7 : 1, whiteSpace: "nowrap",
         }}
       >
-        {status ?? "↓ Download All"}
+        {status ?? "↓ ZIP Certificates"}
       </button>
 
       {/* Off-screen render targets */}
