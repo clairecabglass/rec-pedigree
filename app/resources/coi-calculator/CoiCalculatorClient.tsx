@@ -56,6 +56,30 @@ function computeCoi(sire: PedNode, dam: PedNode): { coi: number; contributors: A
 function parseNode(raw: unknown): PedNode | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
+
+  // Rift Trails flat export format: { app: "Rift Trails Pedigree Creator", horses: [...], rootHorse: "..." }
+  if (r.app === "Rift Trails Pedigree Creator" && Array.isArray(r.horses)) {
+    const horses = r.horses as Record<string, unknown>[];
+    const byName = new Map<string, Record<string, unknown>>();
+    for (const h of horses) if (typeof h.name === "string") byName.set(h.name, h);
+
+    function buildFromFlat(name: string, seen = new Set<string>()): PedNode {
+      const h = byName.get(name);
+      if (!h || seen.has(name)) return { name };
+      const next = new Set(seen); next.add(name);
+      return {
+        name,
+        sire: typeof h.sire === "string" && h.sire ? buildFromFlat(h.sire, next) : null,
+        dam:  typeof h.dam  === "string" && h.dam  ? buildFromFlat(h.dam,  next) : null,
+      };
+    }
+
+    const root = typeof r.rootHorse === "string" ? r.rootHorse : horses[0]?.name as string;
+    if (!root) return null;
+    return buildFromFlat(root);
+  }
+
+  // Standard nested format: { name, sire: {...}, dam: {...} }
   const name = (typeof r.name === "string" ? r.name : typeof r.id === "string" ? r.id : "").trim();
   if (!name) return null;
   return {
