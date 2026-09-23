@@ -207,10 +207,11 @@ export default function CoiCalculatorClient() {
 
   const tabStyle = (t: Tab): React.CSSProperties => ({
     fontFamily: "var(--font-lato)", fontSize: 14, fontWeight: 700,
-    padding: "10px 22px", borderRadius: 8, cursor: "pointer", border: "none",
-    background: tab === t ? "var(--teal-dark)" : "transparent",
+    padding: "10px 22px", borderRadius: 8, cursor: "pointer",
+    border: tab === t ? "2px solid var(--teal-dark)" : "2px solid var(--border)",
+    background: tab === t ? "var(--teal-dark)" : "var(--white)",
     color: tab === t ? "white" : "var(--text-muted)",
-    transition: "background 0.15s, color 0.15s",
+    transition: "background 0.15s, color 0.15s, border-color 0.15s",
   });
 
   return (
