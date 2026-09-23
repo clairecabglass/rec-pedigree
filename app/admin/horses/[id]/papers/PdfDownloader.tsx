@@ -859,166 +859,56 @@ function InsurancePage({ h }: { h: PdfHorse }) {
   );
 }
 
-// ─── TRAINING LOG — fillable jsPDF ────────────────────────────────────────────
-async function makeTrainingLogPdf(horse: PdfHorse, results: PdfResult[], filename: string) {
-  const mod  = await import("jspdf");
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const JPDF: any = (mod as any).jsPDF ?? (mod as any).default;
-  const doc  = new JPDF({ format: "a4", unit: "mm", orientation: "portrait" });
-  const W    = 210;
-  const pad  = 14;
-  const today = new Date().toLocaleDateString("en-GB");
+// ─── TRAINING LOG — React page (matches health book style) ────────────────────
+function TrainingLogPage({ h, results }: { h: PdfHorse; results: PdfResult[] }) {
+  const today = fmtDate(new Date());
+  const NUM_ROWS = 24;
+  const rows = Array.from({ length: NUM_ROWS }, (_, i) => results[i] ?? null);
 
-  const cTeal      = [61, 84, 80]   as [number, number, number];
-  const cMuted     = [106, 128, 120] as [number, number, number];
-  const cText      = [30, 44, 42]   as [number, number, number];
-  const cTealLight = [197, 208, 205] as [number, number, number];
-  const cWhite     = [255, 255, 255] as [number, number, number];
-  const cBg        = [240, 243, 242] as [number, number, number];
+  return (
+    <div style={base}>
+      <PageHeader title="TRAINING LOG & COMPETITION RESULTS" />
 
-  let y = pad + 4;
+      {/* Horse info */}
+      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", gap: "0 28px", marginBottom: 18 }}>
+        <LabelVal label="Horse"      value={h.name} />
+        <LabelVal label="Breed"      value={h.breed} />
+        <LabelVal label="Gender"     value={h.gender} />
+        <LabelVal label="Discipline" value={h.discipline} />
+        <LabelVal label="Date"       value={today} />
+      </div>
+      <div style={{ height: 1, background: TEAL_LIGHT, marginBottom: 20 }} />
 
-  // Header
-  doc.setFont("helvetica", "bolditalic");
-  doc.setFontSize(22);
-  doc.setTextColor(...cTeal);
-  doc.text("REC", pad, y);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
-  doc.setTextColor(...cMuted);
-  doc.text("REDFIELD EQUESTRIAN CENTRE", pad, y + 5);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(15);
-  doc.setTextColor(...cText);
-  doc.text("TRAINING LOG & SHOW RESULTS", W / 2, y + 1, { align: "center" });
-  // Seal circle
-  doc.setDrawColor(...cTeal);
-  doc.setLineWidth(0.5);
-  doc.circle(W - pad - 8, y + 2, 8);
-  doc.setFontSize(7);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...cTeal);
-  doc.text("REC", W - pad - 8, y + 1, { align: "center" });
-  doc.setFontSize(5);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(...cMuted);
-  doc.text("EST. THE RIFT", W - pad - 8, y + 5, { align: "center" });
+      <Bar>Competition &amp; Show Results</Bar>
 
-  y += 14;
-  doc.setDrawColor(...cTeal);
-  doc.setLineWidth(0.7);
-  doc.line(pad, y, W - pad, y);
-  y += 7;
+      {/* Table header */}
+      <div style={{ display: "grid", gridTemplateColumns: "140px 1fr 130px 180px", background: BG, borderBottom: `1px solid ${TEAL_LIGHT}` }}>
+        {["Date", "Event / Show", "Placement", "Notes"].map(col => (
+          <div key={col} style={{ fontFamily: "var(--font-lato)", fontSize: 11, fontWeight: 700, color: MUTED, textTransform: "uppercase", letterSpacing: "0.06em", padding: "7px 10px" }}>{col}</div>
+        ))}
+      </div>
 
-  // Horse info row
-  const infoItems: [string, string][] = [
-    ["Horse",      horse.name],
-    ["Breed",      horse.breed  || "—"],
-    ["Gender",     horse.gender || "—"],
-    ["Discipline", horse.discipline || "—"],
-    ["Date",       today],
-  ];
-  const infoColW = (W - pad * 2) / infoItems.length;
-  infoItems.forEach(([lbl, val], i) => {
-    const x = pad + i * infoColW;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(6.5);
-    doc.setTextColor(...cMuted);
-    doc.text(lbl.toUpperCase(), x, y);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.setTextColor(...cText);
-    doc.text(val, x, y + 5);
-  });
-  y += 14;
-  doc.setDrawColor(...cTealLight);
-  doc.setLineWidth(0.2);
-  doc.line(pad, y, W - pad, y);
-  y += 5;
+      {/* Rows */}
+      {rows.map((r, i) => (
+        <div key={i} style={{ display: "grid", gridTemplateColumns: "140px 1fr 130px 180px", background: i % 2 === 0 ? WHITE : "#f9fafa", borderBottom: `1px solid ${TEAL_LIGHT}`, minHeight: 28 }}>
+          <div style={{ fontFamily: "var(--font-lato)", fontSize: 12, color: TEXT, padding: "6px 10px", borderRight: `1px solid ${TEAL_LIGHT}` }}>{r?.date ? fmtDate(r.date) : ""}</div>
+          <div style={{ fontFamily: "var(--font-lato)", fontSize: 12, color: TEXT, padding: "6px 10px", borderRight: `1px solid ${TEAL_LIGHT}` }}>{r?.event ?? ""}</div>
+          <div style={{ fontFamily: "var(--font-lato)", fontSize: 12, color: TEXT, padding: "6px 10px", borderRight: `1px solid ${TEAL_LIGHT}` }}>{r?.placement ?? ""}</div>
+          <div style={{ fontFamily: "var(--font-lato)", fontSize: 12, color: TEXT, padding: "6px 10px" }}>{r?.notes ?? ""}</div>
+        </div>
+      ))}
 
-  // Section bar
-  doc.setFillColor(...cTeal);
-  doc.rect(pad, y, W - pad * 2, 7, "F");
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
-  doc.setTextColor(...cWhite);
-  doc.text("COMPETITION & SHOW RESULTS", pad + 3, y + 5);
-  y += 9;
-
-  const cols = [
-    { label: "Date",         x: pad,       w: 28  },
-    { label: "Event / Show", x: pad + 28,  w: 72  },
-    { label: "Placement",    x: pad + 100, w: 26  },
-    { label: "Notes",        x: pad + 126, w: W - pad * 2 - 126 },
-  ];
-
-  // Table header row
-  doc.setFillColor(...cBg);
-  doc.rect(pad, y, W - pad * 2, 6, "F");
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(6.5);
-  doc.setTextColor(...cMuted);
-  cols.forEach(c => doc.text(c.label.toUpperCase(), c.x + 2, y + 4));
-  y += 6;
-
-  const ROW_H    = 9;
-  const NUM_ROWS = 22;
-  const prefilled = results.slice(0, NUM_ROWS);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const AcroTextField: any = (JPDF as any).AcroFormTextField;
-  const hasAcro = typeof doc.addField === "function" && typeof AcroTextField === "function";
-
-  for (let i = 0; i < NUM_ROWS; i++) {
-    const rowY = y + i * ROW_H;
-    if (i % 2 === 0) {
-      doc.setFillColor(249, 250, 250);
-      doc.rect(pad, rowY, W - pad * 2, ROW_H, "F");
-    }
-    doc.setDrawColor(...cTealLight);
-    doc.setLineWidth(0.2);
-    doc.line(pad,     rowY + ROW_H, W - pad, rowY + ROW_H);
-    doc.line(pad + 28,  rowY, pad + 28,  rowY + ROW_H);
-    doc.line(pad + 100, rowY, pad + 100, rowY + ROW_H);
-    doc.line(pad + 126, rowY, pad + 126, rowY + ROW_H);
-    doc.line(pad,     rowY, pad,     rowY + ROW_H);
-    doc.line(W - pad, rowY, W - pad, rowY + ROW_H);
-
-    const r = prefilled[i];
-    if (r) {
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      doc.setTextColor(...cText);
-      if (r.date)      doc.text(new Date(r.date).toLocaleDateString("en-GB"), cols[0].x + 2, rowY + 6);
-      if (r.event)     doc.text((r.event     || "").substring(0, 36),         cols[1].x + 2, rowY + 6);
-      if (r.placement) doc.text((r.placement || "").substring(0, 14),         cols[2].x + 2, rowY + 6);
-      if (r.notes)     doc.text((r.notes     || "").substring(0, 28),         cols[3].x + 2, rowY + 6);
-    }
-
-    if (hasAcro) {
-      cols.forEach(col => {
-        try {
-          const f = new AcroTextField();
-          f.fieldName = `${col.label.replace(/[^a-z]/gi, "_").toLowerCase()}_${i + 1}`;
-          f.x         = col.x;
-          f.y         = rowY;
-          f.width     = col.w;
-          f.height    = ROW_H;
-          f.fontSize  = 8;
-          f.value     = "";
-          doc.addField(f);
-        } catch { /* skip if AcroForm unavailable */ }
-      });
-    }
-  }
-
-  y += NUM_ROWS * ROW_H + 8;
-  doc.setFont("helvetica", "italic");
-  doc.setFontSize(8);
-  doc.setTextColor(...cMuted);
-  doc.text("This training log is an accurate record of competition history as maintained by Redfield Equestrian Centre.", pad, y);
-  doc.text(`Generated: ${today} · Redfield Equestrian Centre`, pad, y + 6);
-
-  doc.save(filename);
+      <div style={{ position: "absolute", bottom: PAD, left: PAD, right: PAD }}>
+        <div style={{ height: 1, background: TEAL_LIGHT, marginBottom: 10 }} />
+        <div style={{ fontFamily: "var(--font-lato)", fontSize: 11, color: MUTED, fontStyle: "italic" }}>
+          This training log is an accurate record of competition history as maintained by Redfield Equestrian Centre.
+        </div>
+        <div style={{ fontFamily: "var(--font-lato)", fontSize: 11, color: MUTED, marginTop: 4 }}>
+          Generated: {today} · Redfield Equestrian Centre
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ─── PPE data ─────────────────────────────────────────────────────────────────
@@ -1487,6 +1377,7 @@ export default function PdfDownloader({ horse, results, players, xrayImages, tem
   const bos = useRef<HTMLDivElement>(null);
   const mrp = useRef<HTMLDivElement>(null);
   const fhr = useRef<HTMLDivElement>(null);
+  const tlg = useRef<HTMLDivElement>(null);
   // Cert PNGs (for ZIP)
   const ecgcRef     = useRef<HTMLDivElement>(null);
   const cogginsRef  = useRef<HTMLDivElement>(null);
@@ -1562,7 +1453,7 @@ export default function PdfDownloader({ horse, results, players, xrayImages, tem
           <Btn disabled={!!status} onClick={() => run("Insurance", () => asPng(ins, `${sl}-insurance.png`))}>
             {status?.includes("Insurance") ? status : "↓ Insurance Cert"}
           </Btn>
-          <Btn disabled={!!status} onClick={() => run("Training Log", () => makeTrainingLogPdf(horse, results, `${sl}-training-log.pdf`))}>
+          <Btn disabled={!!status} onClick={() => run("Training Log", () => asPdf([tlg], `${sl}-training-log.pdf`))}>
             {status?.includes("Training Log") ? status : "↓ Training Log PDF"}
           </Btn>
         </div>
@@ -1621,6 +1512,10 @@ export default function PdfDownloader({ horse, results, players, xrayImages, tem
               setStatus("Generating Insurance…");
               const insUrl = await capture(ins);
               if (insUrl) { const r = await fetch(insUrl); folder.file(`${sl}-insurance.png`, await r.blob()); }
+
+              setStatus("Generating Training Log…");
+              const tlgBlob = await asPdfBlob([tlg]);
+              if (tlgBlob) folder.file(`${sl}-training-log.pdf`, tlgBlob);
 
               setStatus("Generating Farrier History…");
               const fhrUrl = await capture(fhr);
@@ -1718,6 +1613,7 @@ export default function PdfDownloader({ horse, results, players, xrayImages, tem
         <div ref={pp2} style={PS}><PPEPage2 h={horse} /></div>
         <div ref={bos} style={PS}><BillOfSalePage h={horse} buyerIgn={buyerIgn} buyerUsername={buyerUsername} buyerStable={buyerStable} mpLink={mpLink} salePrice={salePrice} saleDate={saleDate} /></div>
         <div ref={fhr} style={PS}><FarrierHistoryPage h={horse} /></div>
+        <div ref={tlg} style={PS}><TrainingLogPage h={horse} results={results} /></div>
         {/* Cert PNGs for ZIP */}
         <div ref={ecgcRef} style={{ width: 1240, height: 1754, flexShrink: 0 }}>
           <EcgcCertBody name={horse.name} breed={horse.breed ?? ""} gender={horse.gender ?? ""} dob={horse.dob ?? ""}
