@@ -43,7 +43,7 @@ export default async function RecommendedSalesPage() {
     depthCache.set(h.id, nodeDepth(tree));
   }
 
-  // ── Breed depth comparison ──────────────────────────────────────────
+  // ── Breed depth comparison ──────────────────────────────────────────────────────
   // Group Home horses by base breed, compute avg depth per breed
   const breedDepths = new Map<string, number[]>();
   for (const h of home) {
@@ -59,7 +59,7 @@ export default async function RecommendedSalesPage() {
     breedAvg.set(b, depths.reduce((a, c) => a + c, 0) / depths.length);
   }
 
-  // ── COI analysis ────────────────────────────────────────────────────
+  // ── COI analysis ──────────────────────────────────────────────────────────
   type Result = {
     id: string; name: string; gender: string | null; breed: string | null; coat: string | null;
     cleanPartners: number; totalPartners: number; coiSamples: number[];
