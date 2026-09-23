@@ -6,17 +6,18 @@ export async function POST(req: NextRequest) {
   if (!(await isAdminLoggedIn())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  // [{ id: string, amount: number }]
   if (!Array.isArray(body)) return NextResponse.json({ error: "Invalid body" }, { status: 400 });
 
-  const updates = body as { id: string; amount: number }[];
+  const updates = body as { id: string; amount: number; mode: "add" | "set" }[];
   if (updates.length === 0) return NextResponse.json({ updated: 0 });
 
   await prisma.$transaction(
-    updates.map(({ id, amount }) =>
+    updates.map(({ id, amount, mode }) =>
       prisma.horse.update({
         where: { id },
-        data: { trainingExp: { increment: Math.max(0, Math.floor(amount)) } },
+        data: mode === "set"
+          ? { trainingExp: Math.max(0, Math.floor(amount)) }
+          : { trainingExp: { increment: Math.max(0, Math.floor(amount)) } },
       })
     )
   );
