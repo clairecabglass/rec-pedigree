@@ -13,6 +13,7 @@ const flatLinks = [
 
 const RESOURCES_LINKS = [
   { href: "/resources/foal-calculator", label: "Foal Genetics" },
+  { href: "/resources/coi-calculator", label: "COI Calculator" },
   { href: "/resources/course-planner", label: "Course Planner" },
   { href: "/resources/show-scoreboard", label: "Show Scoreboard" },
   { href: "/resources/sports-compendium", label: "Sports Compendium" },
