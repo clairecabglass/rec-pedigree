@@ -1,7 +1,7 @@
 "use client";
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Search, CheckSquare, Square, Dumbbell } from "lucide-react";
+import { Search, Dumbbell } from "lucide-react";
 
 interface Horse {
   id: string;
@@ -19,7 +19,6 @@ const inp: React.CSSProperties = {
 };
 
 const FOAL_STAGES = ["Gestation", "Weanling", "Yearling", "Youngster"];
-type Mode = "add" | "set";
 
 export default function BulkTrainingClient({ horses }: { horses: Horse[] }) {
   const router = useRouter();
@@ -29,48 +28,31 @@ export default function BulkTrainingClient({ horses }: { horses: Horse[] }) {
     [horses]
   );
 
-  const [search, setSearch]     = useState("");
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [overrides, setOverrides] = useState<Record<string, string>>({});
-  const [bulkAmount, setBulkAmount] = useState("100");
-  const [mode, setMode]         = useState<Mode>("add");
-  const [saving, setSaving]     = useState(false);
-  const [done, setDone]         = useState<number | null>(null);
+  const [search, setSearch] = useState("");
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+  const [done, setDone]     = useState<number | null>(null);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    return q ? trainable.filter((h) => h.name.toLowerCase().includes(q) || (h.breed ?? "").toLowerCase().includes(q)) : trainable;
+    return q
+      ? trainable.filter((h) => h.name.toLowerCase().includes(q) || (h.breed ?? "").toLowerCase().includes(q))
+      : trainable;
   }, [trainable, search]);
 
-  const allFilteredSelected = filtered.length > 0 && filtered.every((h) => selected.has(h.id));
-
-  function toggle(id: string) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  }
-
-  function toggleAll() {
-    if (allFilteredSelected) {
-      setSelected((prev) => { const next = new Set(prev); filtered.forEach((h) => next.delete(h.id)); return next; });
-    } else {
-      setSelected((prev) => { const next = new Set(prev); filtered.forEach((h) => next.add(h.id)); return next; });
-    }
-  }
-
-  function getAmount(id: string): number {
-    const raw = overrides[id] !== undefined ? overrides[id] : bulkAmount;
-    const n = parseInt(raw, 10);
-    return isNaN(n) || n < 0 ? 0 : n;
-  }
+  const dirty = Object.entries(values).filter(([, v]) => v.trim() !== "");
 
   async function handleSave() {
-    if (selected.size === 0) return;
+    if (dirty.length === 0) return;
     setSaving(true);
     setDone(null);
-    const payload = [...selected].map((id) => ({ id, amount: getAmount(id), mode }));
+
+    const payload = dirty.map(([id, v]) => ({
+      id,
+      amount: Math.max(0, parseInt(v, 10) || 0),
+      mode: "set" as const,
+    }));
+
     try {
       const res = await fetch("/api/admin/bulk-training", {
         method: "POST",
@@ -79,128 +61,87 @@ export default function BulkTrainingClient({ horses }: { horses: Horse[] }) {
       });
       const data = await res.json();
       setDone(data.updated ?? 0);
-      setSelected(new Set());
-      setOverrides({});
+      setValues({});
       router.refresh();
     } finally {
       setSaving(false);
     }
   }
 
-  const selectedArr = trainable.filter((h) => selected.has(h.id));
-
-  const tabStyle = (t: Mode): React.CSSProperties => ({
-    fontFamily: "var(--font-lato)", fontSize: 13, fontWeight: 700,
-    padding: "8px 18px", borderRadius: 6, cursor: "pointer",
-    border: mode === t ? "2px solid var(--teal-dark)" : "2px solid var(--border)",
-    background: mode === t ? "var(--teal-dark)" : "var(--white)",
-    color: mode === t ? "white" : "var(--text-muted)",
-    transition: "background 0.15s, color 0.15s, border-color 0.15s",
-  });
-
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
-      {/* Mode toggle + controls */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
-        <div style={{ display: "flex", gap: 4 }}>
-          <button type="button" style={tabStyle("add")} onClick={() => setMode("add")}>Add EXP</button>
-          <button type="button" style={tabStyle("set")} onClick={() => setMode("set")}>Set EXP</button>
-        </div>
-        <div style={{ position: "relative", flex: "1 1 200px" }}>
-          <Search size={15} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", pointerEvents: "none" }} />
-          <input
-            style={{ ...inp, paddingLeft: 32, width: "100%" }}
-            placeholder="Search horses..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <label style={{ fontFamily: "var(--font-lato)", fontSize: 13, color: "var(--text-muted)", whiteSpace: "nowrap" }}>
-            {mode === "add" ? "Default EXP to add" : "Default EXP to set"}
-          </label>
-          <input
-            type="number" min="0"
-            style={{ ...inp, width: 90 }}
-            value={bulkAmount}
-            onChange={(e) => setBulkAmount(e.target.value)}
-          />
-        </div>
+      {/* Search */}
+      <div style={{ position: "relative", maxWidth: 420 }}>
+        <Search size={15} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", pointerEvents: "none" }} />
+        <input
+          style={{ ...inp, paddingLeft: 32, width: "100%" }}
+          placeholder="Search horses..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
       </div>
 
-      {mode === "set" && (
-        <div style={{ fontFamily: "var(--font-lato)", fontSize: 13, color: "var(--text-muted)", background: "var(--bg)", borderRadius: 8, padding: "10px 14px", border: "1px solid var(--border)" }}>
-          Set EXP replaces each horse&apos;s current total. Use this to correct a value, not to add from a session.
-        </div>
-      )}
+      <div style={{ fontFamily: "var(--font-lato)", fontSize: 13, color: "var(--text-muted)" }}>
+        Type a new EXP total in any row to update it. Leave blank to skip. Click Save when done.
+      </div>
 
-      {/* Horse table */}
+      {/* Table */}
       <div style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden" }}>
+
+        {/* Header */}
         <div style={{
-          display: "grid", gridTemplateColumns: "40px 1fr 130px 100px 110px",
-          padding: "10px 16px", borderBottom: "1px solid var(--border)",
+          display: "grid", gridTemplateColumns: "1fr 140px 140px 140px",
+          padding: "10px 18px", borderBottom: "1px solid var(--border)",
           background: "var(--bg)",
         }}>
-          <button type="button" onClick={toggleAll} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, color: "var(--teal-dark)", display: "flex", alignItems: "center" }}>
-            {allFilteredSelected ? <CheckSquare size={18} /> : <Square size={18} />}
-          </button>
-          {["Horse", "Current EXP", "Character", mode === "add" ? "EXP to Add" : "New EXP Total"].map((h) => (
+          {["Horse", "Character", "Current EXP", "New EXP"].map((h) => (
             <div key={h} style={{ fontFamily: "var(--font-lato)", fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</div>
           ))}
         </div>
 
         {filtered.length === 0 && (
-          <div style={{ padding: "32px 16px", textAlign: "center", fontFamily: "var(--font-lato)", fontSize: 14, color: "var(--text-muted)" }}>
+          <div style={{ padding: "32px 18px", textAlign: "center", fontFamily: "var(--font-lato)", fontSize: 14, color: "var(--text-muted)" }}>
             No trainable horses found.
           </div>
         )}
 
         {filtered.map((h) => {
-          const isSelected = selected.has(h.id);
-          const amount = getAmount(h.id);
-          const preview = mode === "add" ? h.trainingExp + amount : amount;
+          const val = values[h.id] ?? "";
+          const newTotal = val.trim() !== "" ? Math.max(0, parseInt(val, 10) || 0) : null;
+          const changed = val.trim() !== "";
 
           return (
             <div
               key={h.id}
-              onClick={() => toggle(h.id)}
               style={{
-                display: "grid", gridTemplateColumns: "40px 1fr 130px 100px 110px",
-                padding: "12px 16px", borderBottom: "1px solid var(--border)",
-                alignItems: "center", cursor: "pointer",
-                background: isSelected ? "rgba(135,155,149,0.07)" : "transparent",
-                transition: "background 0.1s",
+                display: "grid", gridTemplateColumns: "1fr 140px 140px 140px",
+                padding: "12px 18px", borderBottom: "1px solid var(--border)",
+                alignItems: "center",
+                background: changed ? "rgba(135,155,149,0.06)" : "transparent",
               }}
             >
-              <div style={{ color: isSelected ? "var(--teal-dark)" : "var(--text-muted)", display: "flex", alignItems: "center" }}>
-                {isSelected ? <CheckSquare size={18} /> : <Square size={18} />}
-              </div>
               <div>
                 <div style={{ fontFamily: "var(--font-lato)", fontSize: 14, fontWeight: 700, color: "var(--teal-dark)" }}>{h.name}</div>
                 {h.breed && <div style={{ fontFamily: "var(--font-lato)", fontSize: 12, color: "var(--text-muted)" }}>{h.breed}</div>}
               </div>
-              <div style={{ fontFamily: "var(--font-lato)", fontSize: 13, color: "var(--text)" }}>
-                {h.trainingExp.toLocaleString()}
-                {isSelected && mode === "add" && amount > 0 && (
-                  <span style={{ color: "var(--teal)", marginLeft: 6, fontSize: 12 }}>→ {preview.toLocaleString()}</span>
-                )}
-              </div>
-              <div style={{ fontFamily: "var(--font-lato)", fontSize: 12, color: "var(--text-muted)" }}>
+              <div style={{ fontFamily: "var(--font-lato)", fontSize: 13, color: "var(--text-muted)" }}>
                 {h.assignedCharacter ?? "—"}
               </div>
-              <div onClick={(e) => e.stopPropagation()}>
-                {isSelected ? (
-                  <input
-                    type="number" min="0"
-                    style={{ ...inp, width: 90 }}
-                    value={overrides[h.id] !== undefined ? overrides[h.id] : bulkAmount}
-                    onChange={(e) => setOverrides((prev) => ({ ...prev, [h.id]: e.target.value }))}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                ) : (
-                  <span style={{ fontFamily: "var(--font-lato)", fontSize: 13, color: "var(--text-muted)" }}>—</span>
+              <div style={{ fontFamily: "var(--font-lato)", fontSize: 14, color: "var(--text)", fontWeight: changed ? 400 : 600 }}>
+                {h.trainingExp.toLocaleString()}
+                {newTotal !== null && newTotal !== h.trainingExp && (
+                  <span style={{ color: "var(--teal)", marginLeft: 6, fontSize: 12 }}>→ {newTotal.toLocaleString()}</span>
                 )}
+              </div>
+              <div>
+                <input
+                  type="number" min="0"
+                  style={{ ...inp, width: 110, borderColor: changed ? "var(--teal)" : "var(--border)" }}
+                  value={val}
+                  placeholder={h.trainingExp.toString()}
+                  onChange={(e) => setValues((prev) => ({ ...prev, [h.id]: e.target.value }))}
+                />
               </div>
             </div>
           );
@@ -208,18 +149,15 @@ export default function BulkTrainingClient({ horses }: { horses: Horse[] }) {
       </div>
 
       {/* Save bar */}
-      {selected.size > 0 && (
+      {dirty.length > 0 && (
         <div style={{
           position: "sticky", bottom: 20,
           background: "var(--teal-dark)", borderRadius: 12, padding: "16px 24px",
           display: "flex", alignItems: "center", justifyContent: "space-between",
-          boxShadow: "0 4px 20px rgba(0,0,0,0.18)", gap: 16, flexWrap: "wrap",
+          boxShadow: "0 4px 20px rgba(0,0,0,0.18)", gap: 16,
         }}>
           <div style={{ fontFamily: "var(--font-lato)", fontSize: 14, color: "white" }}>
-            <strong>{selected.size}</strong> horse{selected.size !== 1 ? "s" : ""} selected &mdash;{" "}
-            {mode === "add" ? "adding" : "setting"}{" "}
-            {selectedArr.slice(0, 3).map((h) => `${getAmount(h.id).toLocaleString()} EXP ${mode === "add" ? "to" : "for"} ${h.name}`).join(", ")}
-            {selectedArr.length > 3 ? `, and ${selectedArr.length - 3} more` : ""}
+            <strong>{dirty.length}</strong> horse{dirty.length !== 1 ? "s" : ""} to update
           </div>
           <button
             type="button"
@@ -233,7 +171,7 @@ export default function BulkTrainingClient({ horses }: { horses: Horse[] }) {
             }}
           >
             <Dumbbell size={16} />
-            {saving ? "Saving..." : mode === "add" ? "Save Training" : "Set EXP"}
+            {saving ? "Saving..." : "Save EXP"}
           </button>
         </div>
       )}
