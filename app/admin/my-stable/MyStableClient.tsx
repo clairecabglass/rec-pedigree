@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useMemo, useRef, useEffect, memo } from "react";
 import { parseHorseCoat } from "@/lib/horseCoat";
-import { LayoutList, LayoutGrid, Search, X, Baby } from "lucide-react";
+import { LayoutList, LayoutGrid, Search, X, Baby, Dumbbell } from "lucide-react";
 
 const CHARACTERS = ["Athena Redfield", "Lucille"] as const;
 type Character = (typeof CHARACTERS)[number];
@@ -20,6 +20,7 @@ interface StableHorse {
   coat: string | null;
   assignedCharacter: string | null;
   lifeStage: string | null;
+  trainingExp: number;
   updatedAt: string;
 }
 
@@ -67,6 +68,7 @@ export default function MyStableClient({ horses, pregnancies }: { horses: Stable
   const [breedFilter, setBreedFilter] = useState<string>("");
   const [genderFilter, setGenderFilter] = useState<string>("");
   const [maturityFilter, setMaturityFilter] = useState<MaturityFilter>("all");
+  const [untrainedOnly, setUntrainedOnly] = useState(false);
   const [coatQuery, setCoatQuery] = useState("");      // raw combobox text
   const [coatValue, setCoatValue] = useState("");      // committed coat filter (raw string from DB)
 
@@ -116,12 +118,13 @@ export default function MyStableClient({ horses, pregnancies }: { horses: Stable
         if (h.lifeStage && (FOAL_STAGES as readonly string[]).includes(h.lifeStage)) return false;
       }
       if (coatValue && h.coat !== coatValue) return false;
+      if (untrainedOnly && h.trainingExp >= 2000) return false;
       if (q) {
         if (!h.name.toLowerCase().includes(q) && !h.id.toLowerCase().includes(q)) return false;
       }
       return true;
     });
-  }, [horses, character, breedFilter, genderFilter, maturityFilter, coatValue, search, nurseryView, pregByDam]);
+  }, [horses, character, breedFilter, genderFilter, maturityFilter, coatValue, search, nurseryView, untrainedOnly, pregByDam]);
 
   const visibleIds = useMemo(() => visible.map((h) => h.id), [visible]);
   const allChecked = visible.length > 0 && visible.every((h) => selected.has(h.id));
@@ -147,7 +150,7 @@ export default function MyStableClient({ horses, pregnancies }: { horses: Stable
   function clearSelection() { setSelected(new Set()); }
   function clearFilters() {
     setInputVal(""); setSearch(""); setBreedFilter(""); setGenderFilter("");
-    setMaturityFilter("all"); setCoatQuery(""); setCoatValue(""); setNurseryView(false);
+    setMaturityFilter("all"); setCoatQuery(""); setCoatValue(""); setNurseryView(false); setUntrainedOnly(false);
   }
 
   const counts = useMemo(() => {
@@ -204,7 +207,7 @@ export default function MyStableClient({ horses, pregnancies }: { horses: Stable
     router.refresh();
   }
 
-  const filtersActive = !!(search || breedFilter || genderFilter || maturityFilter !== "all" || coatValue || nurseryView);
+  const filtersActive = !!(search || breedFilter || genderFilter || maturityFilter !== "all" || coatValue || nurseryView || untrainedOnly);
   const totalLabel = `${visible.length} of ${horses.length} Home horse${horses.length !== 1 ? "s" : ""}`;
 
   return (
@@ -284,6 +287,34 @@ export default function MyStableClient({ horses, pregnancies }: { horses: Stable
           {nurseryView
             ? "Showing pregnant mares & young stock only"
             : "Isolate pregnant mares & young stock"}
+        </span>
+
+        <button
+          type="button"
+          role="switch"
+          aria-checked={untrainedOnly}
+          onClick={() => setUntrainedOnly((v) => !v)}
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 8,
+            background: untrainedOnly ? "var(--gold)" : "var(--cream)",
+            color: untrainedOnly ? "var(--teal-dark)" : "var(--teal-dark)",
+            border: `1px solid ${untrainedOnly ? "var(--gold)" : "var(--border)"}`,
+            borderRadius: 999, padding: "8px 16px", fontSize: 13, fontWeight: 700,
+            fontFamily: "var(--font-lato)", cursor: "pointer",
+            boxShadow: untrainedOnly ? "0 0 0 3px rgba(200,160,60,0.2)" : "none",
+            transition: "background 0.15s, box-shadow 0.15s",
+          }}
+        >
+          <Dumbbell size={15} strokeWidth={2.2} />
+          Untrained Only
+          {untrainedOnly && (
+            <span style={{ background: "rgba(0,0,0,0.1)", borderRadius: 999, padding: "1px 8px", fontSize: 11 }}>
+              {visible.length}
+            </span>
+          )}
+        </button>
+        <span className="text-xs" style={{ color: "var(--text-muted)", fontFamily: "var(--font-lato)" }}>
+          {untrainedOnly ? "Showing horses below 2,000 exp" : "Filter horses below 2,000 exp"}
         </span>
       </div>
 
