@@ -859,52 +859,56 @@ function InsurancePage({ h }: { h: PdfHorse }) {
   );
 }
 
-// ─── TRAINING LOG — React page (matches health book style) ────────────────────
-function TrainingLogPage({ h, results }: { h: PdfHorse; results: PdfResult[] }) {
+// ─── COMPETITION RECORD ────────────────────────────────────────────────────────
+function CompetitionRecordPage({ h, results, pgOffset }: { h: PdfHorse; results: PdfResult[]; pgOffset: number }) {
   const today = fmtDate(new Date());
-  const NUM_ROWS = 24;
-  const rows = Array.from({ length: NUM_ROWS }, (_, i) => results[i] ?? null);
+  const PER_PAGE = 14;
+  const rows = Array.from({ length: PER_PAGE }, (_, i) => results[pgOffset * PER_PAGE + i] ?? null);
+  const totalPages = Math.max(1, Math.ceil(results.length / PER_PAGE) || 1);
+  const pageNum = pgOffset + 1;
 
   return (
     <div style={base}>
-      <PageHeader title="TRAINING LOG & COMPETITION RESULTS" />
+      <PageHeader title="COMPETITION RECORD" />
 
       {/* Horse info */}
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", gap: "0 28px", marginBottom: 18 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", gap: "0 28px", marginBottom: 24 }}>
         <LabelVal label="Horse"      value={h.name} />
         <LabelVal label="Breed"      value={h.breed} />
         <LabelVal label="Gender"     value={h.gender} />
         <LabelVal label="Discipline" value={h.discipline} />
         <LabelVal label="Date"       value={today} />
       </div>
-      <div style={{ height: 1, background: TEAL_LIGHT, marginBottom: 20 }} />
+      <div style={{ height: 1, background: TEAL_LIGHT, marginBottom: 24 }} />
 
-      <Bar>Competition &amp; Show Results</Bar>
+      <Bar>Show Results</Bar>
 
       {/* Table header */}
-      <div style={{ display: "grid", gridTemplateColumns: "140px 1fr 130px 180px", background: BG, borderBottom: `1px solid ${TEAL_LIGHT}` }}>
+      <div style={{ display: "grid", gridTemplateColumns: "160px 1fr 160px 220px", background: BG, borderBottom: `1px solid ${TEAL_LIGHT}`, borderTop: `1px solid ${TEAL_LIGHT}` }}>
         {["Date", "Event / Show", "Placement", "Notes"].map(col => (
-          <div key={col} style={{ fontFamily: "var(--font-lato)", fontSize: 11, fontWeight: 700, color: MUTED, textTransform: "uppercase", letterSpacing: "0.06em", padding: "7px 10px" }}>{col}</div>
+          <div key={col} style={{ fontFamily: "var(--font-lato)", fontSize: 14, fontWeight: 700, color: MUTED, textTransform: "uppercase", letterSpacing: "0.06em", padding: "12px 16px" }}>{col}</div>
         ))}
       </div>
 
       {/* Rows */}
       {rows.map((r, i) => (
-        <div key={i} style={{ display: "grid", gridTemplateColumns: "140px 1fr 130px 180px", background: i % 2 === 0 ? WHITE : "#f9fafa", borderBottom: `1px solid ${TEAL_LIGHT}`, minHeight: 28 }}>
-          <div style={{ fontFamily: "var(--font-lato)", fontSize: 12, color: TEXT, padding: "6px 10px", borderRight: `1px solid ${TEAL_LIGHT}` }}>{r?.date ? fmtDate(r.date) : ""}</div>
-          <div style={{ fontFamily: "var(--font-lato)", fontSize: 12, color: TEXT, padding: "6px 10px", borderRight: `1px solid ${TEAL_LIGHT}` }}>{r?.event ?? ""}</div>
-          <div style={{ fontFamily: "var(--font-lato)", fontSize: 12, color: TEXT, padding: "6px 10px", borderRight: `1px solid ${TEAL_LIGHT}` }}>{r?.placement ?? ""}</div>
-          <div style={{ fontFamily: "var(--font-lato)", fontSize: 12, color: TEXT, padding: "6px 10px" }}>{r?.notes ?? ""}</div>
+        <div key={i} style={{ display: "grid", gridTemplateColumns: "160px 1fr 160px 220px", background: i % 2 === 0 ? WHITE : "#f7f9f8", borderBottom: `1px solid ${TEAL_LIGHT}`, minHeight: 52 }}>
+          <div style={{ fontFamily: "var(--font-lato)", fontSize: 14, color: TEXT, padding: "14px 16px", borderRight: `1px solid ${TEAL_LIGHT}` }}>{r?.date ? fmtDate(r.date) : ""}</div>
+          <div style={{ fontFamily: "var(--font-lato)", fontSize: 14, color: TEXT, padding: "14px 16px", borderRight: `1px solid ${TEAL_LIGHT}` }}>{r?.event ?? ""}</div>
+          <div style={{ fontFamily: "var(--font-lato)", fontSize: 14, color: TEXT, padding: "14px 16px", borderRight: `1px solid ${TEAL_LIGHT}` }}>{r?.placement ?? ""}</div>
+          <div style={{ fontFamily: "var(--font-lato)", fontSize: 14, color: TEXT, padding: "14px 16px" }}>{r?.notes ?? ""}</div>
         </div>
       ))}
 
       <div style={{ position: "absolute", bottom: PAD, left: PAD, right: PAD }}>
-        <div style={{ height: 1, background: TEAL_LIGHT, marginBottom: 10 }} />
-        <div style={{ fontFamily: "var(--font-lato)", fontSize: 11, color: MUTED, fontStyle: "italic" }}>
-          This training log is an accurate record of competition history as maintained by Redfield Equestrian Centre.
-        </div>
-        <div style={{ fontFamily: "var(--font-lato)", fontSize: 11, color: MUTED, marginTop: 4 }}>
-          Generated: {today} · Redfield Equestrian Centre
+        <div style={{ height: 1, background: TEAL_LIGHT, marginBottom: 14 }} />
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ fontFamily: "var(--font-lato)", fontSize: 13, color: MUTED, fontStyle: "italic" }}>
+            Official competition record maintained by Redfield Equestrian Centre · Generated {today}
+          </div>
+          <div style={{ fontFamily: "var(--font-lato)", fontSize: 13, color: MUTED }}>
+            Page {pageNum} of {totalPages}
+          </div>
         </div>
       </div>
     </div>
@@ -1377,7 +1381,8 @@ export default function PdfDownloader({ horse, results, players, xrayImages, tem
   const bos = useRef<HTMLDivElement>(null);
   const mrp = useRef<HTMLDivElement>(null);
   const fhr = useRef<HTMLDivElement>(null);
-  const tlg = useRef<HTMLDivElement>(null);
+  const tlg  = useRef<HTMLDivElement>(null);
+  const tlg2 = useRef<HTMLDivElement>(null);
   // Cert PNGs (for ZIP)
   const ecgcRef     = useRef<HTMLDivElement>(null);
   const cogginsRef  = useRef<HTMLDivElement>(null);
@@ -1453,8 +1458,8 @@ export default function PdfDownloader({ horse, results, players, xrayImages, tem
           <Btn disabled={!!status} onClick={() => run("Insurance", () => asPng(ins, `${sl}-insurance.png`))}>
             {status?.includes("Insurance") ? status : "↓ Insurance Cert"}
           </Btn>
-          <Btn disabled={!!status} onClick={() => run("Training Log", () => asPdf([tlg], `${sl}-training-log.pdf`))}>
-            {status?.includes("Training Log") ? status : "↓ Training Log PDF"}
+          <Btn disabled={!!status} onClick={() => run("Competition Record", () => asPdf(results.length > 14 ? [tlg, tlg2] : [tlg], `${sl}-competition-record.pdf`))}>
+            {status?.includes("Competition Record") ? status : "↓ Competition Record PDF"}
           </Btn>
         </div>
 
@@ -1513,9 +1518,9 @@ export default function PdfDownloader({ horse, results, players, xrayImages, tem
               const insUrl = await capture(ins);
               if (insUrl) { const r = await fetch(insUrl); folder.file(`${sl}-insurance.png`, await r.blob()); }
 
-              setStatus("Generating Training Log…");
-              const tlgBlob = await asPdfBlob([tlg]);
-              if (tlgBlob) folder.file(`${sl}-training-log.pdf`, tlgBlob);
+              setStatus("Generating Competition Record…");
+              const tlgBlob = await asPdfBlob(results.length > 14 ? [tlg, tlg2] : [tlg]);
+              if (tlgBlob) folder.file(`${sl}-competition-record.pdf`, tlgBlob);
 
               setStatus("Generating Farrier History…");
               const fhrUrl = await capture(fhr);
@@ -1613,7 +1618,8 @@ export default function PdfDownloader({ horse, results, players, xrayImages, tem
         <div ref={pp2} style={PS}><PPEPage2 h={horse} /></div>
         <div ref={bos} style={PS}><BillOfSalePage h={horse} buyerIgn={buyerIgn} buyerUsername={buyerUsername} buyerStable={buyerStable} mpLink={mpLink} salePrice={salePrice} saleDate={saleDate} /></div>
         <div ref={fhr} style={PS}><FarrierHistoryPage h={horse} /></div>
-        <div ref={tlg} style={PS}><TrainingLogPage h={horse} results={results} /></div>
+        <div ref={tlg}  style={PS}><CompetitionRecordPage h={horse} results={results} pgOffset={0} /></div>
+        <div ref={tlg2} style={PS}><CompetitionRecordPage h={horse} results={results} pgOffset={1} /></div>
         {/* Cert PNGs for ZIP */}
         <div ref={ecgcRef} style={{ width: 1240, height: 1754, flexShrink: 0 }}>
           <EcgcCertBody name={horse.name} breed={horse.breed ?? ""} gender={horse.gender ?? ""} dob={horse.dob ?? ""}
