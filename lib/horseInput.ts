@@ -23,5 +23,9 @@ export function sanitizeHorseInput(body: Record<string, unknown>) {
   if ("isImportedPlaceholder" in body) data.isImportedPlaceholder = Boolean(body.isImportedPlaceholder);
   if ("dob" in body) data.dob = body.dob ? new Date(body.dob as string) : null;
   if ("pedigreeTree" in body) data.pedigreeTree = body.pedigreeTree ?? null;
+  if ("trainingExp" in body) {
+    const v = parseInt(String(body.trainingExp ?? "0"), 10);
+    data.trainingExp = isNaN(v) ? 0 : Math.max(0, v);
+  }
   return data;
 }

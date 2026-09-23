@@ -20,6 +20,7 @@ export default async function MyStablePage() {
       coat: true,
       assignedCharacter: true,
       lifeStage: true,
+      trainingExp: true,
       updatedAt: true,
     },
   });

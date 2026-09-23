@@ -39,6 +39,9 @@ model Horse {
   ownerCharacter String? // in-game character
   stablePrefix   String?
 
+  // Training progression — cumulative EXP. Horses below 2000 are considered untrained.
+  trainingExp Int @default(0)
+
   // Per-server character capacity assignment. Today the two slots are
   // "Athena Redfield" and "Lucille"; nullable so non-Home rows stay clean.
   assignedCharacter String?
