@@ -724,56 +724,6 @@ function XRayPage({ h, pgOffset, images }: { h: PdfHorse; pgOffset: number; imag
 }
 
 // ─── MICROCHIP ─────────────────────────────────────────────────────────────────
-function MicrochipPage({ h }: { h: PdfHorse }) {
-  const chip    = chipNumber(h.microchip, h.id);
-  const today   = fmtDate(new Date());
-  const chipped = h.dob ? fmtDate(new Date(new Date(h.dob).getTime() + 90 * 864e5)) : today;
-  return (
-    <div style={{ ...base, display: "flex", flexDirection: "column" }}>
-      <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", opacity: 0.03 }}><CrossIcon size={900} color={TEAL_DARK} /></div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 32 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <CrossIcon size={40} />
-          <div>
-            <div style={{ fontFamily: "var(--font-lato)", fontSize: 22, fontWeight: 900, letterSpacing: "0.08em", color: TEAL_DARK }}>BELMONT</div>
-            <div style={{ fontFamily: "var(--font-lato)", fontSize: 13, color: MUTED }}>Veterinarian Clinic</div>
-          </div>
-        </div>
-        <div style={{ textAlign: "right" }}>
-          <div style={{ fontFamily: "var(--font-playfair)", fontSize: 32, color: TEXT }}>MICROCHIP</div>
-          <div style={{ fontFamily: "var(--font-playfair)", fontSize: 20, color: MUTED }}>Registration Certificate</div>
-        </div>
-      </div>
-      <div style={{ height: 2, background: TEAL, marginBottom: 56 }} />
-      <div style={{ textAlign: "center", marginBottom: 56 }}>
-        <div style={{ fontFamily: "var(--font-lato)", fontSize: 13, fontWeight: 700, color: MUTED, letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 14 }}>ISO 11784/85 Transponder Code</div>
-        <div style={{ display: "inline-block", border: `3px solid ${TEAL}`, borderRadius: 14, padding: "24px 56px", background: "rgba(135,155,149,0.06)" }}>
-          <div style={{ fontFamily: "Courier New, monospace", fontSize: 44, fontWeight: 900, letterSpacing: "0.24em", color: TEAL_DARK }}>
-            {chip.slice(0, 5)}&nbsp;{chip.slice(5, 10)}&nbsp;{chip.slice(10)}
-          </div>
-        </div>
-      </div>
-      <div style={{ background: WHITE, border: `1px solid ${TEAL_LIGHT}`, borderRadius: 8, padding: 40, marginBottom: 32 }}>
-        <Bar>Registered Animal Details</Bar>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "18px 56px" }}>
-          {([["Name", h.name], ["Breed", h.breed], ["Gender", h.gender], ["Foal Date", h.dob ? fmtDate(h.dob) : null], ["Coat", h.coat], ["Reg. Number", h.regNumber], ["Registered Stable", h.stablePrefix || "Redfield Equestrian Centre"], ["Date Chipped", chipped]] as [string, string | null][]).map(([lbl, val]) => (
-            <div key={lbl}>
-              <div style={{ fontFamily: "var(--font-lato)", fontSize: 11, fontWeight: 700, color: MUTED, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 5 }}>{lbl}</div>
-              <div style={{ fontFamily: "var(--font-lato)", fontSize: 16, color: TEXT, borderBottom: `1px solid ${TEAL_LIGHT}`, paddingBottom: 7 }}>{val || "—"}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div style={{ fontFamily: "var(--font-lato)", fontSize: 14, color: TEXT, marginBottom: 32 }}>
-        <span style={{ fontWeight: 700, color: MUTED, textTransform: "uppercase", fontSize: 11 }}>Implant Location: </span>
-        Left side of the neck, crest of the nuchal ligament, mid-cervical region — standard ICAR compliant placement (ISO 11784/85).
-      </div>
-      <div style={{ flex: 1 }} />
-      <div style={{ display: "flex", justifyContent: "flex-end" }}><SignBlock date={today} /></div>
-    </div>
-  );
-}
-
 // ─── BSE ───────────────────────────────────────────────────────────────────────
 function FertilityPage({ h }: { h: PdfHorse }) {
   const b = buildBse(h.id); const today = fmtDate(new Date());
@@ -1376,7 +1326,6 @@ export default function PdfDownloader({ horse, results, players, xrayImages, tem
   const r4  = useRef<HTMLDivElement>(null);
   const r5  = useRef<HTMLDivElement>(null);
   // Existing docs
-  const mcR = useRef<HTMLDivElement>(null);
   const frt = useRef<HTMLDivElement>(null);
   const ins = useRef<HTMLDivElement>(null);
   // New docs
@@ -1446,9 +1395,7 @@ export default function PdfDownloader({ horse, results, players, xrayImages, tem
           <Btn disabled={!!status} onClick={() => run("Health Book", () => asPdf([r0, r1, r2, r3, r4, r5], `${sl}-health-book.pdf`))}>
             {status?.includes("Health Book") ? status : "↓ Health Book PDF"}
           </Btn>
-          <Btn disabled={!!status} onClick={() => run("Microchip Card", () => asPng(mcR, `${sl}-microchip.png`))}>
-            {status?.includes("Microchip") ? status : "↓ Microchip Card"}
-          </Btn>
+
           {isStallion && (
             <Btn disabled={!!status} onClick={() => run("BSE Report", () => asPng(frt, `${sl}-bse.png`))}>
               {status?.includes("BSE") ? status : "↓ BSE Report"}
@@ -1514,10 +1461,6 @@ export default function PdfDownloader({ horse, results, players, xrayImages, tem
               if (ppeBlob) folder.file(`${sl}-ppe-report.pdf`, ppeBlob);
 
               // ── Other docs ──
-              setStatus("Generating Microchip…");
-              const mcUrl = await capture(mcR);
-              if (mcUrl) { const r = await fetch(mcUrl); folder.file(`${sl}-microchip.png`, await r.blob()); }
-
               setStatus("Generating Insurance…");
               const insUrl = await capture(ins);
               if (insUrl) { const r = await fetch(insUrl); folder.file(`${sl}-insurance.png`, await r.blob()); }
@@ -1616,7 +1559,6 @@ export default function PdfDownloader({ horse, results, players, xrayImages, tem
         <div ref={r5}  style={PS}><XRayPage h={horse} pgOffset={1} images={xrayImages} /></div>
         {isStallion && <div ref={frt} style={PS}><FertilityPage h={horse} /></div>}
         {isMare     && <div ref={mrp} style={PS}><MareReproductivePage h={horse} /></div>}
-        <div ref={mcR} style={PS}><MicrochipPage h={horse} /></div>
         <div ref={ins} style={PS}><InsurancePage h={horse} /></div>
         <div ref={pp1} style={PS}><PPEPage1 h={horse} /></div>
         <div ref={pp2} style={PS}><PPEPage2 h={horse} /></div>
