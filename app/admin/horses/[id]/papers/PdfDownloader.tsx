@@ -907,7 +907,7 @@ function CompetitionRecordPage({ h, results, pgOffset, logoSrc }: { h: PdfHorse;
         <div style={{ height: 1, background: TEAL_LIGHT, marginBottom: 14 }} />
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ fontFamily: "var(--font-lato)", fontSize: 13, color: MUTED, fontStyle: "italic" }}>
-            Official competition record maintained by Redfield Equestrian Centre · Generated {today}
+            Official competition record maintained by Redfield Equestrian Centre
           </div>
           <div style={{ fontFamily: "var(--font-lato)", fontSize: 13, color: MUTED }}>
             Page {pageNum} of {totalPages}
