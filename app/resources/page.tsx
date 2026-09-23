@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Dna, Grid3x3, Trophy, BookOpen, ArrowRight, type LucideIcon } from "lucide-react";
+import { Dna, Grid3x3, Trophy, BookOpen, Percent, ArrowRight, type LucideIcon } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Resources · Redfield Equestrian Centre",
@@ -17,10 +17,11 @@ interface ResourceCard {
   tone: { bg: string; border: string; text: string };
 }
 
-const TEAL_TONE = { bg: "var(--teal-muted)", border: "var(--teal-light)", text: "var(--teal-dark)" };
-const SAND_TONE = { bg: "var(--sand-bg)", border: "var(--sand-border)", text: "var(--sand-text)" };
-const SAGE_TONE = { bg: "var(--sage-bg)", border: "var(--sage-border)", text: "var(--sage-text)" };
-const LILAC_TONE = { bg: "var(--lilac-bg)", border: "var(--lilac-border)", text: "var(--lilac-text)" };
+const TEAL_TONE  = { bg: "var(--teal-muted)",      border: "var(--teal-light)",         text: "var(--teal-dark)" };
+const SAND_TONE  = { bg: "var(--sand-bg)",          border: "var(--sand-border)",         text: "var(--sand-text)" };
+const SAGE_TONE  = { bg: "var(--sage-bg)",          border: "var(--sage-border)",         text: "var(--sage-text)" };
+const LILAC_TONE = { bg: "var(--lilac-bg)",         border: "var(--lilac-border)",        text: "var(--lilac-text)" };
+const ROSE_TONE  = { bg: "var(--rose-bg,#fdf0f0)", border: "var(--rose-border,#f0d4d4)", text: "var(--rose-text,#7a3030)" };
 
 const CARDS: ResourceCard[] = [
   {
@@ -31,6 +32,15 @@ const CARDS: ResourceCard[] = [
     cta: "Open Calculator",
     Icon: Dna,
     tone: TEAL_TONE,
+  },
+  {
+    href: "/resources/coi-calculator",
+    title: "COI Calculator",
+    description:
+      "Upload a pedigree JSON to calculate the coefficient of inbreeding for any horse or planned pairing. Shows which shared ancestors are driving the number.",
+    cta: "Calculate COI",
+    Icon: Percent,
+    tone: ROSE_TONE,
   },
   {
     href: "/resources/course-planner",
@@ -73,7 +83,7 @@ export default function ResourcesIndexPage() {
         </h1>
       </header>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {CARDS.map((c) => (
           <ResourceCardTile key={c.href} card={c} />
         ))}
