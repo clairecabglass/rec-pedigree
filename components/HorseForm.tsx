@@ -148,8 +148,9 @@ export default function HorseForm({ initial, mode }: { initial?: HorseData; mode
     setShowPreview(true);
   }
 
+  const NAME_KEYS = new Set<keyof HorseData>(["name", "sireName", "damName"]);
   const set = (key: keyof HorseData, value: string | boolean) =>
-    setData((d) => ({ ...d, [key]: value }));
+    setData((d) => ({ ...d, [key]: NAME_KEYS.has(key) && typeof value === "string" ? value.toUpperCase() : value }));
 
   function handleJsonUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
