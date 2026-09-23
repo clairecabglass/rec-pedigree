@@ -1,6 +1,12 @@
 "use client";
 import { useRef, useState } from "react";
 import { toPng } from "html-to-image";
+import JSZip from "jszip";
+import type { HorseNode } from "@/lib/pedigree";
+import PedigreeTree from "@/components/PedigreeTree";
+import { CertBody as CogginsCertBody } from "../coggins/CogginsClient";
+import { CertBody as TrainingCertBody } from "../training-cert/TrainingCertClient";
+import { CertBody as EcgcCertBody, parseGeno, buildRows, buildInterpretation } from "../genetics-cert/GeneticsCertClient";
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
 const PW  = 1240;
@@ -1439,7 +1445,17 @@ async function asPdfBlob(refs: React.RefObject<HTMLDivElement | null>[]): Promis
 }
 
 // ─── Main component ────────────────────────────────────────────────────────────
-export interface PdfDownloaderProps { horse: PdfHorse; results: PdfResult[]; players: PdfPlayer[]; xrayImages: string[]; }
+export interface PdfDownloaderProps {
+  horse: PdfHorse;
+  results: PdfResult[];
+  players: PdfPlayer[];
+  xrayImages: string[];
+  templateDataUri: string;
+  sigLab: string;
+  tree: HorseNode | null;
+  dupes: string[];
+  allHorsesJson: string;
+}
 
 function Btn({ onClick, disabled, children }: { onClick: () => void; disabled: boolean; children: React.ReactNode }) {
   return (
@@ -1453,7 +1469,7 @@ const inputStyle: React.CSSProperties = {
   width: "100%", boxSizing: "border-box",
 };
 
-export default function PdfDownloader({ horse, results, players, xrayImages }: PdfDownloaderProps) {
+export default function PdfDownloader({ horse, results, players, xrayImages, templateDataUri, sigLab, tree, dupes, allHorsesJson }: PdfDownloaderProps) {
   // Health book
   const r0  = useRef<HTMLDivElement>(null);
   const r1  = useRef<HTMLDivElement>(null);
@@ -1471,6 +1487,11 @@ export default function PdfDownloader({ horse, results, players, xrayImages }: P
   const bos = useRef<HTMLDivElement>(null);
   const mrp = useRef<HTMLDivElement>(null);
   const fhr = useRef<HTMLDivElement>(null);
+  // Cert PNGs (for ZIP)
+  const ecgcRef     = useRef<HTMLDivElement>(null);
+  const cogginsRef  = useRef<HTMLDivElement>(null);
+  const trainingRef = useRef<HTMLDivElement>(null);
+  const pedRef      = useRef<HTMLDivElement>(null);
 
   const [status, setStatus]             = useState<string | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<string>("");
@@ -1493,6 +1514,16 @@ export default function PdfDownloader({ horse, results, players, xrayImages }: P
   const sl         = horseSlug(horse.name);
   const isStallion = horse.gender === "Stallion";
   const isMare     = horse.gender === "Mare";
+
+  // Cert PNG computed values
+  const geno           = parseGeno(horse.genotype ?? "");
+  const ecgcRows       = buildRows(geno, horse.coat ?? "");
+  const interpretation = buildInterpretation(geno, horse.coat ?? "", horse.name);
+  const testDate       = new Date().toLocaleDateString("en-GB");
+  const baseRows       = ecgcRows.slice(0, 2);
+  const diluteRows     = ecgcRows.slice(2, 11);
+  const patternRows    = ecgcRows.slice(11);
+  const dupeSet        = new Set(dupes);
 
   async function run(label: string, fn: () => Promise<void>) {
     setStatus(`Generating ${label}…`);
@@ -1546,14 +1577,34 @@ export default function PdfDownloader({ horse, results, players, xrayImages }: P
           </Btn>
         </div>
 
-        {/* ZIP all vet docs */}
+        {/* ZIP ALL PAPERS */}
         <div>
           <Btn disabled={!!status} onClick={async () => {
             run("ZIP", async () => {
-              const { default: JSZip } = await import("jszip");
               const zip = new JSZip();
               const folder = zip.folder(sl) ?? zip;
 
+              // ── Cert PNGs ──
+              setStatus("Generating ECGC…");
+              const ecgcUrl = await capture(ecgcRef);
+              if (ecgcUrl) { const r = await fetch(ecgcUrl); folder.file(`${sl}-genetics-cert.png`, await r.blob()); }
+              await new Promise<void>(res => setTimeout(res, 300));
+
+              setStatus("Generating Coggins…");
+              const cogUrl = await capture(cogginsRef);
+              if (cogUrl) { const r = await fetch(cogUrl); folder.file(`${sl}-coggins.png`, await r.blob()); }
+              await new Promise<void>(res => setTimeout(res, 300));
+
+              setStatus("Generating Training Cert…");
+              const trUrl = await capture(trainingRef);
+              if (trUrl) { const r = await fetch(trUrl); folder.file(`${sl}-training-cert.png`, await r.blob()); }
+              await new Promise<void>(res => setTimeout(res, 300));
+
+              setStatus("Generating Lineage…");
+              const pedUrl = await capture(pedRef);
+              if (pedUrl) { const r = await fetch(pedUrl); folder.file(`${sl}-lineage.png`, await r.blob()); }
+
+              // ── Vet PDFs ──
               setStatus("Generating Health Book…");
               const hbBlob = await asPdfBlob([r0, r1, r2, r3, r4, r5]);
               if (hbBlob) folder.file(`${sl}-health-book.pdf`, hbBlob);
@@ -1562,6 +1613,7 @@ export default function PdfDownloader({ horse, results, players, xrayImages }: P
               const ppeBlob = await asPdfBlob([pp1, pp2]);
               if (ppeBlob) folder.file(`${sl}-ppe-report.pdf`, ppeBlob);
 
+              // ── Other docs ──
               setStatus("Generating Microchip…");
               const mcUrl = await capture(mcR);
               if (mcUrl) { const r = await fetch(mcUrl); folder.file(`${sl}-microchip.png`, await r.blob()); }
@@ -1588,11 +1640,11 @@ export default function PdfDownloader({ horse, results, players, xrayImages }: P
               setStatus("Building ZIP…");
               const zipBlob = await zip.generateAsync({ type: "blob" });
               const url = URL.createObjectURL(zipBlob);
-              const a = document.createElement("a"); a.href = url; a.download = `${sl}-vet-documents.zip`; a.click();
+              const a = document.createElement("a"); a.href = url; a.download = `${sl}-all-papers.zip`; a.click();
               URL.revokeObjectURL(url);
             });
           }}>
-            {status?.includes("ZIP") || status?.includes("Health Book") || status?.includes("PPE") || status?.includes("Micro") || status?.includes("Insurance") || status?.includes("Farrier") || status?.includes("BSE") || status?.includes("Repro") || status?.includes("Building") ? status : "↓ ZIP All Vet Docs"}
+            {status ? status : "↓ ZIP All Papers"}
           </Btn>
         </div>
 
@@ -1666,6 +1718,24 @@ export default function PdfDownloader({ horse, results, players, xrayImages }: P
         <div ref={pp2} style={PS}><PPEPage2 h={horse} /></div>
         <div ref={bos} style={PS}><BillOfSalePage h={horse} buyerIgn={buyerIgn} buyerUsername={buyerUsername} buyerStable={buyerStable} mpLink={mpLink} salePrice={salePrice} saleDate={saleDate} /></div>
         <div ref={fhr} style={PS}><FarrierHistoryPage h={horse} /></div>
+        {/* Cert PNGs for ZIP */}
+        <div ref={ecgcRef} style={{ width: 1240, height: 1754, flexShrink: 0 }}>
+          <EcgcCertBody name={horse.name} breed={horse.breed ?? ""} gender={horse.gender ?? ""} dob={horse.dob ?? ""}
+            regNumber={horse.regNumber ?? ""} testDate={testDate}
+            baseRows={baseRows} diluteRows={diluteRows} patternRows={patternRows}
+            interpretation={interpretation} sigBreeder="" sigLab={sigLab} />
+        </div>
+        <div ref={cogginsRef} style={{ flexShrink: 0 }}>
+          <CogginsCertBody id={horse.id} name={horse.name} breed={horse.breed ?? ""} gender={horse.gender ?? ""}
+            dob={horse.dob ?? ""} regNumber={horse.regNumber ?? ""} coat={horse.coat ?? ""} />
+        </div>
+        <div ref={trainingRef} style={{ flexShrink: 0 }}>
+          <TrainingCertBody name={horse.name} templateDataUri={templateDataUri} />
+        </div>
+        {/* Pedigree tree for ZIP */}
+        <div ref={pedRef} style={{ flexShrink: 0, padding: 32, background: "var(--white)" }}>
+          <PedigreeTree node={tree} dupes={dupeSet} allHorses={allHorsesJson} bare compact fixedDepth={6} bareBg="white" />
+        </div>
       </div>
     </>
   );
